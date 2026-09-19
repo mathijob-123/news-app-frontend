@@ -19,7 +19,7 @@ import {
   PlaySquare,
   Camera
 } from 'lucide-react';
-import type { VideoPost, User, RadiusFilter } from '../../types';
+import type { VideoPost, User } from '../../types';
 import { formatDistance } from '../../services/geoService';
 import { isWatchQualified } from '../../services/monetizationEngine';
 import { recordQualifiedView } from '../../services/storageService';
@@ -36,8 +36,6 @@ interface SpotsPlayerProps {
   onAddComment: (postId: string, text: string) => void;
   getCommentsForPost: (postId: string) => any[];
   onSendTip: (postId: string, amount: number, creatorName: string) => void;
-  radiusKm: RadiusFilter;
-  onSelectRadius: (radius: RadiusFilter) => void;
   onOpenCreate?: () => void;
 }
 
@@ -51,8 +49,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onAddComment,
   getCommentsForPost,
   onSendTip,
-  radiusKm,
-  onSelectRadius,
   onOpenCreate
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,7 +59,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
-  const [showRadiusSheet, setShowRadiusSheet] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
 
@@ -91,6 +86,21 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     setIsQualifiedView(false);
     setIsPlaying(true);
     setCaptionExpanded(false);
+
+    if (currentPost?.type === 'image') {
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const progress = Math.min(100, (elapsed / 3) * 100);
+        setWatchProgress(progress);
+        if (elapsed >= 3) {
+          setIsQualifiedView(true);
+          recordQualifiedView(currentPost.id);
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
 
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
@@ -219,45 +229,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           position: 'relative'
         }}
       >
-        {/* Top Bar with Radius Control */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10, paddingTop: '10px' }}>
-          <button
-            onClick={() => setShowRadiusSheet(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: '#ffffff',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 700,
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)'
-            }}
-          >
-            <Compass size={14} color="var(--brand-primary)" />
-            <span>Radius: {radiusKm === 100 ? 'Citywide (100km)' : `${radiusKm}km`}</span>
-            <ChevronDown size={13} />
-          </button>
 
-          <span
-            style={{
-              fontSize: '11px',
-              color: 'rgba(255, 255, 255, 0.65)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              padding: '4px 10px',
-              borderRadius: '20px'
-            }}
-          >
-            <MapPin size={12} color="var(--brand-primary)" />
-            <span>Chennai / Tiruvallur</span>
-          </span>
-        </div>
 
         {/* Centered Empty State Content */}
         <div
@@ -300,7 +272,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               marginBottom: '8px'
             }}
           >
-            No News Reels in Your Area
+            No News Reels Available
           </h3>
 
           <p
@@ -311,7 +283,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               marginBottom: '20px'
             }}
           >
-            No citizen reports with short-video footage have been published within {radiusKm === 100 ? 'the district' : `${radiusKm}km`}. Be the first citizen journalist to broadcast ground reality!
+            No citizen reports with short-video footage have been published yet. Be the first citizen journalist to broadcast ground reality!
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
@@ -336,29 +308,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
                 <span>Record First News Reel</span>
               </button>
             )}
-
-            {radiusKm !== 100 && (
-              <button
-                onClick={() => onSelectRadius(100)}
-                style={{
-                  width: '100%',
-                  padding: '11px 18px',
-                  borderRadius: '12px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#ffffff',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Compass size={16} />
-                <span>Expand to Citywide (100km)</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -381,49 +330,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             <span style={{ fontWeight: 700, color: '#ffffff' }}>Admin Video Grants Active:</span> Verified reels in Chennai & Tiruvallur earn cash bounties & UPI view royalties.
           </div>
         </div>
-
-        {/* Radius Selector Bottom Sheet */}
-        {showRadiusSheet && (
-          <div className="bottom-sheet-backdrop" onClick={() => setShowRadiusSheet(false)}>
-            <div
-              className="bottom-sheet-content"
-              onClick={(e) => e.stopPropagation()}
-              style={{ background: '#1e293b', color: '#ffffff', borderTop: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              <div className="sheet-handle-bar" style={{ background: 'rgba(255,255,255,0.3)' }} />
-              <div style={{ padding: '0 16px 16px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>
-                  Filter Spots by Distance
-                </h3>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '14px' }}>
-                  Choose your radar radius from your active coordinates in North Tamil Nadu
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                  {([1, 3, 5, 10, 25, 100] as RadiusFilter[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => {
-                        onSelectRadius(r);
-                        setShowRadiusSheet(false);
-                      }}
-                      style={{
-                        padding: '12px',
-                        borderRadius: '10px',
-                        background: radiusKm === r ? 'var(--brand-primary)' : 'rgba(255,255,255,0.06)',
-                        color: '#ffffff',
-                        border: radiusKm === r ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                        fontWeight: 700,
-                        fontSize: '13px'
-                      }}
-                    >
-                      {r === 100 ? 'Citywide (100km)' : `${r} km`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -434,96 +340,30 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* 1. Top Bar: Location radar, Distance radius filter & Qualified View Progress */}
-      <div className="spots-top-gradient" />
-      
-      <div className="qualified-view-indicator">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-          {/* Distance Filter Button */}
-          <button
-            onClick={() => setShowRadiusSheet(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              background: 'rgba(15, 23, 42, 0.65)',
-              color: '#ffffff',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              fontSize: '11px',
-              fontWeight: 700,
-              backdropFilter: 'blur(6px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
-            }}
-          >
-            <Compass size={13} color="var(--brand-primary)" />
-            <span>Spots Radius: {radiusKm === 100 ? 'City' : `${radiusKm}km`}</span>
-            <ChevronDown size={12} />
-          </button>
 
-          {/* Sound Toggle */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (videoRef.current) {
-                videoRef.current.muted = !videoRef.current.muted;
-                setIsMuted(videoRef.current.muted);
-              }
-            }}
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              color: '#ffffff',
-              padding: '5px',
-              borderRadius: '50%',
-              backdropFilter: 'blur(6px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
-            }}
-          >
-            {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-          </button>
-        </div>
-
-        {/* 3s / 50% Anti-Fraud Monetization Progress Bar */}
-        <div className="qualified-progress-track">
-          <div
-            className="qualified-progress-fill"
-            style={{
-              width: `${isQualifiedView ? 100 : watchProgress}%`,
-              background: isQualifiedView ? '#10b981' : 'var(--brand-gradient)'
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
-          <div className={`qualified-view-tag ${isQualifiedView ? 'verified' : ''}`}>
-            {isQualifiedView ? (
-              <>
-                <CheckCircle2 size={11} color="#ffffff" />
-                <span>Verified View Recorded (+₹0.52 Creator Payout)</span>
-              </>
-            ) : (
-              <span>Anti-fraud view verification: {Math.round(watchProgress)}%</span>
-            )}
-          </div>
-          <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '10px', fontWeight: 600 }}>
-            {currentIndex + 1} / {posts.length}
-          </span>
-        </div>
-      </div>
 
       {/* 2. Main Reel Video Surface */}
       <div className="spots-slider" onClick={handleVideoAreaClick}>
         <div className="spots-slide">
-          <video
-            ref={videoRef}
-            src={currentPost.mediaUrl}
-            poster={currentPost.thumbnailUrl}
-            loop
-            playsInline
-            muted={isMuted}
-            onTimeUpdate={handleTimeUpdate}
-            className="spots-video"
-          />
+          {currentPost.type === 'image' ? (
+            <img
+              src={currentPost.mediaUrl}
+              alt={currentPost.headline}
+              className="spots-video"
+              style={{ objectFit: 'contain', width: '100%', height: '100%', background: '#000000' }}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={currentPost.mediaUrl}
+              poster={currentPost.thumbnailUrl}
+              loop
+              playsInline
+              muted={isMuted}
+              onTimeUpdate={handleTimeUpdate}
+              className="spots-video"
+            />
+          )}
 
           {/* Pause overlay icon */}
           {!isPlaying && (
@@ -636,6 +476,25 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           <span className="rail-label">Save</span>
         </button>
 
+        {/* Sound Toggle (Mute / Unmute) */}
+        {currentPost.type === 'video' && (
+          <button
+            className="rail-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoRef.current) {
+                videoRef.current.muted = !videoRef.current.muted;
+                setIsMuted(videoRef.current.muted);
+              }
+            }}
+          >
+            <div className="rail-icon-circle">
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </div>
+            <span className="rail-label">{isMuted ? 'Muted' : 'Sound'}</span>
+          </button>
+        )}
+
         {/* Report Citizen Ethics */}
         <button
           className="rail-btn"
@@ -652,25 +511,25 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
 
       {/* 5. Bottom Overlay Content (Creator, Headline, Location Pin) */}
       <div className="spots-overlay-content">
-        {/* Creator Identity */}
+        {/* Compact Creator & Meta Row */}
         <div className="spots-creator-row">
           <img
-            src={currentPost.creatorAvatar}
+            src={currentPost.creatorAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentPost.creatorName || 'Reporter')}`}
             alt={currentPost.creatorName}
             className="spots-creator-avatar"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentPost.creatorName || 'Reporter')}`;
+            }}
           />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontWeight: 700, fontSize: '13px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-                @{currentPost.creatorHandle}
-              </span>
-              {currentPost.creatorVerified && (
-                <CheckCircle2 size={13} color="var(--brand-primary)" fill="#ffffff" />
-              )}
-            </div>
-            <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.75)' }}>
-              Verified Citizen Reporter
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontWeight: 700, fontSize: '12.5px', textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>
+              @{currentPost.creatorHandle}
             </span>
+            {currentPost.creatorVerified && (
+              <CheckCircle2 size={12} color="var(--brand-primary)" fill="#ffffff" />
+            )}
           </div>
 
           <button
@@ -687,111 +546,95 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           >
             {followedCreators[currentPost.creatorId] ? 'Following' : '+ Follow'}
           </button>
-        </div>
 
-        {/* Location & Category Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '3px',
-              background: 'rgba(255, 69, 0, 0.85)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 700
-            }}
-          >
-            <MapPin size={11} />
-            <span>
-              {currentPost.distanceKm !== undefined
-                ? formatDistance(currentPost.distanceKm)
-                : currentPost.location.neighborhood || currentPost.location.placeName}
+          {/* Inline Compact Meta Pills */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                background: 'rgba(255, 69, 0, 0.85)',
+                padding: '1.5px 6px',
+                borderRadius: '4px',
+                fontSize: '9.5px',
+                fontWeight: 700
+              }}
+            >
+              <MapPin size={9} />
+              <span>
+                {currentPost.location.neighborhood || currentPost.location.placeName || 'Local'}
+              </span>
             </span>
+
+            <span
+              style={{
+                background: 'rgba(15, 23, 42, 0.65)',
+                padding: '1.5px 6px',
+                borderRadius: '4px',
+                fontSize: '9px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em'
+              }}
+            >
+              {currentPost.category}
+            </span>
+
+            {(currentPost.adminReviewStatus === 'bounty_awarded' || currentPost.adminReviewStatus === 'verified_approved') && (
+              <span
+                style={{
+                  background: 'rgba(16, 185, 129, 0.9)',
+                  color: '#ffffff',
+                  padding: '1.5px 6px',
+                  borderRadius: '4px',
+                  fontSize: '9.5px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px'
+                }}
+              >
+                <CheckCircle2 size={9} />
+                <span>₹{currentPost.priceAward || currentPost.adminPayoutAmount || currentPost.adminBountyAwarded || 50} Paid</span>
+              </span>
+            )}
           </div>
-          <span
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '10px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}
-          >
-            {currentPost.category}
-          </span>
-          {currentPost.adminReviewStatus === 'bounty_awarded' && (
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: '#ffffff',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: 800,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <Award size={11} />
-              <span>Admin Bounty Paid: ₹{currentPost.adminBountyAwarded || 1000}</span>
-            </span>
-          )}
-          {currentPost.adminReviewStatus === 'verified_approved' && (
-            <span
-              style={{
-                background: 'rgba(16, 185, 129, 0.9)',
-                color: '#ffffff',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: 800,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px'
-              }}
-            >
-              <CheckCircle2 size={11} />
-              <span>Admin Verified & Paid: ₹{currentPost.adminPayoutAmount || 850}</span>
-            </span>
-          )}
         </div>
 
-        {/* Headline */}
+        {/* Headline (Clamped to 2 lines max) */}
         <h2 className="spots-headline">{currentPost.headline}</h2>
 
-        {/* Caption (Expandable) */}
-        <p
-          className={`spots-caption ${captionExpanded ? 'expanded' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setCaptionExpanded(!captionExpanded);
-          }}
-        >
-          {currentPost.caption}
-        </p>
+        {/* Caption (Deduplicated: only show if distinct from headline) */}
+        {currentPost.caption && currentPost.caption.trim() !== currentPost.headline.trim() && (
+          <p
+            className={`spots-caption ${captionExpanded ? 'expanded' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCaptionExpanded(!captionExpanded);
+            }}
+          >
+            {currentPost.caption}
+          </p>
+        )}
 
-        {/* Source citation */}
+        {/* Compact Source Citation */}
         {currentPost.sourceCitation && (
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(16, 185, 129, 0.2)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
+              gap: '3px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
               color: '#34d399',
-              fontSize: '10px',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              marginTop: '4px'
+              fontSize: '9.5px',
+              padding: '1px 5px',
+              borderRadius: '3px',
+              maxWidth: 'fit-content'
             }}
           >
-            <ShieldCheck size={11} />
+            <ShieldCheck size={9} />
             <span>{currentPost.sourceCitation}</span>
           </div>
         )}
@@ -814,53 +657,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           onClose={() => setShowTipModal(false)}
           onSendTip={(amt) => onSendTip(currentPost.id, amt, currentPost.creatorName)}
         />
-      )}
-
-      {/* 8. Distance Radius Filter Sheet */}
-      {showRadiusSheet && (
-        <div className="bottom-sheet-backdrop" onClick={() => setShowRadiusSheet(false)}>
-          <div
-            className="bottom-sheet-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{ padding: '16px' }}
-          >
-            <div className="sheet-handle-bar" />
-            <div className="bottom-sheet-header">
-              <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Spots Hyperlocal Radius</h3>
-              <button
-                onClick={() => setShowRadiusSheet(false)}
-                style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-              >
-                Done
-              </button>
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '10px 0 14px' }}>
-              Filter video reels by proximity to your current location:
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-              {([1, 5, 25, 100] as RadiusFilter[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => {
-                    onSelectRadius(r);
-                    setShowRadiusSheet(false);
-                  }}
-                  style={{
-                    padding: '12px 0',
-                    borderRadius: '10px',
-                    fontWeight: 700,
-                    fontSize: '13px',
-                    background: radiusKm === r ? 'var(--brand-gradient)' : '#f8fafc',
-                    color: radiusKm === r ? '#ffffff' : 'var(--text-primary)',
-                    border: radiusKm === r ? 'none' : '1px solid var(--border-subtle)'
-                  }}
-                >
-                  {r === 100 ? 'My City' : `${r}km`}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

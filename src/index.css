@@ -52,8 +52,8 @@
 
   /* Dimensions */
   --app-max-width: 480px;
-  --header-height: 56px;
-  --bottom-nav-height: 56px;
+  --header-height: 52px;
+  --bottom-nav-height: 48px;
 }
 
 /* Reset & Defaults */
@@ -246,7 +246,7 @@ input, textarea, select {
   bottom: 0;
   z-index: 40;
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(2px, env(safe-area-inset-bottom, 0px));
   padding-left: max(4px, env(safe-area-inset-left, 0px));
   padding-right: max(4px, env(safe-area-inset-right, 0px));
   background: var(--bg-surface);
@@ -297,8 +297,8 @@ input, textarea, select {
 }
 
 .nav-create-fab {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: var(--brand-gradient);
   color: #ffffff;
@@ -306,7 +306,7 @@ input, textarea, select {
   align-items: center;
   justify-content: center;
   box-shadow: var(--brand-glow);
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   transition: all 0.2s ease;
 }
 
@@ -347,22 +347,28 @@ input, textarea, select {
 
 /* Category Filter Bar */
 .category-filter-bar {
+  height: 46px;
+  min-height: 46px;
+  max-height: 46px;
+  width: 100%;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 8px 12px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 .category-filter-bar::-webkit-scrollbar {
   display: none;
 }
 
 .category-chip {
+  height: 28px;
   white-space: nowrap;
-  padding: 5px 12px;
+  padding: 0 13px;
   border-radius: var(--radius-full);
   font-size: 11px;
   font-weight: 600;
@@ -370,6 +376,11 @@ input, textarea, select {
   background: var(--bg-surface-subtle);
   border: 1px solid var(--border-subtle);
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .category-chip:hover {
@@ -467,22 +478,34 @@ input, textarea, select {
 .category-tag-badge.sports { background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; }
 
 .feed-card-body {
-  padding: 4px 14px 10px;
+  padding: 6px 14px 8px;
 }
 
 .feed-headline {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.35;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .feed-caption {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-secondary);
-  line-height: 1.45;
-  margin-bottom: 10px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .source-citation-bar {
@@ -502,7 +525,8 @@ input, textarea, select {
   position: relative;
   width: 100%;
   background: #0f172a;
-  aspect-ratio: 16 / 9;
+  height: 200px;
+  max-height: 200px;
   overflow: hidden;
 }
 
@@ -613,8 +637,8 @@ input, textarea, select {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 48%;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  height: 18%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
   pointer-events: none;
 }
 
@@ -631,12 +655,12 @@ input, textarea, select {
 /* Spots Right Action Rail */
 .spots-action-rail {
   position: absolute;
-  right: 10px;
-  bottom: calc(var(--bottom-nav-height) + 16px);
+  right: 8px;
+  bottom: calc(var(--bottom-nav-height) + 6px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   z-index: 20;
 }
 
@@ -644,13 +668,13 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   color: #ffffff;
 }
 
 .rail-icon-circle {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(8px);
@@ -679,58 +703,76 @@ input, textarea, select {
 /* Spots Overlay Content */
 .spots-overlay-content {
   position: absolute;
-  bottom: calc(var(--bottom-nav-height) + 12px);
-  left: 12px;
-  right: 68px;
+  bottom: calc(var(--bottom-nav-height) + 3px);
+  left: 10px;
+  right: 56px;
   z-index: 20;
   color: #ffffff;
+  max-height: 20vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: auto;
 }
 
 .spots-creator-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 5px;
+  margin-bottom: 3px;
+  flex-wrap: wrap;
 }
 
 .spots-creator-avatar {
-  width: 36px;
-  height: 36px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  border: 2px solid var(--brand-primary);
+  border: 1.5px solid var(--brand-primary);
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .spots-follow-btn {
   background: var(--brand-gradient);
   color: #ffffff;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 1.5px 6px;
   border-radius: var(--radius-full);
+  line-height: 1.2;
 }
 
 .spots-headline {
-  font-size: 15px;
+  font-size: 12.5px;
   font-weight: 700;
-  line-height: 1.35;
-  margin-bottom: 6px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-.spots-caption {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.88);
-  line-height: 1.4;
-  margin-bottom: 8px;
+  line-height: 1.25;
+  margin-bottom: 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.spots-caption {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.35;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+  word-break: break-word;
 }
 
 .spots-caption.expanded {
-  -webkit-line-clamp: unset;
+  -webkit-line-clamp: 3;
+  overflow-y: auto;
+  max-height: 80px;
 }
 
 /* Qualified View Progress Bar */

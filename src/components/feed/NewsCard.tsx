@@ -25,6 +25,21 @@ interface NewsCardProps {
   onShare: (post: VideoPost) => void;
 }
 
+const formatPostDate = (dateStr?: string) => {
+  if (!dateStr) return 'Just now';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+};
+
 export const NewsCard: React.FC<NewsCardProps> = ({
   post,
   onLike,
@@ -55,10 +70,15 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       <div className="feed-card-header">
         <div className="reporter-badge-group">
           <img
-            src={post.creatorAvatar}
+            src={post.creatorAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.creatorName || 'Reporter')}`}
             alt={post.creatorName}
             className="reporter-avatar"
             loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.creatorName || 'Reporter')}`;
+            }}
           />
           <div className="reporter-meta">
             <div className="reporter-name-row">
@@ -70,7 +90,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             <div className="reporter-sub-row">
               <span>@{post.creatorHandle}</span>
               <span>•</span>
-              <span>{post.createdAt}</span>
+              <span>{formatPostDate(post.createdAt)}</span>
             </div>
           </div>
         </div>
@@ -83,9 +103,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
           <div className="location-tag-badge">
             <MapPin size={10} />
             <span>
-              {post.distanceKm !== undefined
-                ? formatDistance(post.distanceKm)
-                : post.location.neighborhood || post.location.placeName}
+              {post.location.neighborhood || post.location.placeName || 'Local'}
             </span>
           </div>
         </div>
@@ -139,7 +157,9 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         <h2 className="feed-headline" onClick={() => onOpenSpots(post)} style={{ cursor: 'pointer' }}>
           {post.headline}
         </h2>
-        <p className="feed-caption">{post.caption}</p>
+        {post.caption && post.caption.trim() !== post.headline.trim() && (
+          <p className="feed-caption">{post.caption}</p>
+        )}
 
         {post.sourceCitation && (
           <div className="source-citation-bar">

@@ -23,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         onClick={() => onChangeTab('spots')}
         title="Spots — Short Video News Reels"
       >
-        <PlaySquare size={21} />
+        <PlaySquare size={19} />
         <span>Spots</span>
       </button>
 
@@ -33,7 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         onClick={() => onChangeTab('home')}
         title="Chennai & Tiruvallur News Feed"
       >
-        <Newspaper size={21} />
+        <Newspaper size={19} />
         <span>Feed</span>
       </button>
 
@@ -44,7 +44,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           onClick={onOpenCreate}
           title="File Citizen News Report"
         >
-          <Plus size={24} strokeWidth={2.6} />
+          <Plus size={21} strokeWidth={2.6} />
         </button>
       </div>
 
@@ -54,7 +54,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         onClick={() => onChangeTab('monetization')}
         title="Creator Earnings & Payouts (INR ₹)"
       >
-        <DollarSign size={21} />
+        <DollarSign size={19} />
         <span>Earnings</span>
       </button>
 
@@ -64,7 +64,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         onClick={() => onChangeTab('profile')}
         title="Reporter Profile & Library"
       >
-        <User size={21} />
+        <User size={19} />
         <span>Profile</span>
       </button>
     </nav>

@@ -12,15 +12,13 @@ import {
   Users,
   Newspaper
 } from 'lucide-react';
-import type { VideoPost, LocationCoordinates, RadiusFilter } from '../../types';
+import type { VideoPost, LocationCoordinates } from '../../types';
 import { NewsMapView } from './NewsMapView';
 import { formatDistance } from '../../services/geoService';
 
 interface SearchScreenProps {
   posts: VideoPost[];
   userLocation: LocationCoordinates;
-  radiusKm: RadiusFilter;
-  onSelectRadius: (radius: RadiusFilter) => void;
   onOpenPost: (post: VideoPost) => void;
   onClose?: () => void;
 }
@@ -30,8 +28,6 @@ type SearchTab = 'news' | 'creators' | 'locations' | 'topics';
 export const SearchScreen: React.FC<SearchScreenProps> = ({
   posts,
   userLocation,
-  radiusKm,
-  onSelectRadius,
   onOpenPost,
   onClose
 }) => {
@@ -53,12 +49,9 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
         post.creatorName.toLowerCase().includes(query.toLowerCase()) ||
         post.creatorHandle.toLowerCase().includes(query.toLowerCase());
 
-      const matchRadius =
-        post.distanceKm === undefined || radiusKm === 100 || post.distanceKm <= radiusKm;
-
-      return matchQuery && matchRadius;
+      return matchQuery;
     });
-  }, [posts, query, radiusKm]);
+  }, [posts, query]);
 
   // Unique creators in current scope
   const uniqueCreators = useMemo(() => {
@@ -229,28 +222,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
               <span>Hyperlocal Map</span>
             </button>
           </div>
-
-          {/* Radius Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <SlidersHorizontal size={11} color="var(--brand-primary)" />
-            {([1, 5, 25, 100] as RadiusFilter[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => onSelectRadius(r)}
-                style={{
-                  padding: '2px 7px',
-                  borderRadius: '5px',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  background: radiusKm === r ? 'var(--brand-primary)' : '#ffffff',
-                  color: radiusKm === r ? '#ffffff' : 'var(--text-secondary)',
-                  border: radiusKm === r ? 'none' : '1px solid var(--border-subtle)'
-                }}
-              >
-                {r === 100 ? 'City' : `${r}km`}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Search Result Category Tabs */}
@@ -291,7 +262,6 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
           <NewsMapView
             posts={filteredPosts}
             userLocation={userLocation}
-            radiusKm={radiusKm}
             onSelectPost={onOpenPost}
           />
         ) : (
@@ -346,7 +316,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: '280px', margin: '0 auto' }}>
                       {query.trim()
                         ? 'Try searching by a broader locality, neighborhood, or category tag.'
-                        : `No ground news reports found within ${radiusKm === 100 ? 'the district' : `${radiusKm}km`}.`}
+                        : 'No ground news reports found. Be the first to report local updates!'}
                     </p>
                   </div>
                 ) : (

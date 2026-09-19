@@ -11,6 +11,10 @@ import { ProfileScreen } from './components/profile/ProfileScreen';
 import { CreateModal } from './components/create/CreateModal';
 import { CommentsDrawer } from './components/spots/CommentsDrawer';
 import { AdminPage } from './components/admin/AdminPage';
+import { AuthPage } from './components/auth/AuthPage';
+import { ProfileOnboarding } from './components/auth/ProfileOnboarding';
+import { AdminAuth } from './components/admin/AdminAuth';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Newspaper, Plus, Compass, ShieldCheck } from 'lucide-react';
 import type {
   VideoPost,
@@ -19,7 +23,6 @@ import type {
   Transaction,
   LocationCoordinates,
   NewsCategory,
-  RadiusFilter,
   TabType
 } from './types';
 import {
@@ -40,19 +43,28 @@ import {
   approveAdminPayout
 } from './services/storageService';
 import { calculateDistanceKm } from './services/geoService';
+import { apiClient } from './services/apiClient';
 import { WifiOff } from 'lucide-react';
 
-export const App: React.FC = () => {
+export const AppContent: React.FC = () => {
+  const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('spots');
   const [posts, setPosts] = useState<VideoPost[]>(getStoredPosts());
-  const [user, setUser] = useState<User>(getStoredUser());
+  const [user, setUser] = useState<User>(() => authUser || getStoredUser());
   const [wallet, setWallet] = useState<Wallet>(getStoredWallet());
   const [transactions, setTransactions] = useState<Transaction[]>(getStoredTransactions());
   const [activeLocation, setActiveLocation] = useState<LocationCoordinates>(getActiveLocation());
 
+  // Sync authenticated user into app user state
+  useEffect(() => {
+    if (authUser) {
+      setUser(authUser);
+      saveUser(authUser);
+    }
+  }, [authUser]);
+
   // Filters
-  const [categoryFilter, setCategoryFilter] = useState<NewsCategory | 'nearby' | 'following'>('all');
-  const [radiusKm, setRadiusKm] = useState<RadiusFilter>(5);
+  const [categoryFilter, setCategoryFilter] = useState<NewsCategory | 'following'>('all');
 
   // Modals & Navigation
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -75,12 +87,40 @@ export const App: React.FC = () => {
     setCurrentPath(path);
   };
 
-  const refreshAppData = () => {
-    setPosts(getStoredPosts());
+  const refreshAppData = async () => {
+    try {
+      const serverPosts = await apiClient.getPosts();
+      if (serverPosts && serverPosts.length > 0) {
+        setPosts(serverPosts);
+        savePosts(serverPosts);
+      } else {
+        setPosts(getStoredPosts());
+      }
+    } catch {
+      setPosts(getStoredPosts());
+    }
     setWallet(getStoredWallet());
     setTransactions(getStoredTransactions());
     setUser(getStoredUser());
   };
+
+  // Fetch real posts from Supabase PostgreSQL database on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadServerPosts() {
+      try {
+        const serverPosts = await apiClient.getPosts();
+        if (isMounted && serverPosts && serverPosts.length > 0) {
+          setPosts(serverPosts);
+          savePosts(serverPosts);
+        }
+      } catch (err) {
+        console.warn('[App] Could not fetch server posts, using local cache:', err);
+      }
+    }
+    loadServerPosts();
+    return () => { isMounted = false; };
+  }, []);
 
   // Monitor network online/offline status
   useEffect(() => {
@@ -107,35 +147,40 @@ export const App: React.FC = () => {
     });
   }, [posts, activeLocation]);
 
-  // Filtered posts for Home Feed
-  const feedPosts = useMemo(() => {
-    return postsWithDistance.filter((post) => {
-      // Radius filter
-      if (radiusKm !== 100 && post.distanceKm !== undefined && post.distanceKm > radiusKm) {
-        return false;
-      }
+  // A post is public ONLY after the Bureau Editorial Desk approves it
+  const isPostPublic = (post: VideoPost): boolean => {
+    if (post.adminReviewStatus) {
+      return post.adminReviewStatus === 'verified_approved' || post.adminReviewStatus === 'bounty_awarded';
+    }
+    return post.status === 'published';
+  };
 
+  // Public approved posts for distribution
+  const publicPostsWithDistance = useMemo(() => {
+    return postsWithDistance.filter(isPostPublic);
+  }, [postsWithDistance]);
+
+  // Filtered posts for Home Feed (all approved posts, filtered by category)
+  const feedPosts = useMemo(() => {
+    return publicPostsWithDistance.filter((post) => {
       // Category filter
       if (categoryFilter === 'all') return true;
-      if (categoryFilter === 'nearby') {
-        return post.distanceKm !== undefined && post.distanceKm <= 3;
-      }
       if (categoryFilter === 'following') {
         return false;
       }
       return post.category === categoryFilter;
     });
-  }, [postsWithDistance, categoryFilter, radiusKm]);
+  }, [publicPostsWithDistance, categoryFilter]);
 
-  // Spots videos only
+  // Spots dispatches (public approved videos & photo stories)
   const spotsPosts = useMemo(() => {
-    return postsWithDistance.filter((p) => p.type === 'video');
-  }, [postsWithDistance]);
+    return publicPostsWithDistance.filter((p) => p.type === 'video' || p.type === 'image');
+  }, [publicPostsWithDistance]);
 
-  // Urgent breaking post
+  // Urgent breaking post (public approved)
   const breakingPost = useMemo(() => {
-    return postsWithDistance.find((p) => p.isBreaking && (p.distanceKm || 0) <= 5);
-  }, [postsWithDistance]);
+    return publicPostsWithDistance.find((p) => p.isBreaking);
+  }, [publicPostsWithDistance]);
 
   // Actions
   const handleLike = (postId: string) => {
@@ -188,8 +233,12 @@ export const App: React.FC = () => {
     const updatedPosts = [newPost, ...posts];
     setPosts(updatedPosts);
     savePosts(updatedPosts);
-    setSelectedSpotPostId(newPost.id);
-    setActiveTab('spots');
+    if (newPost.type === 'video') {
+      setSelectedSpotPostId(newPost.id);
+      setActiveTab('spots');
+    } else {
+      setActiveTab('home');
+    }
   };
 
   const handleRequestPayout = (amt: number, method: string) => {
@@ -218,13 +267,84 @@ export const App: React.FC = () => {
     saveUser(updated);
   };
 
+  // Loading state while verifying token with Supabase
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090d16 60%, #020617 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ffffff',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        }}
+      >
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #ff4500 0%, #f59e0b 100%)',
+            boxShadow: '0 0 30px #ff4500',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '16px'
+          }}
+        >
+          <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffffff' }} />
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em' }}>LocalPulse Spotlight</div>
+        <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '6px' }}>
+          Verifying secure session (Supabase & Cloudflare R2)...
+        </div>
+      </div>
+    );
+  }
+
+  // Mandatory Authentication: Must Login before using the application
+  if (!isAuthenticated) {
+    if (currentPath === '/admin' || currentPath === '/admin/login') {
+      return (
+        <AdminAuth
+          onLoginSuccess={() => navigateTo('/admin')}
+          onReturnHome={() => navigateTo('/')}
+        />
+      );
+    }
+    return (
+      <AuthPage
+        onSuccess={() => navigateTo('/')}
+        onAdminSuccess={() => navigateTo('/admin')}
+        onNewUser={() => navigateTo('/')}
+      />
+    );
+  }
+
   // Dedicated Separate /admin Route with Authentication
-  if (currentPath === '/admin') {
+  if (currentPath === '/admin' || currentPath === '/admin/login') {
     return (
       <AdminPage
         posts={posts}
         onRefreshData={refreshAppData}
         onNavigateHome={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // New User Onboarding: Must complete profile before accessing main app
+  if (!isAdmin && (authUser?.onboardingCompleted === false || user.onboardingCompleted === false)) {
+    return (
+      <ProfileOnboarding
+        initialUser={authUser || user}
+        onComplete={(completedUser) => {
+          setUser(completedUser);
+          saveUser(completedUser);
+          navigateTo('/');
+        }}
       />
     );
   }
@@ -259,6 +379,7 @@ export const App: React.FC = () => {
             activeLocation={activeLocation}
             onSelectLocation={handleSelectLocation}
             onOpenSearch={() => setShowSearchModal(true)}
+            onOpenAdmin={() => navigateTo('/admin')}
           />
         )}
 
@@ -273,12 +394,10 @@ export const App: React.FC = () => {
                 onOpenPost={handleOpenPostInSpots}
               />
 
-              {/* Category & Radius Filters */}
+              {/* Category Filter */}
               <CategoryFilter
                 selectedCategory={categoryFilter}
                 onSelectCategory={setCategoryFilter}
-                radiusKm={radiusKm}
-                onSelectRadius={setRadiusKm}
               />
 
               {/* Feed Cards List */}
@@ -320,7 +439,7 @@ export const App: React.FC = () => {
                         marginBottom: '6px'
                       }}
                     >
-                      No Local Reports in Your Radius
+                      No Reports Found
                     </h3>
 
                     <p
@@ -333,8 +452,8 @@ export const App: React.FC = () => {
                       }}
                     >
                       {categoryFilter !== 'all'
-                        ? `No stories found under "${categoryFilter}" within ${radiusKm === 100 ? 'the district' : `${radiusKm}km`}.`
-                        : `There are currently no citizen news dispatches within ${radiusKm === 100 ? 'the district' : `${radiusKm}km`} of ${activeLocation.neighborhood || activeLocation.placeName || 'your location'}.`}
+                        ? `No stories found under "${categoryFilter}".`
+                        : `There are currently no citizen news dispatches available.`}
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' }}>
@@ -370,28 +489,6 @@ export const App: React.FC = () => {
                           }}
                         >
                           View All Categories
-                        </button>
-                      )}
-
-                      {radiusKm !== 100 && (
-                        <button
-                          onClick={() => setRadiusKm(100)}
-                          style={{
-                            padding: '9px 14px',
-                            borderRadius: '10px',
-                            background: '#f8fafc',
-                            border: '1px solid var(--border-subtle)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: 'var(--brand-primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          <Compass size={14} />
-                          <span>Expand to Citywide (100km)</span>
                         </button>
                       )}
                     </div>
@@ -442,8 +539,6 @@ export const App: React.FC = () => {
               onAddComment={handleAddComment}
               getCommentsForPost={(id) => getStoredComments(id)}
               onSendTip={handleSendTip}
-              radiusKm={radiusKm}
-              onSelectRadius={setRadiusKm}
               onOpenCreate={() => setShowCreateModal(true)}
             />
           )}
@@ -501,8 +596,6 @@ export const App: React.FC = () => {
             <SearchScreen
               posts={postsWithDistance}
               userLocation={activeLocation}
-              radiusKm={radiusKm}
-              onSelectRadius={setRadiusKm}
               onOpenPost={(post) => {
                 setShowSearchModal(false);
                 handleOpenPostInSpots(post);
@@ -532,6 +625,14 @@ export const App: React.FC = () => {
         )}
       </div>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

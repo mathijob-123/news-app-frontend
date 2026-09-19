@@ -151,8 +151,13 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
           }}
         >
           <img
-            src={currentUser.avatar}
+            src={currentUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.displayName || 'User')}`}
             alt={currentUser.displayName}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.displayName || 'User')}`;
+            }}
             style={{
               width: '28px',
               height: '28px',

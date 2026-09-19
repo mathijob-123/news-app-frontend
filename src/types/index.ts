@@ -26,10 +26,15 @@ export interface LocationCoordinates {
   radiusMeters?: number;
 }
 
+export type UserRole = 'user' | 'creator' | 'admin';
+
 export interface User {
   id: string;
   handle: string;
   displayName: string;
+  email?: string;
+  role: UserRole;
+  authProvider?: 'local' | 'google';
   avatar: string;
   bio: string;
   homeLocation: LocationCoordinates;
@@ -40,6 +45,33 @@ export interface User {
   followerCount: number;
   followingCount: number;
   walletId: string;
+  onboardingCompleted?: boolean;
+}
+
+export interface RegisterPayload {
+  displayName: string;
+  handle?: string;
+  email: string;
+  password: string;
+  role?: UserRole;
+  avatar?: string;
+  bio?: string;
+}
+
+export interface LoginPayload {
+  identifier: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  token: string;
+  user: User;
+  wallet?: any;
+  message?: string;
+  error?: string;
+  isAdmin?: boolean;
+  isNewUser?: boolean;
 }
 
 export interface Comment {
@@ -85,6 +117,8 @@ export interface VideoPost {
   // Admin Verification & Payout Engine
   adminReviewStatus?: AdminReviewStatus;
   adminPayoutAmount?: number; // Amount paid in ₹ by Platform Admins
+  priceAward?: number; // Price award allocated by admin upon approval in ₹
+  rpmRate?: number; // RPM rate allocated by admin (₹ per 1,000 qualified views)
   adminBountyAwarded?: number; // Breaking news bounty bonus paid by Admins
   adminDisbursedDate?: string;
   adminReviewerDesk?: string; // e.g. "Chennai & Tiruvallur Admin Bureau"

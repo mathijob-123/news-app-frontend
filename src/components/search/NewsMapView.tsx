@@ -6,7 +6,6 @@ import type { VideoPost, LocationCoordinates } from '../../types';
 interface NewsMapViewProps {
   posts: VideoPost[];
   userLocation: LocationCoordinates;
-  radiusKm: number;
   onSelectPost: (post: VideoPost) => void;
 }
 
@@ -42,13 +41,11 @@ const getCategorySvg = (cat: string) => {
 export const NewsMapView: React.FC<NewsMapViewProps> = ({
   posts,
   userLocation,
-  radiusKm,
   onSelectPost
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const radiusCircleRef = useRef<L.Circle | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -97,20 +94,6 @@ export const NewsMapView: React.FC<NewsMapViewProps> = ({
     // Clear existing markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
-
-    if (radiusCircleRef.current) {
-      radiusCircleRef.current.remove();
-    }
-
-    // Draw active radius geofence circle
-    radiusCircleRef.current = L.circle([userLocation.lat, userLocation.lng], {
-      radius: (radiusKm === 100 ? 25 : radiusKm) * 1000,
-      color: '#ff4500',
-      fillColor: '#ff4500',
-      fillOpacity: 0.06,
-      weight: 1.5,
-      dashArray: '4, 6'
-    }).addTo(map);
 
     // Add pins for each news post
     posts.forEach((post) => {
@@ -184,7 +167,7 @@ export const NewsMapView: React.FC<NewsMapViewProps> = ({
     return () => {
       // Cleanup on full unmount handled if necessary
     };
-  }, [posts, userLocation, radiusKm]);
+  }, [posts, userLocation]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -216,7 +199,7 @@ export const NewsMapView: React.FC<NewsMapViewProps> = ({
           <MapPin size={12} color="var(--brand-primary)" />
           <span>{posts.length} Hyperlocal events mapped</span>
         </span>
-        <span style={{ color: 'var(--brand-primary)' }}>Radius: {radiusKm === 100 ? 'City' : `${radiusKm}km`}</span>
+        <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>Interactive Map</span>
       </div>
     </div>
   );

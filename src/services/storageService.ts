@@ -15,7 +15,7 @@ import {
   INITIAL_TRANSACTIONS,
   INITIAL_COMMENTS
 } from '../data/mockNewsData';
-import { calculatePostEarnings } from './monetizationEngine';
+import { calculatePostEarnings, BASE_RPM } from './monetizationEngine';
 
 const STORAGE_KEYS = {
   POSTS: 'lp_posts_v5_zero_mock',
@@ -219,7 +219,7 @@ export function recordQualifiedView(postId: string): {
       // (1 / 1000) * base_RPM (4.50) * tierMultiplier (1.1) * localityMultiplier (1.5) = $0.007425
       const user = getStoredUser();
       if (post.creatorId === user.id) {
-        const breakdown = calculatePostEarnings(1, user.creatorTier, true);
+        const breakdown = calculatePostEarnings(1, user.creatorTier, true, post.rpmRate || BASE_RPM);
         earnedAmount = breakdown.totalEarnings || 0.01;
 
         const wallet = getStoredWallet();
@@ -403,6 +403,78 @@ export function updatePostReviewStatus(
   if (status === 'verified_approved' || status === 'bounty_awarded') {
     post.status = 'published';
   }
+  savePosts(posts);
+  return post;
+}
+
+/**
+ * Step 2: Accept and Publish Post handled by Admin with Geotag, Radius, Citation, Price Award & RPM.
+ */
+export function acceptAndPublishPostByAdmin(
+  postId: string,
+  editorialData: {
+    landmark: string;
+    neighborhood: string;
+    lat: number;
+    lng: number;
+    radiusMeters: number;
+    sourceCitation: string;
+    isBreaking: boolean;
+    priceAward?: number;
+    grantAmount?: number;
+    rpmRate?: number;
+    reviewerDesk?: string;
+  }
+): VideoPost | null {
+  const posts = getStoredPosts();
+  const post = posts.find((p) => p.id === postId);
+  if (!post) return null;
+
+  const allocatedPriceAward = editorialData.priceAward ?? editorialData.grantAmount ?? 100;
+  const allocatedRpm = editorialData.rpmRate ?? 350;
+
+  post.location = {
+    ...post.location,
+    placeName: editorialData.landmark,
+    neighborhood: editorialData.neighborhood,
+    lat: editorialData.lat,
+    lng: editorialData.lng,
+    radiusMeters: editorialData.radiusMeters
+  };
+  post.sourceCitation = editorialData.sourceCitation;
+  post.isBreaking = editorialData.isBreaking;
+  post.adminReviewStatus = editorialData.isBreaking ? 'bounty_awarded' : 'verified_approved';
+  post.status = 'published'; // Every post becomes public only after admin accepts it!
+  post.priceAward = allocatedPriceAward;
+  post.adminPayoutAmount = allocatedPriceAward;
+  post.rpmRate = allocatedRpm;
+  post.adminDisbursedDate = new Date().toISOString();
+  post.adminReviewerDesk = editorialData.reviewerDesk || 'Chennai & Tiruvallur Admin Bureau';
+
+  // Credit the creator's wallet with the allocated Price Award
+  if (allocatedPriceAward > 0) {
+    const wallet = getStoredWallet();
+    wallet.balance = parseFloat((wallet.balance + allocatedPriceAward).toFixed(2));
+    wallet.lifetimeEarnings = parseFloat((wallet.lifetimeEarnings + allocatedPriceAward).toFixed(2));
+    wallet.thisMonthEarnings = parseFloat((wallet.thisMonthEarnings + allocatedPriceAward).toFixed(2));
+    saveWallet(wallet);
+
+    const txs = getStoredTransactions();
+    txs.unshift({
+      id: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      walletId: wallet.id,
+      type: editorialData.isBreaking ? 'bounty' : 'admin_payout',
+      amount: allocatedPriceAward,
+      relatedPostId: post.id,
+      relatedPostTitle: `Bureau Price Award: ${post.headline.slice(0, 32)}...`,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+      method: 'Spotlight Bureau Treasury (Instant UPI)',
+      adminDesk: editorialData.reviewerDesk || 'Chennai & Tiruvallur Admin Bureau'
+    });
+    saveTransactions(txs);
+  }
+
   savePosts(posts);
   return post;
 }

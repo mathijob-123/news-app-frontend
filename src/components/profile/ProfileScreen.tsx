@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Settings,
   Edit3,
@@ -15,9 +15,16 @@ import {
   Trash2,
   X,
   Share2,
-  Newspaper
+  Newspaper,
+  LogOut,
+  Camera,
+  RefreshCw,
+  Award,
+  Clock
 } from 'lucide-react';
 import type { User, VideoPost } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/authService';
 
 interface ProfileScreenProps {
   user: User;
@@ -38,9 +45,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onUpdateUser,
   onOpenAdmin
 }) => {
+  const { logout, updateUser: authUpdateUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Edit profile state
   const [nameInput, setNameInput] = useState(user.displayName);
@@ -48,6 +58,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [neighborhoodInput, setNeighborhoodInput] = useState(
     user.homeLocation.neighborhood || user.homeLocation.placeName
   );
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const publicR2Url = await authService.uploadAvatarToR2(file);
+      const updated: User = { ...user, avatar: publicR2Url };
+      onUpdateUser(updated);
+      authUpdateUser(updated);
+    } catch (err: any) {
+      alert('Avatar upload to R2 failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +88,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       }
     };
     onUpdateUser(updated);
+    authUpdateUser(updated);
     setShowEditModal(false);
   };
 
@@ -87,16 +114,56 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ position: 'relative' }}>
             <img
-              src={user.avatar}
+              src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`}
               alt={user.displayName}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`;
+              }}
               style={{
                 width: '74px',
                 height: '74px',
                 borderRadius: '50%',
                 objectFit: 'cover',
-                border: '3px solid #ff4500'
+                border: isAdmin ? '3px solid #10b981' : '3px solid #ff4500'
               }}
             />
+
+            {/* Hidden file input for Cloudflare R2 avatar upload */}
+            <input
+              type="file"
+              ref={avatarInputRef}
+              onChange={handleAvatarUpload}
+              accept="image/*"
+              style={{ display: 'none' }}
+            />
+
+            {/* Camera Upload Button on Avatar */}
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={isUploadingAvatar}
+              title="Upload new avatar to Cloudflare R2"
+              style={{
+                position: 'absolute',
+                bottom: '0',
+                left: '0',
+                background: '#0f172a',
+                color: '#ffffff',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid #ffffff',
+                cursor: 'pointer',
+                padding: 0
+              }}
+            >
+              {isUploadingAvatar ? <RefreshCw size={11} className="spin" /> : <Camera size={11} />}
+            </button>
+
             {user.verified && (
               <div
                 style={{
@@ -110,12 +177,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   justifyContent: 'center'
                 }}
               >
-                <CheckCircle2 size={20} color="var(--brand-primary)" fill="#ffedd5" />
+                <CheckCircle2 size={20} color={isAdmin ? '#10b981' : 'var(--brand-primary)'} fill={isAdmin ? '#d1fae5' : '#ffedd5'} />
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
+            {isAdmin && onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#059669',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                <ShieldCheck size={13} />
+                <span>Admin</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowEditModal(true)}
               style={{
@@ -128,7 +217,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '4px',
+                cursor: 'pointer'
               }}
             >
               <Edit3 size={13} />
@@ -142,11 +232,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 borderRadius: '50%',
                 background: '#f1f5f9',
                 border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)'
+                color: 'var(--text-secondary)',
+                cursor: 'pointer'
               }}
               title="Settings & PWA config"
             >
               <Settings size={16} />
+            </button>
+
+            <button
+              onClick={logout}
+              style={{
+                padding: '7px',
+                borderRadius: '50%',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#ef4444',
+                cursor: 'pointer'
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={16} />
             </button>
           </div>
         </div>
@@ -157,24 +263,46 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {user.displayName}
             </h2>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                background: '#fff7ed',
-                color: 'var(--brand-primary)',
-                border: '1px solid #ffedd5',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                textTransform: 'uppercase'
-              }}
-            >
-              {user.creatorTier} Tier
-            </span>
+            {user.role === 'admin' ? (
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  background: '#ecfdf5',
+                  color: '#059669',
+                  border: '1px solid #a7f3d0',
+                  padding: '2px 8px',
+                  borderRadius: '999px'
+                }}
+              >
+                SuperAdmin
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  background: '#fff7ed',
+                  color: 'var(--brand-primary)',
+                  border: '1px solid #ffedd5',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {user.creatorTier} Tier
+              </span>
+            )}
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>
-            @{user.handle}
+          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600 }}>@{user.handle}</span>
+            {user.email && <span>• {user.email}</span>}
+            {user.authProvider === 'google' && (
+              <span style={{ fontSize: '10px', fontWeight: 700, background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
+                Google Verified
+              </span>
+            )}
           </div>
 
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: '8px' }}>
@@ -416,6 +544,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   alt={post.headline}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
+                {post.adminReviewStatus === 'pending_review' && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      left: '4px',
+                      background: 'rgba(234, 88, 12, 0.95)',
+                      color: '#ffffff',
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    <Clock size={10} />
+                    <span>In Review</span>
+                  </div>
+                )}
                 <div
                   style={{
                     position: 'absolute',
