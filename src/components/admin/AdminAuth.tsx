@@ -108,23 +108,28 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
   return (
     <div
       style={{
-        minHeight: '100vh',
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100%',
         background: 'radial-gradient(circle at 50% 15%, #064e3b 0%, #090d16 55%, #020617 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px 16px',
+        padding: '60px 16px 80px 16px',
         color: '#ffffff',
-        position: 'relative',
-        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif"
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
+        zIndex: 9999
       }}
     >
       {/* Return to App Button */}
       <button
         onClick={onReturnHome}
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: '20px',
           left: '20px',
           display: 'flex',
@@ -138,7 +143,8 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           fontSize: '12px',
           fontWeight: 700,
           cursor: 'pointer',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          zIndex: 10000
         }}
       >
         <ArrowLeft size={14} />
@@ -150,6 +156,7 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
         style={{
           width: '100%',
           maxWidth: '430px',
+          margin: 'auto 0',
           background: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(25px)',
           WebkitBackdropFilter: 'blur(25px)',

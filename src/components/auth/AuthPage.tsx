@@ -161,24 +161,27 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   return (
     <div
       style={{
-        minHeight: '100vh',
+        position: 'fixed',
+        inset: 0,
         width: '100%',
+        height: '100%',
         background: 'radial-gradient(circle at 50% 12%, #1e1b4b 0%, #090d16 50%, #030712 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px 16px',
+        padding: '32px 16px 80px 16px',
         color: '#ffffff',
         fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
-        position: 'relative',
-        overflow: 'hidden'
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        zIndex: 9999
       }}
     >
       {/* Decorative ambient glowing background */}
       <div
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: '-70px',
           left: '50%',
           transform: 'translateX(-50%)',
@@ -196,6 +199,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         style={{
           width: '100%',
           maxWidth: '420px',
+          margin: 'auto 0',
           background: 'rgba(15, 23, 42, 0.8)',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
