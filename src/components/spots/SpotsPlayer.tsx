@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -19,7 +19,7 @@ import {
   PlaySquare,
   Camera
 } from 'lucide-react';
-import type { VideoPost, User } from '../../types';
+import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { formatDistance } from '../../services/geoService';
 import { isWatchQualified } from '../../services/monetizationEngine';
 import { recordQualifiedView } from '../../services/storageService';
@@ -30,6 +30,8 @@ interface SpotsPlayerProps {
   posts: VideoPost[];
   initialPostId?: string;
   currentUser: User;
+  activeLocation?: LocationCoordinates;
+  onOpenLocationPicker?: () => void;
   onLike: (postId: string) => void;
   onSave: (postId: string) => void;
   onShare: (post: VideoPost) => void;
@@ -37,19 +39,23 @@ interface SpotsPlayerProps {
   getCommentsForPost: (postId: string) => any[];
   onSendTip: (postId: string, amount: number, creatorName: string) => void;
   onOpenCreate?: () => void;
+  onReportCopyright?: (post: VideoPost) => void;
 }
 
 export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   posts,
   initialPostId,
   currentUser,
+  activeLocation,
+  onOpenLocationPicker,
   onLike,
   onSave,
   onShare,
   onAddComment,
   getCommentsForPost,
   onSendTip,
-  onOpenCreate
+  onOpenCreate,
+  onReportCopyright
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -67,17 +73,22 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const watchSecondsRef = useRef<number>(0);
   const touchStartYRef = useRef<number>(0);
 
+  // Spotlight Rule: STRICTLY video / reel posts only (NO images, NO fallback to images!)
+  const videoReels = useMemo(() => {
+    return posts.filter((p) => p.type === 'video');
+  }, [posts]);
+
   // Set initial post index if specified
   useEffect(() => {
     if (initialPostId) {
-      const idx = posts.findIndex((p) => p.id === initialPostId);
+      const idx = videoReels.findIndex((p) => p.id === initialPostId);
       if (idx !== -1) {
         setCurrentIndex(idx);
       }
     }
-  }, [initialPostId, posts]);
+  }, [initialPostId, videoReels]);
 
-  const currentPost = posts[currentIndex] || posts[0];
+  const currentPost = videoReels[currentIndex] || videoReels[0];
 
   // Reset watch tracking on slide change
   useEffect(() => {
@@ -86,21 +97,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     setIsQualifiedView(false);
     setIsPlaying(true);
     setCaptionExpanded(false);
-
-    if (currentPost?.type === 'image') {
-      const startTime = Date.now();
-      const interval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const progress = Math.min(100, (elapsed / 3) * 100);
-        setWatchProgress(progress);
-        if (elapsed >= 3) {
-          setIsQualifiedView(true);
-          recordQualifiedView(currentPost.id);
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
-    }
 
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
@@ -126,7 +122,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, posts.length]);
+  }, [currentIndex, videoReels.length]);
 
   // Handle video playback time updates & qualified view tracking
   const handleTimeUpdate = () => {
@@ -194,7 +190,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   };
 
   const goToNext = () => {
-    if (currentIndex < posts.length - 1) {
+    if (currentIndex < videoReels.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       // Loop back to start
@@ -215,7 +211,10 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }));
   };
 
+  // Empty state: Spotlight rule requirement:
+  // "If there are no reels for that location, display a message like 'No reels available for your location,' rather than showing an image."
   if (!currentPost) {
+    const locName = activeLocation?.neighborhood || activeLocation?.placeName || 'your location';
     return (
       <div
         className="spots-container"
@@ -229,7 +228,40 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           position: 'relative'
         }}
       >
+        {/* Top Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10, paddingTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="pulse-beacon" />
+            <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Spotlight Reels
+            </span>
+          </div>
 
+          {onOpenLocationPicker && (
+            <button
+              onClick={onOpenLocationPicker}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '16px',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: 'pointer'
+              }}
+            >
+              <MapPin size={11} color="var(--brand-primary)" />
+              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {locName}
+              </span>
+              <ChevronDown size={11} />
+            </button>
+          )}
+        </div>
 
         {/* Centered Empty State Content */}
         <div
@@ -240,7 +272,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             textAlign: 'center',
-            padding: '20px 16px',
+            padding: '24px 16px',
             maxWidth: '360px',
             margin: '0 auto',
             zIndex: 10
@@ -248,19 +280,38 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
         >
           <div
             style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '22px',
+              width: '76px',
+              height: '76px',
+              borderRadius: '24px',
               background: 'rgba(255, 69, 0, 0.12)',
               border: '1.5px solid rgba(255, 69, 0, 0.35)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '16px',
-              boxShadow: '0 0 30px rgba(255, 69, 0, 0.2)'
+              boxShadow: '0 0 35px rgba(255, 69, 0, 0.25)'
             }}
           >
-            <PlaySquare size={36} color="var(--brand-primary)" strokeWidth={2} />
+            <PlaySquare size={38} color="var(--brand-primary)" strokeWidth={2} />
+          </div>
+
+          {/* Location Badge */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              marginBottom: '12px'
+            }}
+          >
+            <MapPin size={13} color="var(--brand-primary)" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#f1f5f9' }}>
+              {locName}
+            </span>
           </div>
 
           <h3
@@ -269,21 +320,34 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               fontWeight: 800,
               color: '#ffffff',
               letterSpacing: '-0.02em',
-              marginBottom: '8px'
+              marginBottom: '6px'
             }}
           >
-            No News Reels Available
+            No reels available for your location
           </h3>
+
+          <div
+            style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: 'var(--brand-primary)',
+              marginBottom: '12px'
+            }}
+          >
+            உங்கள் பகுதியில் ரீல்ஸ் எதுவும் இல்லை
+          </div>
 
           <p
             style={{
               fontSize: '13px',
-              color: 'rgba(255, 255, 255, 0.7)',
-              lineHeight: 1.5,
-              marginBottom: '20px'
+              color: 'rgba(255, 255, 255, 0.72)',
+              lineHeight: 1.55,
+              marginBottom: '22px'
             }}
           >
-            No citizen reports with short-video footage have been published yet. Be the first citizen journalist to broadcast ground reality!
+            {activeLocation?.placeName
+              ? `There are currently no video reels published for ${activeLocation.neighborhood || activeLocation.placeName}. Spotlight exclusively streams video dispatches from your active location.`
+              : 'There are currently no video reels published for your location. Spotlight exclusively streams video dispatches from your active location.'}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
@@ -308,6 +372,30 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
                 <span>Record First News Reel</span>
               </button>
             )}
+
+            {onOpenLocationPicker && (
+              <button
+                onClick={onOpenLocationPicker}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Compass size={14} />
+                <span>Switch Location / பகுதி மாற்றவும்</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -327,7 +415,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
         >
           <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.8)', lineHeight: 1.35 }}>
-            <span style={{ fontWeight: 700, color: '#ffffff' }}>Admin Video Grants Active:</span> Verified reels in Chennai & Tiruvallur earn cash bounties & UPI view royalties.
+            <span style={{ fontWeight: 700, color: '#ffffff' }}>Spotlight Verified:</span> Only high-trust video reels from your immediate vicinity are broadcast here.
           </div>
         </div>
       </div>
@@ -340,30 +428,81 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* 1. Top Location Pill & Reeling Badge */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 14,
+          left: 14,
+          right: 14,
+          zIndex: 30,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pointerEvents: 'none'
+        }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenLocationPicker) onOpenLocationPicker();
+          }}
+          style={{
+            pointerEvents: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '20px',
+            padding: '5px 12px',
+            color: '#ffffff',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          <MapPin size={12} color="var(--brand-primary)" />
+          <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {activeLocation?.neighborhood || activeLocation?.placeName || currentPost.location.neighborhood || currentPost.location.placeName}
+          </span>
+          <ChevronDown size={12} />
+        </button>
 
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '20px',
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--brand-primary)'
+          }}
+        >
+          <span>REELS ONLY</span>
+        </div>
+      </div>
 
-      {/* 2. Main Reel Video Surface */}
+      {/* 2. Main Reel Video Surface (STRICTLY video posts only, no images) */}
       <div className="spots-slider" onClick={handleVideoAreaClick}>
         <div className="spots-slide">
-          {currentPost.type === 'image' ? (
-            <img
-              src={currentPost.mediaUrl}
-              alt={currentPost.headline}
-              className="spots-video"
-              style={{ objectFit: 'contain', width: '100%', height: '100%', background: '#000000' }}
-            />
-          ) : (
-            <video
-              ref={videoRef}
-              src={currentPost.mediaUrl}
-              poster={currentPost.thumbnailUrl}
-              loop
-              playsInline
-              muted={isMuted}
-              onTimeUpdate={handleTimeUpdate}
-              className="spots-video"
-            />
-          )}
+          <video
+            ref={videoRef}
+            src={currentPost.mediaUrl}
+            poster={currentPost.thumbnailUrl}
+            loop
+            playsInline
+            muted={isMuted}
+            onTimeUpdate={handleTimeUpdate}
+            className="spots-video"
+            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+          />
 
           {/* Pause overlay icon */}
           {!isPlaying && (
@@ -495,17 +634,23 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           </button>
         )}
 
-        {/* Report Citizen Ethics */}
+        {/* Report Copyright & Citizen Ethics */}
         <button
           className="rail-btn"
+          title="Report copyright infringement / ethics"
           onClick={(e) => {
             e.stopPropagation();
-            alert('Report filed with LocalPulse Citizen Ethics & Trust Board for rapid review.');
+            if (onReportCopyright) {
+              onReportCopyright(currentPost);
+            } else {
+              alert('Report filed with LocalPulse Citizen Ethics & Trust Board for rapid review.');
+            }
           }}
         >
           <div className="rail-icon-circle" style={{ width: '34px', height: '34px' }}>
             <Flag size={15} color="rgba(255, 255, 255, 0.7)" />
           </div>
+          <span className="rail-label" style={{ fontSize: '9px' }}>Report</span>
         </button>
       </div>
 

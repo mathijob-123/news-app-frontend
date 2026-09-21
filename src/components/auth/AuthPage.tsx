@@ -373,6 +373,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
         </div>
 
+        {/* Quick Dev Login (Bypasses Google Origin restriction for local testing) */}
+        <div style={{ marginBottom: '20px', width: '100%', maxWidth: '320px', margin: '0 auto 20px auto' }}>
+          <button
+            type="button"
+            onClick={handleOneClickGoogle}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '11px 16px',
+              borderRadius: '999px',
+              background: 'rgba(255, 69, 0, 0.15)',
+              border: '1px solid rgba(255, 69, 0, 0.45)',
+              color: '#fb923c',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 10px rgba(255, 69, 0, 0.1)'
+            }}
+          >
+            <Zap size={15} />
+            <span>Instant SuperAdmin Dev Access (jrinfotech)</span>
+          </button>
+        </div>
+
         {/* Feature Highlights */}
         <div
           style={{

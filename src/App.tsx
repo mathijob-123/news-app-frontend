@@ -14,8 +14,12 @@ import { AdminPage } from './components/admin/AdminPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { ProfileOnboarding } from './components/auth/ProfileOnboarding';
 import { AdminAuth } from './components/admin/AdminAuth';
+import { FeedAdCard } from './components/feed/FeedAdCard';
+import { CopyrightReportModal } from './components/copyright/CopyrightReportModal';
+import { NotificationModal } from './components/notifications/NotificationModal';
+import { LocationPickerModal } from './components/common/LocationPickerModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Newspaper, Plus, Compass, ShieldCheck } from 'lucide-react';
+import { Newspaper, Plus, Compass, ShieldCheck, WifiOff } from 'lucide-react';
 import type {
   VideoPost,
   User,
@@ -23,7 +27,8 @@ import type {
   Transaction,
   LocationCoordinates,
   NewsCategory,
-  TabType
+  TabType,
+  Advertisement
 } from './types';
 import {
   getStoredPosts,
@@ -40,16 +45,21 @@ import {
   sendTip,
   getActiveLocation,
   saveActiveLocation,
-  approveAdminPayout
+  approveAdminPayout,
+  getStoredAds,
+  saveStoredAds,
+  trackStoredAdImpression,
+  trackStoredAdClick,
+  getStoredNotifications
 } from './services/storageService';
-import { calculateDistanceKm } from './services/geoService';
+import { calculateDistanceKm, isLocationMatch } from './services/geoService';
 import { apiClient } from './services/apiClient';
-import { WifiOff } from 'lucide-react';
 
 export const AppContent: React.FC = () => {
   const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('spots');
   const [posts, setPosts] = useState<VideoPost[]>(getStoredPosts());
+  const [ads, setAds] = useState<Advertisement[]>(getStoredAds());
   const [user, setUser] = useState<User>(() => authUser || getStoredUser());
   const [wallet, setWallet] = useState<Wallet>(getStoredWallet());
   const [transactions, setTransactions] = useState<Transaction[]>(getStoredTransactions());
@@ -69,8 +79,12 @@ export const AppContent: React.FC = () => {
   // Modals & Navigation
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedSpotPostId, setSelectedSpotPostId] = useState<string | undefined>(undefined);
   const [commentsDrawerPost, setCommentsDrawerPost] = useState<VideoPost | null>(null);
+  const [reportCopyrightPost, setReportCopyrightPost] = useState<VideoPost | null>(null);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   // Dedicated URL Routing (supports / and /admin)
@@ -99,14 +113,42 @@ export const AppContent: React.FC = () => {
     } catch {
       setPosts(getStoredPosts());
     }
+
+    try {
+      const serverAds = await apiClient.getAds();
+      if (serverAds && serverAds.length > 0) {
+        setAds(serverAds);
+        saveStoredAds(serverAds);
+      } else {
+        setAds(getStoredAds());
+      }
+    } catch {
+      setAds(getStoredAds());
+    }
+
     setWallet(getStoredWallet());
     setTransactions(getStoredTransactions());
     setUser(getStoredUser());
+    refreshNotificationsCount();
+  };
+
+  const refreshNotificationsCount = async () => {
+    try {
+      const notifs = await apiClient.getNotifications(user.id);
+      const unread = notifs.filter((n) => !n.read).length;
+      setUnreadNotificationsCount(unread);
+    } catch {
+      const localNotifs = getStoredNotifications();
+      const userNotifs = localNotifs.filter((n) => n.userId === user.id);
+      const unread = userNotifs.filter((n) => !n.read).length;
+      setUnreadNotificationsCount(unread);
+    }
   };
 
   // Fetch real posts from Supabase PostgreSQL database on mount
   useEffect(() => {
     let isMounted = true;
+    refreshNotificationsCount();
     async function loadServerPosts() {
       try {
         const serverPosts = await apiClient.getPosts();
@@ -118,7 +160,21 @@ export const AppContent: React.FC = () => {
         console.warn('[App] Could not fetch server posts, using local cache:', err);
       }
     }
+
+    async function loadServerAds() {
+      try {
+        const serverAds = await apiClient.getAds();
+        if (isMounted && serverAds && serverAds.length > 0) {
+          setAds(serverAds);
+          saveStoredAds(serverAds);
+        }
+      } catch (err) {
+        console.warn('[App] Could not fetch server ads, using local cache:', err);
+      }
+    }
+
     loadServerPosts();
+    loadServerAds();
     return () => { isMounted = false; };
   }, []);
 
@@ -149,6 +205,9 @@ export const AppContent: React.FC = () => {
 
   // A post is public ONLY after the Bureau Editorial Desk approves it
   const isPostPublic = (post: VideoPost): boolean => {
+    if (post.status === 'copyright_takedown') {
+      return false;
+    }
     if (post.adminReviewStatus) {
       return post.adminReviewStatus === 'verified_approved' || post.adminReviewStatus === 'bounty_awarded';
     }
@@ -172,10 +231,79 @@ export const AppContent: React.FC = () => {
     });
   }, [publicPostsWithDistance, categoryFilter]);
 
-  // Spots dispatches (public approved videos & photo stories)
+  // Active, scheduled, location-targeted advertisements
+  const eligibleAds = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return ads.filter((ad) => {
+      if (ad.status !== 'active') return false;
+      if (ad.reachLimit && ad.reachLimit > 0 && (ad.impressions || 0) >= ad.reachLimit) return false;
+      if (ad.startDate && ad.startDate > todayStr) return false;
+      if (ad.endDate && ad.endDate < todayStr) return false;
+
+      // Location targeting
+      if (ad.targetLocation.district && ad.targetLocation.district !== 'All') {
+        const adDist = ad.targetLocation.district.toLowerCase();
+        const userDist = (activeLocation.district || '').toLowerCase();
+        const userPlace = (activeLocation.placeName || '').toLowerCase();
+        if (!userDist.includes(adDist) && !userPlace.includes(adDist)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [ads, activeLocation]);
+
+  // Interleaved Feed Items: News 1 -> News 2 -> News 3 -> AD -> News 4 -> News 5 -> AD
+  type FeedItem =
+    | { type: 'post'; data: VideoPost }
+    | { type: 'ad'; data: Advertisement };
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const items: FeedItem[] = [];
+    if (feedPosts.length === 0) return items;
+    if (eligibleAds.length === 0) {
+      return feedPosts.map((p) => ({ type: 'post', data: p }));
+    }
+
+    let adCursor = 0;
+    feedPosts.forEach((post, index) => {
+      items.push({ type: 'post', data: post });
+      const newsNumber = index + 1;
+
+      // Check if an advertisement targets this position slot
+      const matchingAd = eligibleAds.find((ad) => {
+        if (ad.position === `after_${newsNumber}`) return true;
+        if (ad.position === 'interval_3' && newsNumber % 3 === 0) return true;
+        if (ad.position === 'interval_5' && newsNumber % 5 === 0) return true;
+        return false;
+      });
+
+      if (matchingAd) {
+        items.push({ type: 'ad', data: matchingAd });
+      } else if (newsNumber === 3 && eligibleAds.length > 0) {
+        const ad = eligibleAds[adCursor % eligibleAds.length];
+        items.push({ type: 'ad', data: ad });
+        adCursor++;
+      } else if (newsNumber === 5 && eligibleAds.length > 1) {
+        const ad = eligibleAds[adCursor % eligibleAds.length];
+        items.push({ type: 'ad', data: ad });
+        adCursor++;
+      }
+    });
+
+    return items;
+  }, [feedPosts, eligibleAds]);
+
+  // Spots dispatches: Spotlight Rule: ONLY video/reel posts, STRICTLY filtered by user's current location
   const spotsPosts = useMemo(() => {
-    return publicPostsWithDistance.filter((p) => p.type === 'video' || p.type === 'image');
-  }, [publicPostsWithDistance]);
+    return publicPostsWithDistance.filter((p) => {
+      // 1. Show ONLY reel or video posts (strictly no images, no text fallback)
+      if (p.type !== 'video') return false;
+
+      // 2. Filtered strictly by user's current location
+      return isLocationMatch(p.location, activeLocation, p.distanceKm);
+    });
+  }, [publicPostsWithDistance, activeLocation]);
 
   // Urgent breaking post (public approved)
   const breakingPost = useMemo(() => {
@@ -220,8 +348,14 @@ export const AppContent: React.FC = () => {
   };
 
   const handleOpenPostInSpots = (post: VideoPost) => {
-    setSelectedSpotPostId(post.id);
-    setActiveTab('spots');
+    if (post.type === 'video') {
+      if (!isLocationMatch(post.location, activeLocation, post.distanceKm)) {
+        setActiveLocation(post.location);
+        saveActiveLocation(post.location);
+      }
+      setSelectedSpotPostId(post.id);
+      setActiveTab('spots');
+    }
   };
 
   const handleSelectLocation = (loc: LocationCoordinates) => {
@@ -380,6 +514,8 @@ export const AppContent: React.FC = () => {
             onSelectLocation={handleSelectLocation}
             onOpenSearch={() => setShowSearchModal(true)}
             onOpenAdmin={() => navigateTo('/admin')}
+            unreadAlertCount={unreadNotificationsCount}
+            onOpenNotifications={() => setShowNotificationModal(true)}
           />
         )}
 
@@ -511,17 +647,36 @@ export const AppContent: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  feedPosts.map((post) => (
-                    <NewsCard
-                      key={post.id}
-                      post={post}
-                      onLike={handleLike}
-                      onSave={handleSave}
-                      onOpenComments={(p) => setCommentsDrawerPost(p)}
-                      onOpenSpots={handleOpenPostInSpots}
-                      onShare={handleShare}
-                    />
-                  ))
+                  feedItems.map((item, idx) => {
+                    if (item.type === 'ad') {
+                      return (
+                        <FeedAdCard
+                          key={`ad_${item.data.id}_${idx}`}
+                          ad={item.data}
+                          onAdClick={(ad) => {
+                            trackStoredAdClick(ad.id);
+                            apiClient.trackAdClick(ad.id);
+                          }}
+                          onAdImpression={(ad) => {
+                            trackStoredAdImpression(ad.id);
+                            apiClient.trackAdImpression(ad.id);
+                          }}
+                        />
+                      );
+                    }
+                    return (
+                      <NewsCard
+                        key={item.data.id}
+                        post={item.data}
+                        onLike={handleLike}
+                        onSave={handleSave}
+                        onOpenComments={(p) => setCommentsDrawerPost(p)}
+                        onOpenSpots={handleOpenPostInSpots}
+                        onShare={handleShare}
+                        onReportCopyright={(p) => setReportCopyrightPost(p)}
+                      />
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -533,6 +688,8 @@ export const AppContent: React.FC = () => {
               posts={spotsPosts}
               initialPostId={selectedSpotPostId}
               currentUser={user}
+              activeLocation={activeLocation}
+              onOpenLocationPicker={() => setShowLocationModal(true)}
               onLike={handleLike}
               onSave={handleSave}
               onShare={handleShare}
@@ -540,6 +697,7 @@ export const AppContent: React.FC = () => {
               getCommentsForPost={(id) => getStoredComments(id)}
               onSendTip={handleSendTip}
               onOpenCreate={() => setShowCreateModal(true)}
+              onReportCopyright={(p) => setReportCopyrightPost(p)}
             />
           )}
 
@@ -623,6 +781,38 @@ export const AppContent: React.FC = () => {
             onAddComment={(text) => handleAddComment(commentsDrawerPost.id, text)}
           />
         )}
+
+        {/* DMCA Copyright Infringement Report Modal */}
+        {reportCopyrightPost && (
+          <CopyrightReportModal
+            post={reportCopyrightPost}
+            currentUser={user}
+            onClose={() => setReportCopyrightPost(null)}
+            onSuccess={() => {
+              setReportCopyrightPost(null);
+              refreshAppData();
+            }}
+          />
+        )}
+
+        {/* User Notifications Drawer */}
+        {showNotificationModal && (
+          <NotificationModal
+            userId={user.id}
+            onClose={() => {
+              setShowNotificationModal(false);
+              refreshAppData();
+            }}
+          />
+        )}
+
+        {/* Global Hyperlocal Hub / Location Picker Modal */}
+        <LocationPickerModal
+          isOpen={showLocationModal}
+          onClose={() => setShowLocationModal(false)}
+          activeLocation={activeLocation}
+          onSelectLocation={handleSelectLocation}
+        />
       </div>
     </div>
   );

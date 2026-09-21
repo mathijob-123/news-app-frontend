@@ -6,14 +6,29 @@ import type {
   Comment,
   LocationCoordinates,
   AdminReviewStatus,
-  AdminStats
+  AdminStats,
+  Advertisement,
+  AppSettings,
+  AdminUser,
+  SocialMediaPost,
+  CopyrightReport,
+  CopyrightStrike,
+  AppNotification,
+  Spotlight360Video
 } from '../types';
 import {
   CURRENT_USER,
   INITIAL_POSTS,
   INITIAL_WALLET,
   INITIAL_TRANSACTIONS,
-  INITIAL_COMMENTS
+  INITIAL_COMMENTS,
+  INITIAL_ADVERTISEMENTS,
+  INITIAL_APP_SETTINGS,
+  INITIAL_ADMIN_USERS,
+  INITIAL_SOCIAL_IMPORTS,
+  INITIAL_COPYRIGHT_REPORTS,
+  INITIAL_COPYRIGHT_STRIKES,
+  INITIAL_NOTIFICATIONS
 } from '../data/mockNewsData';
 import { calculatePostEarnings, BASE_RPM } from './monetizationEngine';
 
@@ -25,7 +40,15 @@ const STORAGE_KEYS = {
   COMMENTS: 'lp_comments_v5_zero_mock',
   SAVED_POSTS: 'lp_saved_posts_v5_zero_mock',
   QUALIFIED_VIEWS: 'lp_qualified_views_v5_zero_mock',
-  USER_LOCATION: 'lp_active_location_v5_zero_mock'
+  USER_LOCATION: 'lp_active_location_v5_zero_mock',
+  ADS: 'lp_advertisements_v1',
+  SETTINGS: 'lp_app_settings_v1',
+  ADMIN_USERS: 'lp_admin_users_v1',
+  SOCIAL_IMPORTS: 'lp_social_imports_v1',
+  COPYRIGHT_REPORTS: 'lp_copyright_reports_v1',
+  COPYRIGHT_STRIKES: 'lp_copyright_strikes_v1',
+  NOTIFICATIONS: 'lp_user_notifications_v1',
+  SPOTLIGHT360_VIDEOS: 'lp_spotlight360_videos_v1'
 };
 
 export function getStoredPosts(): VideoPost[] {
@@ -47,6 +70,90 @@ export function savePosts(posts: VideoPost[]): void {
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
   } catch (err) {
     console.error('Error saving posts:', err);
+  }
+}
+
+/**
+ * Delete a video post / feed item and its comments from local storage
+ */
+export function deletePost(postId: string): boolean {
+  try {
+    const posts = getStoredPosts();
+    const filtered = posts.filter((p) => p.id !== postId);
+    savePosts(filtered);
+
+    // Clean up stored comments for this post if any
+    const rawComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+    if (rawComments) {
+      try {
+        const allComments = JSON.parse(rawComments);
+        delete allComments[postId];
+        localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(allComments));
+      } catch {}
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error deleting post:', err);
+    return false;
+  }
+}
+
+/**
+ * Bulk update stored video posts (approve, reject, delete, update properties)
+ */
+export function bulkUpdateStoredPosts(
+  postIds: string[],
+  action: 'approve' | 'reject' | 'delete' | 'update',
+  updates?: Partial<VideoPost>
+): void {
+  try {
+    const posts = getStoredPosts();
+    const idSet = new Set(postIds);
+
+    if (action === 'delete') {
+      const remaining = posts.filter((p) => !idSet.has(p.id));
+      savePosts(remaining);
+      return;
+    }
+
+    const updated = posts.map((p) => {
+      if (!idSet.has(p.id)) return p;
+
+      if (action === 'approve') {
+        return {
+          ...p,
+          status: 'published' as const,
+          adminReviewStatus: 'verified_approved' as const,
+          priceAward: updates?.priceAward ?? p.priceAward ?? 100,
+          adminPayoutAmount: updates?.adminPayoutAmount ?? p.adminPayoutAmount ?? 100,
+          rpmRate: updates?.rpmRate ?? p.rpmRate ?? 350,
+          adminDisbursedDate: new Date().toISOString()
+        };
+      }
+
+      if (action === 'reject') {
+        return {
+          ...p,
+          status: 'removed' as const,
+          adminReviewStatus: 'rejected' as const,
+          rejectionReason: updates?.rejectionReason || 'Does not meet editorial guidelines'
+        };
+      }
+
+      if (action === 'update') {
+        return {
+          ...p,
+          ...updates
+        };
+      }
+
+      return p;
+    });
+
+    savePosts(updated);
+  } catch (err) {
+    console.error('Error during bulk update stored posts:', err);
   }
 }
 
@@ -570,3 +677,280 @@ export function getAdminDashboardStats(): AdminStats {
     approvalRatePercent
   };
 }
+
+// --- ADVERTISEMENTS MANAGEMENT STORAGE ---
+
+export function getStoredAds(): Advertisement[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ADS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.ADS, JSON.stringify(INITIAL_ADVERTISEMENTS));
+      return INITIAL_ADVERTISEMENTS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading advertisements:', err);
+    return INITIAL_ADVERTISEMENTS;
+  }
+}
+
+export function saveStoredAds(ads: Advertisement[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ADS, JSON.stringify(ads));
+  } catch (err) {
+    console.error('Error saving advertisements:', err);
+  }
+}
+
+export function createStoredAd(ad: Advertisement): Advertisement {
+  const ads = getStoredAds();
+  ads.unshift(ad);
+  saveStoredAds(ads);
+  return ad;
+}
+
+export function updateStoredAd(id: string, updates: Partial<Advertisement>): Advertisement | null {
+  const ads = getStoredAds();
+  const idx = ads.findIndex((a) => a.id === id);
+  if (idx !== -1) {
+    ads[idx] = { ...ads[idx], ...updates, updatedAt: new Date().toISOString() };
+    saveStoredAds(ads);
+    return ads[idx];
+  }
+  return null;
+}
+
+export function deleteStoredAd(id: string): boolean {
+  const ads = getStoredAds();
+  const filtered = ads.filter((a) => a.id !== id);
+  saveStoredAds(filtered);
+  return filtered.length !== ads.length;
+}
+
+export function trackStoredAdImpression(id: string): void {
+  const ads = getStoredAds();
+  const ad = ads.find((a) => a.id === id);
+  if (ad) {
+    ad.impressions = (ad.impressions || 0) + 1;
+    if (ad.autoStop !== false && ad.reachLimit && ad.reachLimit > 0 && ad.impressions >= ad.reachLimit) {
+      ad.status = 'stopped';
+    }
+    saveStoredAds(ads);
+  }
+}
+
+export function trackStoredAdClick(id: string): void {
+  const ads = getStoredAds();
+  const ad = ads.find((a) => a.id === id);
+  if (ad) {
+    ad.clicks = (ad.clicks || 0) + 1;
+    saveStoredAds(ads);
+  }
+}
+
+// --- APP SETTINGS STORAGE ---
+
+export function getStoredAppSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_APP_SETTINGS));
+      return INITIAL_APP_SETTINGS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading app settings:', err);
+    return INITIAL_APP_SETTINGS;
+  }
+}
+
+export function saveStoredAppSettings(settings: AppSettings): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  } catch (err) {
+    console.error('Error saving app settings:', err);
+  }
+}
+
+// --- ADMIN USERS STORAGE ---
+
+export function getStoredAdminUsers(): AdminUser[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_USERS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_USERS, JSON.stringify(INITIAL_ADMIN_USERS));
+      return INITIAL_ADMIN_USERS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading admin users:', err);
+    return INITIAL_ADMIN_USERS;
+  }
+}
+
+export function saveStoredAdminUsers(users: AdminUser[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_USERS, JSON.stringify(users));
+  } catch (err) {
+    console.error('Error saving admin users:', err);
+  }
+}
+
+// --- SOCIAL MEDIA IMPORTS STORAGE ---
+
+export function getStoredSocialImports(): SocialMediaPost[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SOCIAL_IMPORTS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.SOCIAL_IMPORTS, JSON.stringify(INITIAL_SOCIAL_IMPORTS));
+      return INITIAL_SOCIAL_IMPORTS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading social imports:', err);
+    return INITIAL_SOCIAL_IMPORTS;
+  }
+}
+
+export function saveStoredSocialImports(posts: SocialMediaPost[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SOCIAL_IMPORTS, JSON.stringify(posts));
+  } catch (err) {
+    console.error('Error saving social imports:', err);
+  }
+}
+
+export function createStoredSocialImport(post: SocialMediaPost): SocialMediaPost {
+  const all = getStoredSocialImports();
+  const existingIdx = all.findIndex((p) => p.id === post.id);
+  if (existingIdx >= 0) {
+    all[existingIdx] = { ...all[existingIdx], ...post };
+  } else {
+    all.unshift(post);
+  }
+  saveStoredSocialImports(all);
+  return post;
+}
+
+export function updateStoredSocialImport(id: string, updates: Partial<SocialMediaPost>): SocialMediaPost | null {
+  const all = getStoredSocialImports();
+  const idx = all.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  all[idx] = { ...all[idx], ...updates };
+  saveStoredSocialImports(all);
+  return all[idx];
+}
+
+export function deleteStoredSocialImport(id: string): boolean {
+  try {
+    const all = getStoredSocialImports();
+    const filtered = all.filter((p) => p.id !== id);
+    saveStoredSocialImports(filtered);
+    return true;
+  } catch (err) {
+    console.error('Error deleting social import:', err);
+    return false;
+  }
+}
+
+// --- COPYRIGHT REPORTS LOCAL STORAGE ---
+export function getStoredCopyrightReports(): CopyrightReport[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.COPYRIGHT_REPORTS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.COPYRIGHT_REPORTS, JSON.stringify(INITIAL_COPYRIGHT_REPORTS));
+      return INITIAL_COPYRIGHT_REPORTS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading copyright reports:', err);
+    return INITIAL_COPYRIGHT_REPORTS;
+  }
+}
+
+export function saveStoredCopyrightReports(reports: CopyrightReport[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COPYRIGHT_REPORTS, JSON.stringify(reports));
+  } catch (err) {
+    console.error('Error saving copyright reports:', err);
+  }
+}
+
+// --- COPYRIGHT STRIKES LOCAL STORAGE ---
+export function getStoredCopyrightStrikes(): CopyrightStrike[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.COPYRIGHT_STRIKES);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.COPYRIGHT_STRIKES, JSON.stringify(INITIAL_COPYRIGHT_STRIKES));
+      return INITIAL_COPYRIGHT_STRIKES;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading copyright strikes:', err);
+    return INITIAL_COPYRIGHT_STRIKES;
+  }
+}
+
+export function saveStoredCopyrightStrikes(strikes: CopyrightStrike[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COPYRIGHT_STRIKES, JSON.stringify(strikes));
+  } catch (err) {
+    console.error('Error saving copyright strikes:', err);
+  }
+}
+
+// --- USER NOTIFICATIONS LOCAL STORAGE ---
+export function getStoredNotifications(): AppNotification[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
+      return INITIAL_NOTIFICATIONS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading notifications:', err);
+    return INITIAL_NOTIFICATIONS;
+  }
+}
+
+export function saveStoredNotifications(notifs: AppNotification[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifs));
+  } catch (err) {
+    console.error('Error saving notifications:', err);
+  }
+}
+
+export function addStoredNotification(notif: AppNotification): void {
+  const all = getStoredNotifications();
+  all.unshift(notif);
+  saveStoredNotifications(all);
+}
+
+// --- SPOTLIGHT360 VIDEOS LOCAL STORAGE ---
+export function getStoredSpotlight360Videos(): Spotlight360Video[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading spotlight360 videos:', err);
+    return [];
+  }
+}
+
+export function saveStoredSpotlight360Videos(videos: Spotlight360Video[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS, JSON.stringify(videos));
+  } catch (err) {
+    console.error('Error saving spotlight360 videos:', err);
+  }
+}
+
+export function addStoredSpotlight360Videos(newVideos: Spotlight360Video[]): void {
+  const current = getStoredSpotlight360Videos();
+  const updated = [...newVideos, ...current.filter(c => !newVideos.some(n => n.id === c.id))];
+  saveStoredSpotlight360Videos(updated);
+}
+

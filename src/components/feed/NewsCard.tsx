@@ -11,7 +11,8 @@ import {
   Maximize2,
   ShieldCheck,
   Eye,
-  Award
+  Award,
+  Flag
 } from 'lucide-react';
 import type { VideoPost } from '../../types';
 import { formatDistance } from '../../services/geoService';
@@ -23,6 +24,7 @@ interface NewsCardProps {
   onOpenComments: (post: VideoPost) => void;
   onOpenSpots: (post: VideoPost) => void;
   onShare: (post: VideoPost) => void;
+  onReportCopyright?: (post: VideoPost) => void;
 }
 
 const formatPostDate = (dateStr?: string) => {
@@ -46,7 +48,8 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   onSave,
   onOpenComments,
   onOpenSpots,
-  onShare
+  onShare,
+  onReportCopyright
 }) => {
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -278,6 +281,17 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         >
           <Bookmark size={18} fill={post.isSaved ? 'currentColor' : 'none'} />
         </button>
+
+        {onReportCopyright && (
+          <button
+            className="action-item"
+            onClick={() => onReportCopyright(post)}
+            title="Report copyright infringement"
+            style={{ color: '#94a3b8' }}
+          >
+            <Flag size={17} />
+          </button>
+        )}
       </div>
     </article>
   );

@@ -31,19 +31,46 @@ import {
   MessageSquare,
   Heart,
   Share2,
-  Compass
+  Compass,
+  Megaphone,
+  Settings,
+  Shield,
+  ShieldAlert,
+  Trash2,
+  Globe,
+  CheckSquare,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { VideoPost, AdminReviewStatus } from '../../types';
+import type { VideoPost, AdminReviewStatus, Advertisement, AppSettings, AdminUser, AdminRoleType, SocialMediaPost, NewsCategory, LocationCoordinates } from '../../types';
 import {
   approveAdminPayout,
   updatePostReviewStatus,
   acceptAndPublishPostByAdmin,
   rejectPost,
-  getAdminDashboardStats
+  getAdminDashboardStats,
+  getStoredAds,
+  saveStoredAds,
+  createStoredAd,
+  updateStoredAd,
+  deleteStoredAd,
+  deletePost as deleteStoredPost,
+  bulkUpdateStoredPosts,
+  getStoredAppSettings,
+  saveStoredAppSettings,
+  getStoredSocialImports,
+  saveStoredSocialImports,
+  updateStoredSocialImport,
+  deleteStoredSocialImport
 } from '../../services/storageService';
+import { PRESET_LOCATIONS } from '../../services/geoService';
 import { apiClient } from '../../services/apiClient';
 import { formatINR } from '../../services/monetizationEngine';
+import { AdvertisementManager } from './AdvertisementManager';
+import { AppSettingsManager } from './AppSettingsManager';
+import { SocialMediaContentManager } from './SocialMediaContentManager';
+import { CopyrightManager } from './CopyrightManager';
+import { Spotlight360Manager } from './spotlight360/Spotlight360Manager';
 
 interface AdminPanelProps {
   posts: VideoPost[];
@@ -53,7 +80,7 @@ interface AdminPanelProps {
   adminUser?: { id: string; name: string; role: string };
 }
 
-type AdminTab = 'requests' | 'payouts' | 'analytics';
+type AdminTab = 'requests' | 'social_media' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   posts,
@@ -62,10 +89,243 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onLogout,
   adminUser
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminTab>('requests');
+  const [simulatedRole, setSimulatedRole] = useState<AdminRoleType>(() => {
+    const r = (adminUser?.role || 'super_admin').toLowerCase();
+    if (r.includes('ad')) return 'ad_manager';
+    if (r.includes('editor')) return 'editor';
+    if (r.includes('moderator')) return 'moderator';
+    return 'super_admin';
+  });
+
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (adminUser?.role?.toLowerCase().includes('ad')) return 'advertisements';
+    return 'requests';
+  });
+
+  // Ads, App Settings & Social Imports State
+  const [ads, setAds] = useState<Advertisement[]>(getStoredAds());
+  const [appSettings, setAppSettings] = useState<AppSettings>(getStoredAppSettings());
+  const [socialPosts, setSocialPosts] = useState<SocialMediaPost[]>(() => getStoredSocialImports());
+
+  // Load latest ads, settings, and social imports from server
+  React.useEffect(() => {
+    apiClient.getAds().then((serverAds) => {
+      if (serverAds && serverAds.length > 0) {
+        setAds(serverAds);
+        saveStoredAds(serverAds);
+      }
+    }).catch(() => {});
+
+    apiClient.getSettings().then((serverSettings) => {
+      if (serverSettings) {
+        setAppSettings(serverSettings);
+        saveStoredAppSettings(serverSettings);
+      }
+    }).catch(() => {});
+
+    apiClient.getSocialImports().then((serverSocials) => {
+      if (serverSocials && serverSocials.length > 0) {
+        setSocialPosts(serverSocials);
+        saveStoredSocialImports(serverSocials);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Pending copyright claims counter for tab badge
+  const [pendingCopyrightCount, setPendingCopyrightCount] = useState<number>(0);
+
+  React.useEffect(() => {
+    apiClient.getCopyrightReports('pending').then((reps) => {
+      if (reps) setPendingCopyrightCount(reps.length);
+    }).catch(() => {});
+  }, [activeTab]);
+
+  // Sync activeTab when simulatedRole changes if current tab is not permitted
+  const isTabAllowed = (tab: AdminTab, role: AdminRoleType): boolean => {
+    if (role === 'super_admin') return true;
+    if (role === 'ad_manager') return tab === 'advertisements' || tab === 'spotlight360' || tab === 'analytics';
+    if (role === 'editor' || role === 'moderator') return tab === 'requests' || tab === 'social_media' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright';
+    return true;
+  };
+
+  const handleSwitchSimulatedRole = (newRole: AdminRoleType) => {
+    setSimulatedRole(newRole);
+    if (!isTabAllowed(activeTab, newRole)) {
+      if (newRole === 'ad_manager') setActiveTab('advertisements');
+      else setActiveTab('requests');
+    }
+  };
+
+  // Ads Handlers
+  const handleSaveAd = async (ad: Advertisement) => {
+    const existingIdx = ads.findIndex((a) => a.id === ad.id);
+    let updatedAds: Advertisement[];
+    if (existingIdx >= 0) {
+      updatedAds = ads.map((a) => (a.id === ad.id ? ad : a));
+      updateStoredAd(ad.id, ad);
+      try { await apiClient.updateAd(ad.id, ad); } catch {}
+    } else {
+      updatedAds = [ad, ...ads];
+      createStoredAd(ad);
+      try { await apiClient.createAd(ad); } catch {}
+    }
+    setAds(updatedAds);
+  };
+
+  const handleDeleteAd = async (adId: string) => {
+    const updatedAds = ads.filter((a) => a.id !== adId);
+    setAds(updatedAds);
+    deleteStoredAd(adId);
+    try { await apiClient.deleteAd(adId); } catch {}
+  };
+
+  const handleToggleAdStatus = async (adId: string, currentStatus: 'active' | 'inactive' | 'stopped') => {
+    const newStatus: 'active' | 'inactive' = currentStatus === 'active' ? 'inactive' : 'active';
+    const updatedAds = ads.map((a) => (a.id === adId ? { ...a, status: newStatus } : a));
+    setAds(updatedAds);
+    updateStoredAd(adId, { status: newStatus });
+    try { await apiClient.updateAd(adId, { status: newStatus }); } catch {}
+  };
+
+  // Settings Handlers
+  const handleSaveAppSettings = async (newSettings: AppSettings) => {
+    setAppSettings(newSettings);
+    saveStoredAppSettings(newSettings);
+    try { await apiClient.updateSettings(newSettings); } catch {}
+  };
+
+  const handleSaveAdminUser = async (userUpdates: Partial<AdminUser>) => {
+    const currentAdmins = appSettings.adminUsers;
+    let updatedAdmins: AdminUser[];
+    if (userUpdates.id) {
+      updatedAdmins = currentAdmins.map((u) => (u.id === userUpdates.id ? { ...u, ...userUpdates } as AdminUser : u));
+      try { await apiClient.updateAdminUser(userUpdates.id, userUpdates); } catch {}
+    } else {
+      const newAdmin: AdminUser = {
+        id: `adm_${Date.now().toString(36)}`,
+        name: userUpdates.name || 'Staff Admin',
+        email: userUpdates.email || 'admin@spotlight.local',
+        role: userUpdates.role || 'editor',
+        status: userUpdates.status || 'active',
+        createdAt: new Date().toISOString()
+      };
+      updatedAdmins = [...currentAdmins, newAdmin];
+      try { await apiClient.createAdminUser(newAdmin); } catch {}
+    }
+    const updatedSettings = { ...appSettings, adminUsers: updatedAdmins };
+    setAppSettings(updatedSettings);
+    saveStoredAppSettings(updatedSettings);
+  };
+
+  const handleDeleteAdminUser = async (userId: string) => {
+    const updatedAdmins = appSettings.adminUsers.filter((u) => u.id !== userId);
+    const updatedSettings = { ...appSettings, adminUsers: updatedAdmins };
+    setAppSettings(updatedSettings);
+    saveStoredAppSettings(updatedSettings);
+    try { await apiClient.deleteAdminUser(userId); } catch {}
+  };
+
+  // Social Media Imports Handlers
+  const handleRefreshSocialPosts = async () => {
+    try {
+      const serverSocials = await apiClient.getSocialImports();
+      if (serverSocials && serverSocials.length > 0) {
+        setSocialPosts(serverSocials);
+        saveStoredSocialImports(serverSocials);
+      } else {
+        setSocialPosts(getStoredSocialImports());
+      }
+    } catch {
+      setSocialPosts(getStoredSocialImports());
+    }
+  };
+
+  const handleFetchSocialContent = async (params: {
+    platform: string;
+    source: string;
+    dateRange: string;
+    location: string;
+    category: string;
+    limit?: number;
+  }): Promise<{ newlyFetched: SocialMediaPost[]; totalStaged: number; duplicatesFound: number }> => {
+    try {
+      const res = await apiClient.fetchSocialContent(params);
+      if (res && res.newlyFetched) {
+        const updated = [...res.newlyFetched, ...socialPosts.filter((p: SocialMediaPost) => !res.newlyFetched.some((f: SocialMediaPost) => f.id === p.id))];
+        setSocialPosts(updated);
+        saveStoredSocialImports(updated);
+        return res;
+      }
+    } catch (err) {
+      console.warn('API fetchSocialContent error:', err);
+    }
+    return { newlyFetched: [], totalStaged: socialPosts.length, duplicatesFound: 0 };
+  };
+
+  const handleAiEnhanceSocial = async (id: string, prompt?: string): Promise<SocialMediaPost> => {
+    try {
+      const enhanced = await apiClient.aiEnhanceSocialPost(id, prompt);
+      if (enhanced) {
+        const updated = socialPosts.map(p => p.id === id ? enhanced : p);
+        setSocialPosts(updated);
+        updateStoredSocialImport(id, enhanced);
+        return enhanced;
+      }
+    } catch (err) {
+      console.warn('AI enhance error:', err);
+    }
+    const current = socialPosts.find(p => p.id === id);
+    if (current) return current;
+    throw new Error('Post not found');
+  };
+
+  const handleApproveSocialPublish = async (id: string, overrides?: any): Promise<void> => {
+    try {
+      const result = await apiClient.approveSocialPost(id, overrides);
+      if (result && result.post) {
+        const updated = socialPosts.map(p => p.id === id ? result.post : p);
+        setSocialPosts(updated);
+        updateStoredSocialImport(id, result.post);
+        // Refresh citizen news feed so the newly approved news item shows immediately
+        onRefreshData();
+      }
+    } catch (err) {
+      console.warn('Approve social post error:', err);
+      throw err;
+    }
+  };
+
+  const handleRejectSocial = async (id: string, reason: string): Promise<void> => {
+    try {
+      const rejected = await apiClient.rejectSocialPost(id, reason);
+      if (rejected) {
+        const updated = socialPosts.map(p => p.id === id ? rejected : p);
+        setSocialPosts(updated);
+        updateStoredSocialImport(id, rejected);
+      }
+    } catch (err) {
+      console.warn('Reject social post error:', err);
+      throw err;
+    }
+  };
+
+  const handleDeleteSocial = async (id: string): Promise<void> => {
+    try {
+      await apiClient.deleteSocialPost(id);
+    } catch {}
+    const updated = socialPosts.filter(p => p.id !== id);
+    setSocialPosts(updated);
+    deleteStoredSocialImport(id);
+  };
+
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [playingPostId, setPlayingPostId] = useState<string | null>(null);
+
+  // Bulk selection and batch update state
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [bulkSuccessNotice, setBulkSuccessNotice] = useState<string | null>(null);
 
   // Full Post Inspection Popup Tab Modal State
   const [inspectingPost, setInspectingPost] = useState<VideoPost | null>(null);
@@ -74,6 +334,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Reject Modal state
   const [rejectingPost, setRejectingPost] = useState<VideoPost | null>(null);
   const [rejectionReason, setRejectionReason] = useState('Unverified or duplicate footage');
+
+  // Delete Post & Feed Modal State & Permissions
+  const [deletingPost, setDeletingPost] = useState<VideoPost | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+
+  // Role-based delete permissions:
+  // Super Admin, Editor, and Moderator have permission to delete videos and feeds.
+  // Ad Manager is restricted to advertisements only and cannot delete news feeds.
+  const canDeletePosts = simulatedRole === 'super_admin' || simulatedRole === 'editor' || simulatedRole === 'moderator';
 
   // Payout Drawer / Modal state
   const [payoutTargetPost, setPayoutTargetPost] = useState<VideoPost | null>(null);
@@ -170,6 +440,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
+  const handleConfirmDeletePost = async () => {
+    if (!deletingPost) return;
+    if (!canDeletePosts) {
+      alert('Access Denied: Ad Managers do not have permission to delete news videos and feeds.');
+      setDeletingPost(null);
+      return;
+    }
+
+    const targetId = deletingPost.id;
+    const targetTitle = deletingPost.headline;
+    setIsDeletingPost(true);
+
+    try {
+      // 1. Delete from local storage
+      deleteStoredPost(targetId);
+
+      // 2. Delete from server backend & PostgreSQL
+      await apiClient.deletePost(targetId);
+
+      // 3. Close inspect modal if currently inspecting this deleted post
+      if (inspectingPost?.id === targetId) {
+        setInspectingPost(null);
+      }
+
+      // 4. Trigger parent app refresh so feeds update instantly
+      onRefreshData();
+
+      setDeleteNotice(`Post "${targetTitle}" was permanently deleted from feeds and database.`);
+      setTimeout(() => setDeleteNotice(null), 4500);
+    } catch (err) {
+      console.error('Failed to delete post:', err);
+    } finally {
+      setIsDeletingPost(false);
+      setDeletingPost(null);
+    }
+  };
+
   // Filter requests
   const filteredRequests = useMemo(() => {
     return posts.filter((post) => {
@@ -250,6 +557,127 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const toggleSelectPost = (postId: string) => {
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
+  const isAllSelected = filteredRequests.length > 0 && selectedPostIds.size === filteredRequests.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedPostIds(new Set());
+    } else {
+      setSelectedPostIds(new Set(filteredRequests.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0 || isBulkProcessing) return;
+    setIsBulkProcessing(true);
+    try {
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'approve' });
+      bulkUpdateStoredPosts(ids, 'approve');
+      setSelectedPostIds(new Set());
+      onRefreshData();
+      setBulkSuccessNotice(`Successfully approved ${ids.length} video reports!`);
+      setTimeout(() => setBulkSuccessNotice(null), 4000);
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+    } catch (err: any) {
+      alert(`Bulk approval failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0 || isBulkProcessing) return;
+    const reason = window.prompt(
+      `Reject ${ids.length} selected video posts? Enter reason:`,
+      'Unverified or duplicate citizen footage'
+    );
+    if (reason === null) return;
+    setIsBulkProcessing(true);
+    try {
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'reject', updates: { rejectionReason: reason } });
+      bulkUpdateStoredPosts(ids, 'reject', { rejectionReason: reason });
+      setSelectedPostIds(new Set());
+      onRefreshData();
+      setBulkSuccessNotice(`${ids.length} video posts rejected.`);
+      setTimeout(() => setBulkSuccessNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Bulk rejection failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0 || isBulkProcessing) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${ids.length} selected video posts? This cannot be undone.`)) {
+      return;
+    }
+    setIsBulkProcessing(true);
+    try {
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'delete' });
+      bulkUpdateStoredPosts(ids, 'delete');
+      setSelectedPostIds(new Set());
+      onRefreshData();
+      setBulkSuccessNotice(`${ids.length} video posts permanently deleted.`);
+      setTimeout(() => setBulkSuccessNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Bulk delete failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkUpdateCategory = async (category: NewsCategory) => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0 || isBulkProcessing) return;
+    setIsBulkProcessing(true);
+    try {
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'update', updates: { category } });
+      bulkUpdateStoredPosts(ids, 'update', { category });
+      setSelectedPostIds(new Set());
+      onRefreshData();
+      setBulkSuccessNotice(`Updated category to "${category}" for ${ids.length} videos.`);
+      setTimeout(() => setBulkSuccessNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Bulk update category failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkUpdateLocation = async (loc: LocationCoordinates) => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0 || isBulkProcessing) return;
+    setIsBulkProcessing(true);
+    try {
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'update', updates: { location: loc } });
+      bulkUpdateStoredPosts(ids, 'update', { location: loc });
+      setSelectedPostIds(new Set());
+      onRefreshData();
+      setBulkSuccessNotice(`Updated location to "${loc.neighborhood || loc.placeName}" for ${ids.length} videos.`);
+      setTimeout(() => setBulkSuccessNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Bulk update location failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
   return (
     <div className="admin-page-root">
       {/* 1. Official Admin Top Bar */}
@@ -273,25 +701,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <ShieldCheck size={22} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                  LocalPulse Bureau Desk
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff', margin: 0 }}>
+                  Spotlight Bureau Desk
                 </h2>
                 <span
                   style={{
                     fontSize: '10px',
                     fontWeight: 800,
-                    background: '#059669',
+                    background:
+                      simulatedRole === 'super_admin' ? '#ea580c' :
+                      simulatedRole === 'editor' ? '#0284c7' :
+                      simulatedRole === 'moderator' ? '#7c3aed' : '#059669',
                     color: '#ffffff',
                     padding: '2px 8px',
                     borderRadius: '10px',
-                    letterSpacing: '0.04em'
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase'
                   }}
                 >
-                  ADMIN
+                  {simulatedRole === 'super_admin' ? 'SUPER ADMIN' :
+                   simulatedRole === 'editor' ? 'EDITOR' :
+                   simulatedRole === 'moderator' ? 'MODERATOR' : 'AD MANAGER'}
                 </span>
+
+                {/* Role Switcher Simulator */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Role:</span>
+                  <select
+                    value={simulatedRole}
+                    onChange={(e) => handleSwitchSimulatedRole(e.target.value as AdminRoleType)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fb923c',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                    title="Simulate / test role access"
+                  >
+                    <option value="super_admin" style={{ background: '#0f172a', color: '#fff' }}>Super Admin (Full)</option>
+                    <option value="editor" style={{ background: '#0f172a', color: '#fff' }}>Editor (News)</option>
+                    <option value="moderator" style={{ background: '#0f172a', color: '#fff' }}>Moderator (Review)</option>
+                    <option value="ad_manager" style={{ background: '#0f172a', color: '#fff' }}>Ad Manager (Ads Only)</option>
+                  </select>
+                </div>
               </div>
-              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.65)' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.65)', marginTop: '2px' }}>
                 {adminUser?.name ? `${adminUser.name} • Chennai & Tiruvallur Bureau` : 'Chennai & Tiruvallur Editorial Authority'}
               </div>
             </div>
@@ -349,55 +807,194 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* 2. Admin Navigation Tabs */}
       <div className="admin-tabs-outer">
         <div className="admin-tabs-inner">
-          <button
-            onClick={() => setActiveTab('requests')}
-            className="admin-tab-button"
-            style={{
-              color: activeTab === 'requests' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
-              borderBottom: activeTab === 'requests' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
-            }}
-          >
-            <Film size={16} />
-            <span>Video Requests</span>
-            {stats.pendingReviewCount > 0 && (
+          {/* TAB 1: Requests (Super Admin, Editor, Moderator) */}
+          {isTabAllowed('requests', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('requests')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'requests' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'requests' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Film size={16} />
+              <span>Video Requests</span>
+              {stats.pendingReviewCount > 0 && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    background: '#ea580c',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {stats.pendingReviewCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* TAB: Social Media Content (Super Admin, Editor, Moderator) */}
+          {isTabAllowed('social_media', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('social_media')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'social_media' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'social_media' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Globe size={16} />
+              <span>Social Media Content (சமூக ஊடக உள்ளடக்கம்)</span>
+              {socialPosts.filter((p) => p.status === 'staged_pending').length > 0 && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    background: '#ea580c',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {socialPosts.filter((p) => p.status === 'staged_pending').length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* TAB 2: Payouts (Super Admin only) */}
+          {isTabAllowed('payouts', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('payouts')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'payouts' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'payouts' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <CreditCard size={16} />
+              <span>Payment Approval</span>
+            </button>
+          )}
+
+          {/* TAB: SPOTLIGHT 360 (Bulk Video Upload, Hyperlocal Radius Targeting & Campaigns) */}
+          {isTabAllowed('spotlight360', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('spotlight360')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'spotlight360' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'spotlight360' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Sparkles size={16} />
+              <span>Spotlight360</span>
               <span
                 style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  background: '#ea580c',
+                  fontSize: '9px',
+                  fontWeight: 900,
+                  background: 'linear-gradient(90deg, #ff4500, #ea580c)',
                   color: '#ffffff',
                   padding: '1px 6px',
-                  borderRadius: '10px'
+                  borderRadius: '10px',
+                  letterSpacing: '0.4px'
                 }}
               >
-                {stats.pendingReviewCount}
+                NEW
               </span>
-            )}
-          </button>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('payouts')}
-            className="admin-tab-button"
-            style={{
-              color: activeTab === 'payouts' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
-              borderBottom: activeTab === 'payouts' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
-            }}
-          >
-            <CreditCard size={16} />
-            <span>Payment Approval</span>
-          </button>
+          {/* TAB 3: Advertisements (Super Admin, Ad Manager) */}
+          {isTabAllowed('advertisements', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('advertisements')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'advertisements' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'advertisements' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Megaphone size={16} />
+              <span>Advertisements (விளம்பரங்கள்)</span>
+              {ads.filter((a) => a.status === 'active').length > 0 && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    background: '#22c55e',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {ads.filter((a) => a.status === 'active').length}
+                </span>
+              )}
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className="admin-tab-button"
-            style={{
-              color: activeTab === 'analytics' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
-              borderBottom: activeTab === 'analytics' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
-            }}
-          >
-            <BarChart3 size={16} />
-            <span>Statistical Dashboard</span>
-          </button>
+          {/* TAB 4: Statistical Analytics (All permitted roles) */}
+          {isTabAllowed('analytics', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'analytics' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'analytics' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <BarChart3 size={16} />
+              <span>Statistical Dashboard</span>
+            </button>
+          )}
+
+          {/* TAB 5: App Settings & Admin Roles (Super Admin only) */}
+          {isTabAllowed('settings', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'settings' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'settings' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Settings size={16} />
+              <span>App Settings (அமைப்புகள்)</span>
+            </button>
+          )}
+
+          {/* TAB 6: Copyright & Strikes (Super Admin, Editor, Moderator) */}
+          {isTabAllowed('copyright', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('copyright')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'copyright' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'copyright' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <ShieldAlert size={16} />
+              <span>Copyright & Strikes (பதிப்புரிமை)</span>
+              {pendingCopyrightCount > 0 && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {pendingCopyrightCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -461,6 +1058,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       : `Rejected (${stats.rejectedCount})`}
                   </button>
                 ))}
+
+                {filteredRequests.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: isAllSelected ? '#fff7ed' : '#ffffff',
+                      color: isAllSelected ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      border: isAllSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                      boxShadow: isAllSelected ? 'var(--shadow-sm)' : 'none',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                    title="Select/Deselect all videos in current view"
+                  >
+                    <CheckSquare size={13} />
+                    <span>{isAllSelected ? 'Deselect All' : `Select All (${filteredRequests.length})`}</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -539,6 +1162,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPostIds.has(post.id)}
+                          onChange={() => toggleSelectPost(post.id)}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            cursor: 'pointer',
+                            accentColor: 'var(--brand-primary)'
+                          }}
+                          title="Select video for bulk update"
+                        />
                         <img
                           src={post.creatorAvatar}
                           alt={post.creatorName}
@@ -885,7 +1520,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </button>
                           </>
                         ) : post.adminReviewStatus === 'verified_approved' || post.adminReviewStatus === 'bounty_awarded' ? (
-                          <div style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <button
                               onClick={() => openAcceptModal(post, false)}
                               style={{
@@ -907,12 +1542,249 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </button>
                           </div>
                         ) : null}
+
+                        {canDeletePosts && (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingPost(post)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: '#fff1f2',
+                              color: '#e11d48',
+                              border: '1px solid #fecdd3',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              cursor: 'pointer',
+                              marginLeft: 'auto'
+                            }}
+                            title="Delete video post & feed"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+            )}
+
+            {/* Bulk Success Notice Toast */}
+            {bulkSuccessNotice && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '20px',
+                  right: '20px',
+                  zIndex: 1000,
+                  background: '#10b981',
+                  color: '#ffffff',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <CheckCircle2 size={16} />
+                <span>{bulkSuccessNotice}</span>
+              </div>
+            )}
+
+            {/* Floating Bulk Action Bar (Visible only when videos are selected) */}
+            {selectedPostIds.size > 0 && (
+              <div
+                style={{
+                  position: 'fixed',
+                  bottom: '24px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 999,
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255, 69, 0, 0.4)',
+                  boxShadow: '0 12px 36px rgba(0,0,0,0.5)',
+                  borderRadius: '16px',
+                  padding: '10px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                  maxWidth: '94vw'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                    {selectedPostIds.size} Selected
+                  </span>
+                </div>
+
+                <div style={{ height: '18px', width: '1px', background: 'rgba(255,255,255,0.2)' }} />
+
+                {/* Bulk Approve */}
+                <button
+                  type="button"
+                  onClick={handleBulkApprove}
+                  disabled={isBulkProcessing}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    background: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: isBulkProcessing ? 'wait' : 'pointer',
+                    opacity: isBulkProcessing ? 0.7 : 1
+                  }}
+                  title="Approve all selected videos"
+                >
+                  <Check size={14} />
+                  <span>Bulk Approve</span>
+                </button>
+
+                {/* Bulk Reject */}
+                <button
+                  type="button"
+                  onClick={handleBulkReject}
+                  disabled={isBulkProcessing}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    color: '#f87171',
+                    border: '1px solid #ef4444',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: isBulkProcessing ? 'wait' : 'pointer',
+                    opacity: isBulkProcessing ? 0.7 : 1
+                  }}
+                  title="Reject all selected videos"
+                >
+                  <XCircle size={14} />
+                  <span>Bulk Reject</span>
+                </button>
+
+                {/* Bulk Category dropdown */}
+                <select
+                  disabled={isBulkProcessing}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleBulkUpdateCategory(e.target.value as NewsCategory);
+                      e.target.value = '';
+                    }
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#1e293b',
+                    color: '#e2e8f0',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                  title="Change category for selected videos"
+                >
+                  <option value="">Bulk Category...</option>
+                  <option value="civic">Civic & Infrastructure</option>
+                  <option value="traffic">Traffic & Transit</option>
+                  <option value="safety">Safety & Emergency</option>
+                  <option value="weather">Weather & Rain</option>
+                  <option value="community">Community & Life</option>
+                  <option value="business">Markets & Commerce</option>
+                  <option value="sports">Sports & Events</option>
+                </select>
+
+                {/* Bulk Location Hub dropdown */}
+                <select
+                  disabled={isBulkProcessing}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const found = PRESET_LOCATIONS.find((l) => l.placeName === e.target.value);
+                      if (found) handleBulkUpdateLocation(found);
+                      e.target.value = '';
+                    }
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#1e293b',
+                    color: '#e2e8f0',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                  title="Change location hub for selected videos"
+                >
+                  <option value="">Bulk Location...</option>
+                  {PRESET_LOCATIONS.map((l) => (
+                    <option key={l.placeName} value={l.placeName}>
+                      {l.neighborhood || l.placeName}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Bulk Delete */}
+                {canDeletePosts && (
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkProcessing}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      background: 'transparent',
+                      color: '#f87171',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: isBulkProcessing ? 'wait' : 'pointer',
+                      opacity: isBulkProcessing ? 0.7 : 1
+                    }}
+                    title="Permanently delete selected videos"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
+                )}
+
+                {/* Deselect / Cancel */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPostIds(new Set())}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1358,7 +2230,263 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* ============================================================ */}
+        {/* TAB: SOCIAL MEDIA CONTENT (சமூக ஊடக உள்ளடக்கம்)               */}
+        {/* ============================================================ */}
+        {activeTab === 'social_media' && (
+          <SocialMediaContentManager
+            posts={socialPosts}
+            onRefreshPosts={handleRefreshSocialPosts}
+            onFetchContent={handleFetchSocialContent}
+            onAiEnhance={handleAiEnhanceSocial}
+            onApprovePublish={handleApproveSocialPublish}
+            onReject={handleRejectSocial}
+            onDelete={handleDeleteSocial}
+          />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 4: ADVERTISEMENTS MANAGEMENT (Admin -> Advertisements)   */}
+        {/* ============================================================ */}
+        {activeTab === 'advertisements' && (
+          <AdvertisementManager
+            ads={ads}
+            onRefreshAds={() => {
+              apiClient.getAds().then((serverAds) => {
+                if (serverAds && serverAds.length > 0) {
+                  setAds(serverAds);
+                  saveStoredAds(serverAds);
+                } else {
+                  setAds(getStoredAds());
+                }
+              }).catch(() => setAds(getStoredAds()));
+            }}
+            onSaveAd={handleSaveAd}
+            onDeleteAd={handleDeleteAd}
+            onToggleStatus={handleToggleAdStatus}
+          />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB: SPOTLIGHT 360 & BULK VIDEO UPLOAD                       */}
+        {/* ============================================================ */}
+        {activeTab === 'spotlight360' && (
+          <Spotlight360Manager
+            onRefreshData={onRefreshData}
+            adminName={adminUser?.name || 'Chennai & Tiruvallur Bureau'}
+          />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 5: APP SETTINGS & ADMIN PERMISSIONS                      */}
+        {/* ============================================================ */}
+        {activeTab === 'settings' && (
+          <AppSettingsManager
+            settings={appSettings}
+            onSaveSettings={handleSaveAppSettings}
+            onSaveAdminUser={handleSaveAdminUser}
+            onDeleteAdminUser={handleDeleteAdminUser}
+            onSwitchSimulatedRole={handleSwitchSimulatedRole}
+            currentSimulatedRole={simulatedRole}
+          />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 6: COPYRIGHT & STRIKE MODERATION (YouTube 3-Strike System) */}
+        {/* ============================================================ */}
+        {activeTab === 'copyright' && (
+          <CopyrightManager
+            posts={posts}
+            onRefreshData={() => {
+              onRefreshData();
+              apiClient.getCopyrightReports('pending').then((reps) => {
+                if (reps) setPendingCopyrightCount(reps.length);
+              }).catch(() => {});
+            }}
+            adminName={adminUser?.name || 'SuperAdmin Bureau Desk'}
+          />
+        )}
       </div>
+
+      {/* ============================================================ */}
+      {/* MODAL: Delete Video & Feed Confirmation                      */}
+      {/* ============================================================ */}
+      {deletingPost && (
+        <div className="admin-modal-overlay" onClick={() => !isDeletingPost && setDeletingPost(null)}>
+          <div
+            className="admin-modal-box"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '520px', border: '1.5px solid #fecdd3' }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#b91c1c', margin: 0 }}>
+                    Delete Video Post & Feed?
+                  </h3>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                    Admin Permission Action • {simulatedRole.replace('_', ' ').toUpperCase()}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => !isDeletingPost && setDeletingPost(null)}
+                disabled={isDeletingPost}
+                style={{ border: 'none', background: 'transparent', cursor: isDeletingPost ? 'not-allowed' : 'pointer' }}
+              >
+                <X size={18} color="var(--text-secondary)" />
+              </button>
+            </div>
+
+            {/* Post preview thumbnail & info */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center'
+              }}
+            >
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  background: '#000000',
+                  flexShrink: 0,
+                  position: 'relative'
+                }}
+              >
+                {deletingPost.type === 'image' || !deletingPost.mediaUrl?.match(/\.(mp4|webm|mov|m4v)/i) ? (
+                  <img
+                    src={deletingPost.mediaUrl || deletingPost.thumbnailUrl}
+                    alt={deletingPost.headline}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=400';
+                    }}
+                  />
+                ) : (
+                  <video
+                    src={deletingPost.mediaUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                  <span className={`category-tag-badge ${deletingPost.category}`} style={{ fontSize: '9px', padding: '1px 6px' }}>
+                    {deletingPost.category}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                    ID: {deletingPost.id}
+                  </span>
+                </div>
+                <h4
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {deletingPost.headline}
+                </h4>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  By @{deletingPost.creatorHandle} ({deletingPost.creatorName})
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div
+              style={{
+                background: '#fff1f2',
+                border: '1px solid #fecdd3',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+                display: 'flex',
+                gap: '10px'
+              }}
+            >
+              <AlertTriangle size={18} color="#e11d48" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '12px', color: '#9f1239', lineHeight: 1.5 }}>
+                <strong>Permanent Deletion Warning:</strong> This will remove this video item completely from the public feed, citizen timelines, comments, and database storage. This action cannot be reversed.
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setDeletingPost(null)}
+                disabled={isDeletingPost}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: isDeletingPost ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeletePost}
+                disabled={isDeletingPost}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: isDeletingPost ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                <Trash2 size={15} />
+                <span>{isDeletingPost ? 'Deleting Video...' : 'Delete Permanently'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* MODAL: Reject Post with Reason                               */}
@@ -3063,22 +4191,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 flexWrap: 'wrap'
               }}
             >
-              <button
-                type="button"
-                onClick={() => setInspectingPost(null)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  background: '#ffffff',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid #cbd5e1',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                Close Inspection
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setInspectingPost(null)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid #cbd5e1',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close Inspection
+                </button>
+
+                {canDeletePosts && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = inspectingPost;
+                      setDeletingPost(target);
+                    }}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      background: '#fff1f2',
+                      color: '#e11d48',
+                      border: '1px solid #fecdd3',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                    title="Permanently delete this video dispatch and feed"
+                  >
+                    <Trash2 size={15} />
+                    <span>Delete Video / Feed</span>
+                  </button>
+                )}
+              </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {inspectingPost.adminReviewStatus === 'pending_review' ? (
@@ -3217,6 +4374,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* Floating Action / Deletion Feedback Toast */}
+      {deleteNotice && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: '#0f172a',
+            color: '#f8fafc',
+            padding: '12px 20px',
+            borderRadius: '10px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.35)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13px',
+            fontWeight: 600,
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <CheckCircle2 size={18} color="#10b981" />
+          <span>{deleteNotice}</span>
         </div>
       )}
     </div>

@@ -55,6 +55,69 @@ export function isWithinRadius(
 }
 
 /**
+ * Spotlight Rule: Checks whether a post belongs to the user's current location.
+ * 
+ * Criteria:
+ * 1. Proximity: Within effective radius (userLoc.radiusMeters or default 12km)
+ * 2. District match: If within regional proximity (<= 25km)
+ * 3. Place / Neighborhood keyword match
+ */
+export function isLocationMatch(
+  postLoc: LocationCoordinates,
+  userLoc: LocationCoordinates,
+  distanceKm?: number
+): boolean {
+  if (!postLoc || !userLoc) return false;
+
+  const dist =
+    typeof distanceKm === 'number'
+      ? distanceKm
+      : calculateDistanceKm(userLoc.lat, userLoc.lng, postLoc.lat, postLoc.lng);
+
+  // Proximity check: use user radius or default 12km
+  const effectiveRadiusKm = userLoc.radiusMeters
+    ? Math.max(userLoc.radiusMeters / 1000, 10)
+    : 12;
+
+  if (dist <= effectiveRadiusKm) {
+    return true;
+  }
+
+  // District matching within regional range (<= 25km)
+  const userDistrict = (userLoc.district || '').trim().toLowerCase();
+  const postDistrict = (postLoc.district || '').trim().toLowerCase();
+  if (userDistrict && postDistrict) {
+    const isDistEqual =
+      userDistrict === postDistrict ||
+      userDistrict.includes(postDistrict) ||
+      postDistrict.includes(userDistrict);
+    if (isDistEqual && dist <= 25) {
+      return true;
+    }
+  }
+
+  // Exact or partial Place Name match
+  const userPlace = (userLoc.placeName || '').trim().toLowerCase();
+  const postPlace = (postLoc.placeName || '').trim().toLowerCase();
+  if (userPlace && postPlace && (userPlace.includes(postPlace) || postPlace.includes(userPlace))) {
+    return true;
+  }
+
+  // Neighborhood match
+  const userNeighborhood = (userLoc.neighborhood || '').trim().toLowerCase();
+  const postNeighborhood = (postLoc.neighborhood || '').trim().toLowerCase();
+  if (
+    userNeighborhood &&
+    postNeighborhood &&
+    (userNeighborhood.includes(postNeighborhood) || postNeighborhood.includes(userNeighborhood))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Category-aware distance decay multiplier.
  */
 export function getDistanceDecayScore(

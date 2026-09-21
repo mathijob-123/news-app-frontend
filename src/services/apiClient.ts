@@ -1,4 +1,18 @@
-import type { VideoPost, User, Wallet, Comment, AdminStats } from '../types';
+import type {
+  VideoPost,
+  User,
+  Wallet,
+  Comment,
+  AdminStats,
+  Advertisement,
+  AppSettings,
+  AdminUser,
+  SocialMediaPost,
+  CopyrightReport,
+  CopyrightStrike,
+  AppNotification,
+  Spotlight360Video
+} from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
 
@@ -40,6 +54,63 @@ export const apiClient = {
     } catch (err) {
       console.warn('[apiClient.updatePost] Network error updating post:', err);
       return { id: postId, ...updates } as VideoPost;
+    }
+  },
+
+  async deletePost(postId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      return Boolean(data.success);
+    } catch (err) {
+      console.warn('[apiClient.deletePost] Network error deleting post:', err);
+      return false;
+    }
+  },
+
+  async bulkUpdatePosts(params: {
+    postIds: string[];
+    action: 'approve' | 'reject' | 'delete' | 'update';
+    updates?: Partial<VideoPost>;
+  }): Promise<{ success: boolean; count: number; message?: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/posts/bulk-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.warn('[apiClient.bulkUpdatePosts] Network error:', err);
+      return { success: false, count: 0 };
+    }
+  },
+
+  async createSpotlight360Videos(videos: Partial<Spotlight360Video>[]): Promise<{ success: boolean; count: number; data: any[] }> {
+    try {
+      const res = await fetch(`${API_BASE}/spotlight360/bulk-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videos })
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('[apiClient.createSpotlight360Videos] Network error:', err);
+      return { success: false, count: 0, data: [] };
+    }
+  },
+
+  async getSpotlight360Videos(): Promise<Spotlight360Video[]> {
+    try {
+      const res = await fetch(`${API_BASE}/spotlight360`);
+      const data = await res.json();
+      return data.data || [];
+    } catch (err) {
+      console.warn('[apiClient.getSpotlight360Videos] Network error:', err);
+      return [];
     }
   },
 
@@ -197,5 +268,288 @@ export const apiClient = {
       reader.onerror = () => reject(new Error('Failed to read media file for upload'));
       reader.readAsDataURL(file);
     });
+  },
+
+  // --- ADVERTISEMENTS ---
+  async getAds(status?: string): Promise<Advertisement[]> {
+    try {
+      const url = status ? `${API_BASE}/ads?status=${status}` : `${API_BASE}/ads`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createAd(ad: Partial<Advertisement>): Promise<Advertisement> {
+    const res = await fetch(`${API_BASE}/ads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ad)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async updateAd(adId: string, updates: Partial<Advertisement>): Promise<Advertisement> {
+    const res = await fetch(`${API_BASE}/ads/${adId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async deleteAd(adId: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/ads/${adId}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  },
+
+  async trackAdImpression(adId: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/ads/${adId}/impression`, { method: 'POST' });
+    } catch {
+      // Fire-and-forget
+    }
+  },
+
+  async trackAdClick(adId: string): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/ads/${adId}/click`, { method: 'POST' });
+    } catch {
+      // Fire-and-forget
+    }
+  },
+
+  // --- APP SETTINGS ---
+  async getSettings(): Promise<AppSettings | null> {
+    try {
+      const res = await fetch(`${API_BASE}/settings`);
+      const data = await res.json();
+      return data.data;
+    } catch {
+      return null;
+    }
+  },
+
+  async updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  // --- ADMIN USERS ---
+  async getAdminUsers(): Promise<AdminUser[]> {
+    try {
+      const res = await fetch(`${API_BASE}/admin/users`);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createAdminUser(user: Partial<AdminUser>): Promise<AdminUser> {
+    const res = await fetch(`${API_BASE}/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async updateAdminUser(userId: string, updates: Partial<AdminUser>): Promise<AdminUser> {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async deleteAdminUser(userId: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  },
+
+  // --- SOCIAL MEDIA CONTENT IMPORTS ---
+  async getSocialImports(status?: string): Promise<SocialMediaPost[]> {
+    try {
+      const url = status ? `${API_BASE}/social/imports?status=${encodeURIComponent(status)}` : `${API_BASE}/social/imports`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async fetchSocialContent(params: {
+    platform: string;
+    source: string;
+    dateRange: string;
+    location: string;
+    category: string;
+    limit?: number;
+  }): Promise<{ newlyFetched: SocialMediaPost[]; totalStaged: number; duplicatesFound: number }> {
+    const res = await fetch(`${API_BASE}/social/fetch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async aiEnhanceSocialPost(id: string, customPrompt?: string): Promise<SocialMediaPost> {
+    const res = await fetch(`${API_BASE}/social/ai-enhance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, customPrompt })
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async approveSocialPost(id: string, editorialData: any): Promise<{ post: SocialMediaPost; publishedPost: VideoPost }> {
+    const res = await fetch(`${API_BASE}/social/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...editorialData })
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async rejectSocialPost(id: string, reason: string): Promise<SocialMediaPost> {
+    const res = await fetch(`${API_BASE}/social/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, reason })
+    });
+    const data = await res.json();
+    return data.data;
+  },
+
+  async deleteSocialPost(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/social/imports/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  // --- COPYRIGHT STRIKES & REPORTS ---
+  async getCopyrightReports(status?: string): Promise<CopyrightReport[]> {
+    try {
+      const url = status ? `${API_BASE}/copyright/reports?status=${status}` : `${API_BASE}/copyright/reports`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async submitCopyrightReport(reportData: Partial<CopyrightReport>): Promise<CopyrightReport> {
+    const res = await fetch(`${API_BASE}/copyright/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportData)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to submit copyright report');
+    }
+    return data.data;
+  },
+
+  async reviewCopyrightReport(
+    reportId: string,
+    action: 'approved' | 'rejected',
+    notes?: string,
+    reviewerName?: string
+  ): Promise<any> {
+    const res = await fetch(`${API_BASE}/copyright/reports/${reportId}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, notes, reviewerName })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to review copyright report');
+    }
+    return data;
+  },
+
+  async getCopyrightStrikes(): Promise<CopyrightStrike[]> {
+    try {
+      const res = await fetch(`${API_BASE}/copyright/strikes`);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async revokeCopyrightStrike(strikeId: string, reason?: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/copyright/strikes/${strikeId}/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to revoke strike');
+    }
+    return data;
+  },
+
+  // --- NOTIFICATIONS ---
+  async getNotifications(userId?: string): Promise<AppNotification[]> {
+    try {
+      const url = userId ? `${API_BASE}/notifications?userId=${userId}` : `${API_BASE}/notifications`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async markNotificationRead(notificationId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+        method: 'PATCH'
+      });
+      const data = await res.json();
+      return Boolean(data.success);
+    } catch {
+      return false;
+    }
+  },
+
+  async markAllNotificationsRead(userId?: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/mark-all-read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      const data = await res.json();
+      return Boolean(data.success);
+    } catch {
+      return false;
+    }
   }
 };
+
+

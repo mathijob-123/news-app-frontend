@@ -20,7 +20,8 @@ import {
   Camera,
   RefreshCw,
   Award,
-  Clock
+  Clock,
+  ShieldAlert
 } from 'lucide-react';
 import type { User, VideoPost } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -386,6 +387,111 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             Open &rarr;
           </span>
         </div>
+
+        {/* Copyright Standing Card (YouTube 3-Strike Policy) */}
+        {(() => {
+          const strikes = user.copyrightStrikesCount || 0;
+          const isSuspended = Boolean(user.uploadBlocked || strikes >= 3);
+          
+          let badgeText = 'Good Standing (0 Strikes)';
+          let badgeBg = '#ecfdf5';
+          let badgeBorder = '#a7f3d0';
+          let badgeColor = '#059669';
+
+          if (isSuspended) {
+            badgeText = `${strikes} Strikes — Uploads Suspended`;
+            badgeBg = '#fef2f2';
+            badgeBorder = '#fecaca';
+            badgeColor = '#dc2626';
+          } else if (strikes === 2) {
+            badgeText = '2 Strikes — Final Warning (2-Wk Penalty)';
+            badgeBg = '#fff7ed';
+            badgeBorder = '#fed7aa';
+            badgeColor = '#ea580c';
+          } else if (strikes === 1) {
+            badgeText = '1 Strike — Warning (1-Wk Penalty)';
+            badgeBg = '#fffbeb';
+            badgeBorder = '#fde68a';
+            badgeColor = '#d97706';
+          }
+
+          return (
+            <div
+              style={{
+                marginTop: '12px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 14px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldAlert size={16} color={isSuspended ? '#dc2626' : strikes > 0 ? '#ea580c' : '#059669'} />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Copyright Standing
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '20px',
+                    background: badgeBg,
+                    border: `1px solid ${badgeBorder}`,
+                    color: badgeColor
+                  }}
+                >
+                  {badgeText}
+                </span>
+              </div>
+
+              {/* 3-Strike Visual Indicator */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
+                {[1, 2, 3].map((strikeIndex) => {
+                  const isActive = strikes >= strikeIndex;
+                  return (
+                    <div
+                      key={strikeIndex}
+                      style={{
+                        background: isActive ? (strikeIndex === 3 ? '#fee2e2' : '#fed7aa') : '#ffffff',
+                        border: `1px solid ${isActive ? (strikeIndex === 3 ? '#fca5a5' : '#fdba74') : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        padding: '6px 4px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          color: isActive ? (strikeIndex === 3 ? '#991b1b' : '#9a3412') : '#94a3b8'
+                        }}
+                      >
+                        Strike {strikeIndex}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '9px',
+                          color: isActive ? (strikeIndex === 3 ? '#b91c1c' : '#c2410c') : '#94a3b8',
+                          marginTop: '2px',
+                          fontWeight: isActive ? 600 : 400
+                        }}
+                      >
+                        {strikeIndex === 1 ? '1 Wk Lock' : strikeIndex === 2 ? '2 Wk Lock' : 'Suspended'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
+                Spotlight follows YouTube's 3-strike copyright guidelines. Strikes expire after 90 days. 3 strikes permanently blocks upload privileges.
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 2. Content Tabs */}

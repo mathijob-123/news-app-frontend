@@ -262,6 +262,34 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           )}
         </div>
 
+        {/* Quick Dev Login for local development bypass */}
+        <div style={{ marginBottom: '20px', width: '100%', maxWidth: '300px' }}>
+          <button
+            type="button"
+            onClick={handleGoogleQuickLogin}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              color: '#34d399',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <ShieldCheck size={14} />
+            <span>Instant SuperAdmin Dev Access (jrinfotech)</span>
+          </button>
+        </div>
+
         {/* Status Pill */}
         <div
           style={{

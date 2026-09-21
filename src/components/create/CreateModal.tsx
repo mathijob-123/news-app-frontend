@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   DollarSign,
   TrendingUp,
-  MapPin
+  MapPin,
+  ShieldAlert,
+  Ban
 } from 'lucide-react';
 import type { VideoPost, User, NewsCategory } from '../../types';
 import { apiClient } from '../../services/apiClient';
@@ -102,6 +104,12 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   onClose,
   onPublishPost
 }) => {
+  // Copyright 3-strike enforcement
+  const isUploadBlocked = Boolean(
+    currentUser.uploadBlocked ||
+    (currentUser.copyrightStrikesCount && currentUser.copyrightStrikesCount >= 3)
+  );
+
   // Real Uploaded File State (Strictly ONE file)
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaType, setMediaType] = useState<'video' | 'image'>('video');
@@ -220,6 +228,11 @@ export const CreateModal: React.FC<CreateModalProps> = ({
 
   // Submit Citizen Report to Cloudflare R2 and Supabase PostgreSQL for Bureau Review
   const handlePublish = async () => {
+    if (isUploadBlocked) {
+      setError('Your upload privileges are suspended due to 3 active copyright strikes.');
+      return;
+    }
+
     setTouched({
       media: true,
       headline: true,
@@ -335,7 +348,102 @@ export const CreateModal: React.FC<CreateModalProps> = ({
 
   return (
     <div className="bottom-sheet-backdrop" onClick={onClose}>
-      {submittedPost ? (
+      {isUploadBlocked ? (
+        <div
+          className="bottom-sheet-content"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#ffffff',
+            maxWidth: '520px',
+            margin: '0 auto',
+            borderRadius: '24px 24px 0 0',
+            padding: '32px 24px',
+            textAlign: 'center'
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: '#fef2f2',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              boxShadow: '0 4px 14px rgba(220, 38, 38, 0.2)'
+            }}
+          >
+            <Ban size={36} />
+          </div>
+
+          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626', marginBottom: '8px' }}>
+            Upload Privileges Suspended
+          </h3>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '20px',
+              padding: '6px 14px',
+              margin: '0 auto 16px',
+              color: '#991b1b',
+              fontSize: '12px',
+              fontWeight: 700
+            }}
+          >
+            <ShieldAlert size={15} />
+            <span>3 Active Copyright Strikes (Limit Reached)</span>
+          </div>
+
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '20px' }}>
+            Your account has accumulated 3 active DMCA / copyright infringement strikes under Spotlight360's Community Protection Guidelines.
+            In accordance with YouTube's standard 3-strike policy, you are prohibited from uploading new dispatches or publishing video content.
+          </p>
+
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '16px',
+              marginBottom: '24px',
+              textAlign: 'left'
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
+              Account Status & Next Steps:
+            </div>
+            <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, paddingLeft: '18px', margin: 0 }}>
+              <li>Strikes expire automatically after 90 days if no further violations occur.</li>
+              <li>You may submit counter-notifications or appeal wrongful claims through the Admin Bureau.</li>
+              <li>If a strike is revoked or successfully appealed, upload capabilities will be restored.</li>
+            </ul>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="btn btn-secondary"
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '12px',
+              fontWeight: 600,
+              fontSize: '14px'
+            }}
+          >
+            Acknowledge & Close
+          </button>
+        </div>
+      ) : submittedPost ? (
         <div
           className="bottom-sheet-content"
           onClick={(e) => e.stopPropagation()}
