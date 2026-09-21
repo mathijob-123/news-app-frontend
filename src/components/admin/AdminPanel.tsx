@@ -68,7 +68,6 @@ import { apiClient } from '../../services/apiClient';
 import { formatINR } from '../../services/monetizationEngine';
 import { AdvertisementManager } from './AdvertisementManager';
 import { AppSettingsManager } from './AppSettingsManager';
-import { SocialMediaContentManager } from './SocialMediaContentManager';
 import { CopyrightManager } from './CopyrightManager';
 import { Spotlight360Manager } from './spotlight360/Spotlight360Manager';
 
@@ -80,7 +79,7 @@ interface AdminPanelProps {
   adminUser?: { id: string; name: string; role: string };
 }
 
-type AdminTab = 'requests' | 'social_media' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360';
+type AdminTab = 'requests' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   posts,
@@ -145,7 +144,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const isTabAllowed = (tab: AdminTab, role: AdminRoleType): boolean => {
     if (role === 'super_admin') return true;
     if (role === 'ad_manager') return tab === 'advertisements' || tab === 'spotlight360' || tab === 'analytics';
-    if (role === 'editor' || role === 'moderator') return tab === 'requests' || tab === 'social_media' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright';
+    if (role === 'editor' || role === 'moderator') return tab === 'requests' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright';
     return true;
   };
 
@@ -877,35 +876,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }}
                 >
                   {stats.pendingReviewCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* TAB: Social Media Content (Super Admin, Editor, Moderator) */}
-          {isTabAllowed('social_media', simulatedRole) && (
-            <button
-              onClick={() => setActiveTab('social_media')}
-              className="admin-tab-button"
-              style={{
-                color: activeTab === 'social_media' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
-                borderBottom: activeTab === 'social_media' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
-              }}
-            >
-              <Globe size={16} />
-              <span>Social Media Content (சமூக ஊடக உள்ளடக்கம்)</span>
-              {socialPosts.filter((p) => p.status === 'staged_pending').length > 0 && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 800,
-                    background: '#ea580c',
-                    color: '#ffffff',
-                    padding: '1px 6px',
-                    borderRadius: '10px'
-                  }}
-                >
-                  {socialPosts.filter((p) => p.status === 'staged_pending').length}
                 </span>
               )}
             </button>
@@ -2277,20 +2247,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* TAB: SOCIAL MEDIA CONTENT (சமூக ஊடக உள்ளடக்கம்)               */}
-        {/* ============================================================ */}
-        {activeTab === 'social_media' && (
-          <SocialMediaContentManager
-            posts={socialPosts}
-            onRefreshPosts={handleRefreshSocialPosts}
-            onFetchContent={handleFetchSocialContent}
-            onAiEnhance={handleAiEnhanceSocial}
-            onApprovePublish={handleApproveSocialPublish}
-            onReject={handleRejectSocial}
-            onDelete={handleDeleteSocial}
-          />
-        )}
 
         {/* ============================================================ */}
         {/* TAB 4: ADVERTISEMENTS MANAGEMENT (Admin -> Advertisements)   */}
