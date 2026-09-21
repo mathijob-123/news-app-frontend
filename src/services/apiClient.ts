@@ -22,8 +22,12 @@ export const apiClient = {
     return res.json();
   },
 
-  async getPosts(): Promise<VideoPost[]> {
-    const res = await fetch(`${API_BASE}/posts`);
+  async getPosts(params?: { status?: string; includeScheduled?: boolean }): Promise<VideoPost[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.includeScheduled) query.set('includeScheduled', 'true');
+    const qs = query.toString();
+    const res = await fetch(`${API_BASE}/posts${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     return data.data || [];
   },

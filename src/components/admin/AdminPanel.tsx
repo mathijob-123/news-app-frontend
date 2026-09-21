@@ -107,8 +107,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [appSettings, setAppSettings] = useState<AppSettings>(getStoredAppSettings());
   const [socialPosts, setSocialPosts] = useState<SocialMediaPost[]>(() => getStoredSocialImports());
 
-  // Load latest ads, settings, and social imports from server
+  // Load latest posts, ads, settings, and social imports from server
   React.useEffect(() => {
+    onRefreshData();
     apiClient.getAds().then((serverAds) => {
       if (serverAds && serverAds.length > 0) {
         setAds(serverAds);
@@ -516,8 +517,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   }, [posts]);
 
   // Handlers
-  const handleApprove = (postId: string, isBreaking: boolean = false) => {
+  const handleApprove = async (postId: string, isBreaking: boolean = false) => {
     updatePostReviewStatus(postId, isBreaking ? 'bounty_awarded' : 'verified_approved', isBreaking);
+    try {
+      await apiClient.updatePost(postId, {
+        status: 'published',
+        adminReviewStatus: isBreaking ? 'bounty_awarded' : 'verified_approved',
+        isBreaking,
+        priceAward: isBreaking ? 250 : 100,
+        adminPayoutAmount: isBreaking ? 250 : 100,
+        rpmRate: 350
+      });
+    } catch (err) {
+      console.warn('[handleApprove] API sync error:', err);
+    }
     onRefreshData();
     confetti({
       particleCount: 50,
@@ -526,11 +539,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
-  const handleConfirmReject = (e: React.FormEvent) => {
+  const handleConfirmReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingPost) return;
-    rejectPost(rejectingPost.id, rejectionReason);
+    const targetId = rejectingPost.id;
+    const reason = rejectionReason;
+    rejectPost(targetId, reason);
     setRejectingPost(null);
+    try {
+      await apiClient.updatePost(targetId, {
+        status: 'rejected',
+        adminReviewStatus: 'rejected',
+        rejectionReason: reason
+      });
+    } catch (err) {
+      console.warn('[handleConfirmReject] API sync error:', err);
+    }
     onRefreshData();
   };
 
@@ -754,8 +778,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
           </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Refresh / Sync Server Data Button */}
+            <button
+              onClick={() => onRefreshData()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Refresh and sync data from server"
+            >
+              <RefreshCw size={14} />
+              <span>Refresh</span>
+            </button>
+
             {onLogout && (
               <button
                 onClick={onLogout}

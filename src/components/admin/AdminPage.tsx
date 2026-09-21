@@ -37,6 +37,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     }
   }, [authUser, isAdmin]);
 
+  useEffect(() => {
+    onRefreshData();
+  }, []);
+
   const handleLoginSuccess = (user: { id: string; name: string; role: string }) => {
     try {
       sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
