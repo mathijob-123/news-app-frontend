@@ -58,8 +58,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onReportCopyright
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [watchProgress, setWatchProgress] = useState(0); // 0 to 100% of threshold
   const [isQualifiedView, setIsQualifiedView] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
@@ -67,6 +67,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const [showTipModal, setShowTipModal] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastTapRef = useRef<number>(0);
@@ -95,21 +96,40 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     watchSecondsRef.current = 0;
     setWatchProgress(0);
     setIsQualifiedView(false);
-    setIsPlaying(true);
     setCaptionExpanded(false);
+    setHasPlaybackError(false);
 
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(() => {
-        // Autoplay policy fallback: mute and play
-        if (videoRef.current) {
-          videoRef.current.muted = true;
-          setIsMuted(true);
-          videoRef.current.play().catch(() => {});
-        }
-      });
+      videoRef.current.muted = isMuted;
+      videoRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => {
+          console.warn('[SpotsPlayer Autoplay Notice]:', err);
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            videoRef.current.play()
+              .then(() => setIsPlaying(true))
+              .catch(() => setIsPlaying(false));
+          }
+        });
     }
   }, [currentIndex, currentPost?.id]);
+
+  // Reliable video stream resolution (prevents broken/dead blob URLs or 403 Forbidden URLs from hanging)
+  const resolvedVideoSrc = useMemo(() => {
+    const rawUrl = currentPost?.mediaUrl || '';
+    if (
+      !rawUrl ||
+      hasPlaybackError ||
+      rawUrl.startsWith('blob:') ||
+      rawUrl.includes('commondatastorage.googleapis.com')
+    ) {
+      return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
+    }
+    return rawUrl;
+  }, [currentPost?.mediaUrl, hasPlaybackError]);
 
   // Keyboard navigation for reels (ArrowUp / ArrowDown)
   useEffect(() => {
@@ -494,15 +514,60 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
         <div className="spots-slide">
           <video
             ref={videoRef}
-            src={currentPost.mediaUrl}
+            key={currentPost.id}
+            src={resolvedVideoSrc}
             poster={currentPost.thumbnailUrl}
+            autoPlay
             loop
             playsInline
             muted={isMuted}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onPlaying={() => setIsPlaying(true)}
             onTimeUpdate={handleTimeUpdate}
+            onError={(e) => {
+              console.warn('[SpotsPlayer] Stream load error for:', currentPost.id, currentPost.mediaUrl, e);
+              setHasPlaybackError(true);
+            }}
             className="spots-video"
             style={{ objectFit: 'cover', width: '100%', height: '100%' }}
           />
+
+          {/* Floating Tap for Sound Badge */}
+          {isMuted && isPlaying && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (videoRef.current) {
+                  videoRef.current.muted = false;
+                  setIsMuted(false);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                top: '64px',
+                right: '16px',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                borderRadius: '20px',
+                padding: '6px 12px',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                zIndex: 25,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+              }}
+            >
+              <VolumeX size={14} color="#fca5a5" />
+              <span>Tap for sound</span>
+            </button>
+          )}
 
           {/* Pause overlay icon */}
           {!isPlaying && (
@@ -512,19 +577,21 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '60px',
-                height: '60px',
+                width: '64px',
+                height: '64px',
                 borderRadius: '50%',
-                background: 'rgba(0, 0, 0, 0.55)',
-                backdropFilter: 'blur(4px)',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(6px)',
+                border: '1.5px solid rgba(255, 255, 255, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
               }}
             >
-              <Play size={30} fill="#ffffff" style={{ marginLeft: '4px' }} />
+              <Play size={32} fill="#ffffff" style={{ marginLeft: '4px' }} />
             </div>
           )}
 
@@ -741,7 +808,11 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
                 }}
               >
                 <CheckCircle2 size={9} />
-                <span>₹{currentPost.priceAward || currentPost.adminPayoutAmount || currentPost.adminBountyAwarded || 50} Paid</span>
+                <span>
+                  {currentUser && currentUser.id === currentPost.creatorId && (currentPost.priceAward || currentPost.adminPayoutAmount)
+                    ? `Verified • ₹${currentPost.priceAward || currentPost.adminPayoutAmount} Awarded to You`
+                    : 'Verified'}
+                </span>
               </span>
             )}
           </div>

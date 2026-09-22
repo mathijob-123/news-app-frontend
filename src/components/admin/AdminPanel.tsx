@@ -482,9 +482,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return posts.filter((post) => {
       // Status filter
       if (requestFilter === 'pending') {
-        if (post.adminReviewStatus && post.adminReviewStatus !== 'pending_review') return false;
+        const isPending = (post.adminReviewStatus === 'pending_review' || post.status === 'in_review') &&
+          post.adminReviewStatus !== 'verified_approved' &&
+          post.adminReviewStatus !== 'bounty_awarded' &&
+          post.adminReviewStatus !== 'rejected';
+        if (!isPending) return false;
       } else if (requestFilter === 'approved') {
-        if (post.adminReviewStatus !== 'verified_approved' && post.adminReviewStatus !== 'bounty_awarded') return false;
+        const isApproved = post.adminReviewStatus === 'verified_approved' ||
+          post.adminReviewStatus === 'bounty_awarded' ||
+          (post.status === 'published' && post.adminReviewStatus !== 'pending_review' && post.adminReviewStatus !== 'rejected');
+        if (!isApproved) return false;
       } else if (requestFilter === 'rejected') {
         if (post.adminReviewStatus !== 'rejected') return false;
       }
@@ -1151,7 +1158,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="admin-responsive-grid">
                 {filteredRequests.map((post) => {
                 const isPlaying = playingPostId === post.id;
-                const isPending = !post.adminReviewStatus || post.adminReviewStatus === 'pending_review';
+                const isPending = (post.adminReviewStatus === 'pending_review' || post.status === 'in_review') &&
+                  post.adminReviewStatus !== 'verified_approved' &&
+                  post.adminReviewStatus !== 'bounty_awarded' &&
+                  post.adminReviewStatus !== 'rejected';
 
                 return (
                   <div
@@ -1472,7 +1482,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {isPending ? (
                           <>
                             <button
-                              onClick={() => openAcceptModal(post, false)}
+                              onClick={() => handleApprove(post.id, false)}
+                              title="Instantly approve and publish to Spots & Feeds without opening calibration modal"
                               style={{
                                 flex: 1,
                                 padding: '8px 12px',
@@ -1484,13 +1495,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '6px',
+                                gap: '5px',
                                 border: 'none',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
                               }}
                             >
                               <Check size={14} />
-                              <span>Calibrate & Approve (Step 2)</span>
+                              <span>⚡ Quick Approve</span>
+                            </button>
+
+                            <button
+                              onClick={() => openAcceptModal(post, false)}
+                              title="Fine-tune geotag radius, grant amount, and editorial citation"
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '8px',
+                                background: '#f0fdf4',
+                                color: '#047857',
+                                border: '1px solid #bbf7d0',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Sliders size={13} />
+                              <span>Calibrate</span>
                             </button>
 
                             <button
@@ -2380,7 +2414,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   position: 'relative'
                 }}
               >
-                {deletingPost.type === 'image' || !deletingPost.mediaUrl?.match(/\.(mp4|webm|mov|m4v)/i) ? (
+                {deletingPost.type === 'image' || (!deletingPost.type && !!deletingPost.mediaUrl?.match(/\.(jpe?g|png|gif|webp|avif)/i)) ? (
                   <img
                     src={deletingPost.mediaUrl || deletingPost.thumbnailUrl}
                     alt={deletingPost.headline}
@@ -2791,7 +2825,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 }}
               >
                 {acceptingPost.type === 'image' ||
-                !acceptingPost.mediaUrl?.match(/\.(mp4|webm|mov|m4v)/i) ? (
+                (!acceptingPost.type && !!acceptingPost.mediaUrl?.match(/\.(jpe?g|png|gif|webp|avif)/i)) ? (
                   <img
                     src={acceptingPost.mediaUrl || acceptingPost.thumbnailUrl}
                     alt="Citizen dispatch"
@@ -3630,7 +3664,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
                     }}
                   >
-                    {inspectingPost.type === 'image' || !inspectingPost.mediaUrl?.match(/\.(mp4|webm|mov|m4v)/i) ? (
+                    {inspectingPost.type === 'image' || (!inspectingPost.type && !!inspectingPost.mediaUrl?.match(/\.(jpe?g|png|gif|webp|avif)/i)) ? (
                       <img
                         src={inspectingPost.mediaUrl || inspectingPost.thumbnailUrl}
                         alt={inspectingPost.headline}

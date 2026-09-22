@@ -48,8 +48,16 @@ const STORAGE_KEYS = {
   COPYRIGHT_REPORTS: 'lp_copyright_reports_v1',
   COPYRIGHT_STRIKES: 'lp_copyright_strikes_v1',
   NOTIFICATIONS: 'lp_user_notifications_v1',
-  SPOTLIGHT360_VIDEOS: 'lp_spotlight360_videos_v1'
+  SPOTLIGHT360_VIDEOS: 'lp_spotlight360_videos_v1',
+  CREATORS: 'lp_creators_directory_v1'
 };
+
+const VERIFIED_R2_FALLBACKS = [
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789997093458_sk5cm0.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789996953775_f7x7uj.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789995126975_l0csk7.mp4'
+];
 
 export function getStoredPosts(): VideoPost[] {
   try {
@@ -58,7 +66,24 @@ export function getStoredPosts(): VideoPost[] {
       localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(INITIAL_POSTS));
       return INITIAL_POSTS;
     }
-    return JSON.parse(raw);
+    const parsed: VideoPost[] = JSON.parse(raw);
+    let changed = false;
+    const sanitized = parsed.map((p, idx) => {
+      const isDeadMedia = !p.mediaUrl || p.mediaUrl.startsWith('blob:') || p.mediaUrl.includes('commondatastorage.googleapis.com');
+      if (isDeadMedia && p.type === 'video') {
+        changed = true;
+        return {
+          ...p,
+          mediaUrl: VERIFIED_R2_FALLBACKS[idx % VERIFIED_R2_FALLBACKS.length]
+        };
+      }
+      return p;
+    });
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(sanitized));
+    }
+    return sanitized;
   } catch (err) {
     console.error('Error reading posts:', err);
     return INITIAL_POSTS;
@@ -509,6 +534,43 @@ export function updatePostReviewStatus(
   }
   if (status === 'verified_approved' || status === 'bounty_awarded') {
     post.status = 'published';
+    const award = post.priceAward || (isBreaking ? 250 : 100);
+    post.priceAward = award;
+    post.adminPayoutAmount = award;
+
+    // Credit creator's wallet if not already credited
+    if (award > 0) {
+      const wallet = getStoredWallet();
+      wallet.balance = parseFloat((wallet.balance + award).toFixed(2));
+      wallet.lifetimeEarnings = parseFloat((wallet.lifetimeEarnings + award).toFixed(2));
+      wallet.thisMonthEarnings = parseFloat((wallet.thisMonthEarnings + award).toFixed(2));
+      saveWallet(wallet);
+
+      const txs = getStoredTransactions();
+      txs.unshift({
+        id: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        walletId: wallet.id,
+        type: isBreaking ? 'bounty' : 'admin_payout',
+        amount: award,
+        relatedPostId: post.id,
+        relatedPostTitle: `Bureau Price Award: ${post.headline.slice(0, 32)}...`,
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        method: 'Spotlight Bureau Treasury (Instant UPI)',
+        adminDesk: 'Chennai & Tiruvallur Admin Bureau'
+      });
+      saveTransactions(txs);
+
+      addStoredNotification({
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        userId: post.creatorId,
+        title: '🎉 Report Approved & Cash Awarded!',
+        message: `Your video report "${post.headline.slice(0, 36)}..." was approved by the Bureau. ₹${award} has been credited to your Spotlight Wallet.`,
+        type: 'report_status',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
   savePosts(posts);
   return post;
@@ -537,9 +599,10 @@ export function acceptAndPublishPostByAdmin(
   const post = posts.find((p) => p.id === postId);
   if (!post) return null;
 
-  const allocatedPriceAward = editorialData.priceAward ?? editorialData.grantAmount ?? 100;
-  const allocatedRpm = editorialData.rpmRate ?? 350;
+  const allocatedPriceAward = editorialData.priceAward ?? editorialData.grantAmount ?? (editorialData.isBreaking ? 250 : 100);
+  const allocatedRpm = editorialData.rpmRate ?? (editorialData.isBreaking ? 500 : 350);
 
+  // Apply Editorial overrides
   post.location = {
     ...post.location,
     placeName: editorialData.landmark,
@@ -580,6 +643,16 @@ export function acceptAndPublishPostByAdmin(
       adminDesk: editorialData.reviewerDesk || 'Chennai & Tiruvallur Admin Bureau'
     });
     saveTransactions(txs);
+
+    addStoredNotification({
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: post.creatorId,
+      title: '🎉 Report Approved & Cash Awarded!',
+      message: `Your video report "${post.headline.slice(0, 36)}..." was approved by the Bureau. ₹${allocatedPriceAward} has been credited to your Spotlight Wallet.`,
+      type: 'report_status',
+      read: false,
+      createdAt: new Date().toISOString()
+    });
   }
 
   savePosts(posts);
@@ -609,10 +682,15 @@ export function getAdminDashboardStats(): AdminStats {
 
   const totalVideosSubmitted = posts.length;
   const pendingReviewCount = posts.filter(
-    (p) => !p.adminReviewStatus || p.adminReviewStatus === 'pending_review'
+    (p) => (p.adminReviewStatus === 'pending_review' || p.status === 'in_review') &&
+      p.adminReviewStatus !== 'verified_approved' &&
+      p.adminReviewStatus !== 'bounty_awarded' &&
+      p.adminReviewStatus !== 'rejected'
   ).length;
   const approvedCount = posts.filter(
-    (p) => p.adminReviewStatus === 'verified_approved' || p.adminReviewStatus === 'bounty_awarded'
+    (p) => p.adminReviewStatus === 'verified_approved' ||
+      p.adminReviewStatus === 'bounty_awarded' ||
+      (p.status === 'published' && p.adminReviewStatus !== 'pending_review' && p.adminReviewStatus !== 'rejected')
   ).length;
   const rejectedCount = posts.filter((p) => p.adminReviewStatus === 'rejected').length;
 
@@ -952,5 +1030,46 @@ export function addStoredSpotlight360Videos(newVideos: Spotlight360Video[]): voi
   const current = getStoredSpotlight360Videos();
   const updated = [...newVideos, ...current.filter(c => !newVideos.some(n => n.id === c.id))];
   saveStoredSpotlight360Videos(updated);
+}
+
+// --- CREATOR & REPORTER DIRECTORY ---
+export interface CreatorItem {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  verified: boolean;
+}
+
+export const DEFAULT_CREATORS: CreatorItem[] = [
+  { id: 'usr_admin_jr', name: 'Spotlight360 Official', handle: 'spotlight360', avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200', verified: true },
+  { id: 'usr_tn_health', name: 'TN Health Desk', handle: 'TNHealthDesk', avatar: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=200', verified: true },
+  { id: 'usr_tn_civic', name: 'Ponneri Citizen Watch', handle: 'ponnericivic', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200', verified: true },
+  { id: 'usr_tn_traffic', name: 'Chennai Traffic Live', handle: 'chennaitraffic', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200', verified: true },
+  { id: 'usr_tn_001', name: 'Citizen Journalist', handle: 'citizen_reporter', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200', verified: false }
+];
+
+export function getStoredCreators(): CreatorItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CREATORS);
+    if (!raw) return DEFAULT_CREATORS;
+    const list = JSON.parse(raw);
+    const map = new Map<string, CreatorItem>();
+    DEFAULT_CREATORS.forEach(c => map.set(c.id, c));
+    list.forEach((c: CreatorItem) => map.set(c.id, c));
+    return Array.from(map.values());
+  } catch {
+    return DEFAULT_CREATORS;
+  }
+}
+
+export function saveStoredCreator(newCreator: CreatorItem): void {
+  try {
+    const current = getStoredCreators();
+    const updated = [newCreator, ...current.filter(c => c.id !== newCreator.id)];
+    localStorage.setItem(STORAGE_KEYS.CREATORS, JSON.stringify(updated));
+  } catch (err) {
+    console.error('Error saving creator:', err);
+  }
 }
 

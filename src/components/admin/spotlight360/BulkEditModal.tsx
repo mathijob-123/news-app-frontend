@@ -10,7 +10,8 @@ import {
   Radio,
   Sliders,
   Phone,
-  Link
+  Link,
+  Users
 } from 'lucide-react';
 import type {
   Spotlight360Location,
@@ -18,6 +19,7 @@ import type {
   Spotlight360Cta,
   NewsCategory
 } from '../../../types';
+import type { CreatorItem } from '../../../services/storageService';
 
 export const SPOTLIGHT_PRESET_LOCATIONS: {
   area: string;
@@ -39,6 +41,7 @@ export const SPOTLIGHT_PRESET_LOCATIONS: {
 
 interface BulkEditModalProps {
   selectedCount: number;
+  creators?: CreatorItem[];
   onClose: () => void;
   onApply: (updates: {
     location?: Spotlight360Location;
@@ -48,11 +51,13 @@ interface BulkEditModalProps {
     campaignName?: string;
     status?: 'draft' | 'scheduled' | 'active';
     cta?: Spotlight360Cta;
+    creator?: CreatorItem;
   }) => void;
 }
 
 export const BulkEditModal: React.FC<BulkEditModalProps> = ({
   selectedCount,
+  creators = [],
   onClose,
   onApply
 }) => {
@@ -63,6 +68,8 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
   const [applyCampaign, setApplyCampaign] = useState(false);
   const [applyStatus, setApplyStatus] = useState(false);
   const [applyCta, setApplyCta] = useState(false);
+  const [applyCreator, setApplyCreator] = useState(false);
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string>(creators[0]?.id || '');
 
   // Form values
   const [selectedArea, setSelectedArea] = useState('Ponneri');
@@ -132,6 +139,13 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
         label: ctaLabel,
         actionUrl: ctaActionUrl
       };
+    }
+
+    if (applyCreator && selectedCreatorId) {
+      const found = creators.find((c) => c.id === selectedCreatorId);
+      if (found) {
+        updates.creator = found;
+      }
     }
 
     onApply(updates);
@@ -329,6 +343,48 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
                   <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
                     🎯 Only citizens within {radiusKm} km of {selectedArea} will be served these videos in Spots/Reels.
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION: Creator / Reporter Channel */}
+          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', marginBottom: applyCreator ? '10px' : '0' }}>
+              <input
+                type="checkbox"
+                checked={applyCreator}
+                onChange={(e) => setApplyCreator(e.target.checked)}
+                style={{ width: '15px', height: '15px', accentColor: 'var(--brand-primary)' }}
+              />
+              <Users size={16} color="var(--brand-primary)" />
+              <span>Assign Creator / Reporter Channel to Selected Videos</span>
+            </label>
+            {applyCreator && (
+              <div style={{ marginTop: '8px' }}>
+                <select
+                  value={selectedCreatorId}
+                  onChange={(e) => setSelectedCreatorId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    background: '#ffffff',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <option value="" disabled>Choose a creator / reporter...</option>
+                  {(creators || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (@{c.handle}) {c.verified ? '✓' : ''}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                  👤 All selected videos will stream under this creator's channel and avatar on Spots Reels and Home feeds.
                 </div>
               </div>
             )}

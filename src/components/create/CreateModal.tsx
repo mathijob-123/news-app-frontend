@@ -18,11 +18,12 @@ import {
   ShieldAlert,
   Ban
 } from 'lucide-react';
-import type { VideoPost, User, NewsCategory } from '../../types';
+import type { VideoPost, User, NewsCategory, LocationCoordinates } from '../../types';
 import { apiClient } from '../../services/apiClient';
 
 interface CreateModalProps {
   currentUser: User;
+  activeLocation?: LocationCoordinates;
   onClose: () => void;
   onPublishPost: (post: VideoPost) => void;
 }
@@ -101,6 +102,7 @@ function extractVideoThumbnail(videoFile: File): Promise<Blob | null> {
 
 export const CreateModal: React.FC<CreateModalProps> = ({
   currentUser,
+  activeLocation,
   onClose,
   onPublishPost
 }) => {
@@ -123,6 +125,9 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   const [category, setCategory] = useState<NewsCategory>('civic');
 
   // Status & Progress
+  const isAdmin = currentUser.role === 'admin';
+  const [autoApproveAsAdmin, setAutoApproveAsAdmin] = useState<boolean>(false);
+  const [isBreakingNews, setIsBreakingNews] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -292,6 +297,8 @@ export const CreateModal: React.FC<CreateModalProps> = ({
       setUploadStatus('Submitting report for Bureau Acceptance...');
       const postId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
+      const shouldAutoApprove = isAdmin && autoApproveAsAdmin;
+
       const newPostPayload: Partial<VideoPost> = {
         id: postId,
         creatorId: currentUser.id,
@@ -305,22 +312,37 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         headline: headline.trim(),
         caption: caption.trim() || headline.trim(),
         category,
-        location: {
+        location: activeLocation ? {
+          placeName: activeLocation.placeName || 'Chennai Hub',
+          neighborhood: activeLocation.neighborhood || activeLocation.district || 'Chennai',
+          lat: activeLocation.lat,
+          lng: activeLocation.lng,
+          district: activeLocation.district,
+          pincode: activeLocation.pincode,
+          radiusMeters: activeLocation.radiusMeters || 4000
+        } : {
           placeName: currentUser.homeLocation?.placeName || 'Chennai Hub',
           neighborhood: currentUser.homeLocation?.district || 'Chennai',
           lat: currentUser.homeLocation?.lat || 13.0827,
           lng: currentUser.homeLocation?.lng || 80.2707,
+          district: currentUser.homeLocation?.district,
           radiusMeters: 4000
         },
-        sourceCitation: 'Citizen on-ground eyewitness dispatch',
+        sourceCitation: shouldAutoApprove
+          ? 'SuperAdmin Official Newsroom Broadcast'
+          : 'Citizen on-ground eyewitness dispatch',
         durationSeconds: mediaType === 'video' ? videoDuration : 10,
-        status: 'in_review',
-        isBreaking: false,
-        adminReviewStatus: 'pending_review',
-        adminPayoutAmount: 0,
-        priceAward: 0,
-        rpmRate: 0,
-        adminBountyAwarded: 0,
+        status: shouldAutoApprove ? 'published' : 'in_review',
+        isBreaking: isBreakingNews,
+        adminReviewStatus: shouldAutoApprove
+          ? (isBreakingNews ? 'bounty_awarded' : 'verified_approved')
+          : 'pending_review',
+        adminPayoutAmount: shouldAutoApprove ? (isBreakingNews ? 250 : 100) : 0,
+        priceAward: shouldAutoApprove ? (isBreakingNews ? 250 : 100) : 0,
+        rpmRate: shouldAutoApprove ? 350 : 0,
+        adminBountyAwarded: shouldAutoApprove && isBreakingNews ? 250 : 0,
+        adminDisbursedDate: shouldAutoApprove ? new Date().toISOString() : undefined,
+        adminReviewerDesk: shouldAutoApprove ? 'SuperAdmin Desk' : undefined,
         createdAt: new Date().toISOString(),
         viewCount: 0,
         qualifiedViewCount: 0,
@@ -477,11 +499,15 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           </div>
 
           <h3 style={{ fontSize: '19px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            Report Submitted to Bureau Desk!
+            {submittedPost?.adminReviewStatus === 'verified_approved' || submittedPost?.adminReviewStatus === 'bounty_awarded'
+              ? '⚡ Dispatch Published Live!'
+              : 'Report Submitted to Bureau Desk!'}
           </h3>
 
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '20px' }}>
-            Your eyewitness dispatch has been sent as a request to the Admin Bureau. Every post is reviewed before going public:
+            {submittedPost?.adminReviewStatus === 'verified_approved' || submittedPost?.adminReviewStatus === 'bounty_awarded'
+              ? 'Your video dispatch has been verified and published immediately as an official Bureau broadcast. It is now streaming live across Spots and Feeds for your active district.'
+              : 'Your eyewitness dispatch has been sent as a request to the Admin Bureau. Every citizen report is reviewed before going public:'}
           </p>
 
           <div
@@ -584,7 +610,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
             className="btn-primary"
             onClick={onClose}
             style={{
-              padding: '13px',
+              padding: '14px',
               borderRadius: '12px',
               fontSize: '14px',
               fontWeight: 800,
@@ -592,11 +618,12 @@ export const CreateModal: React.FC<CreateModalProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              cursor: 'pointer'
             }}
           >
             <Check size={16} />
-            <span>Got It — Track in Profile</span>
+            <span>{submittedPost?.adminReviewStatus === 'verified_approved' ? 'Close & View Feed' : 'Got It — Awaiting Bureau Review'}</span>
           </button>
         </div>
       ) : (
@@ -1123,7 +1150,87 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 )}
               </div>
 
-              {/* Submit Citizen Report Button */}
+              {/* Admin Publishing Control Card */}
+              {isAdmin && (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255, 69, 0, 0.08) 0%, rgba(234, 88, 12, 0.04) 100%)',
+                    border: '1.5px solid rgba(255, 69, 0, 0.28)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    marginTop: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={18} color="var(--brand-primary)" />
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        Admin Publishing Controls
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                        Logged in as Bureau Admin ({currentUser.displayName || currentUser.handle})
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auto-Approve Toggle */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: autoApproveAsAdmin ? '#059669' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      background: autoApproveAsAdmin ? '#ecfdf5' : 'rgba(0,0,0,0.03)',
+                      border: `1px solid ${autoApproveAsAdmin ? '#a7f3d0' : 'rgba(0,0,0,0.08)'}`,
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={autoApproveAsAdmin}
+                      onChange={(e) => setAutoApproveAsAdmin(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                    />
+                    <span>⚡ Auto-Approve & Publish Immediately (Live on Spots & Feeds)</span>
+                  </label>
+
+                  {/* Breaking News Toggle */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: isBreakingNews ? '#dc2626' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      background: isBreakingNews ? '#fef2f2' : 'rgba(0,0,0,0.03)',
+                      border: `1px solid ${isBreakingNews ? '#fecaca' : 'rgba(0,0,0,0.08)'}`,
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isBreakingNews}
+                      onChange={(e) => setIsBreakingNews(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#ef4444', cursor: 'pointer' }}
+                    />
+                    <span>🚨 Mark as Urgent Breaking Dispatch</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Submit Report Button */}
               <button
                 type="button"
                 className="btn-primary"
@@ -1145,7 +1252,12 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 {isPublishing ? (
                   <>
                     <RefreshCw size={16} className="spin" />
-                    <span>{uploadStatus || 'Submitting report...'}</span>
+                    <span>{uploadStatus || 'Publishing report...'}</span>
+                  </>
+                ) : isAdmin && autoApproveAsAdmin ? (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>Publish & Go Live Immediately</span>
                   </>
                 ) : (
                   <>

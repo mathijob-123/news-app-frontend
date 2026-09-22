@@ -367,6 +367,13 @@ export const AppContent: React.FC = () => {
     const updatedPosts = [newPost, ...posts];
     setPosts(updatedPosts);
     savePosts(updatedPosts);
+
+    // If the post is submitted for citizen editorial review, keep modal context
+    // and do not switch directly to Spots player where unapproved videos are hidden
+    if (newPost.status === 'in_review' || newPost.adminReviewStatus === 'pending_review') {
+      return;
+    }
+
     if (newPost.type === 'video') {
       setSelectedSpotPostId(newPost.id);
       setActiveTab('spots');
@@ -767,6 +774,7 @@ export const AppContent: React.FC = () => {
         {showCreateModal && (
           <CreateModal
             currentUser={user}
+            activeLocation={activeLocation}
             onClose={() => setShowCreateModal(false)}
             onPublishPost={handlePublishPost}
           />

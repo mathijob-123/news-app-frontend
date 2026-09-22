@@ -27,7 +27,12 @@ import {
   Share2,
   Target,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  UserPlus,
+  Users,
+  UserCheck,
+  Check,
+  X
 } from 'lucide-react';
 import type {
   Spotlight360Video,
@@ -44,7 +49,11 @@ import { apiClient } from '../../../services/apiClient';
 import {
   getStoredSpotlight360Videos,
   saveStoredSpotlight360Videos,
-  addStoredSpotlight360Videos
+  addStoredSpotlight360Videos,
+  getStoredCreators,
+  saveStoredCreator,
+  DEFAULT_CREATORS,
+  CreatorItem
 } from '../../../services/storageService';
 
 // Sample demo videos for instant testing if admin doesn't have local MP4 files handy
@@ -53,7 +62,7 @@ const DEMO_TEST_VIDEOS = [
     fileName: 'ponneri_jewellery_ad.mp4',
     title: 'Ponneri Royal Jewellery Mega Festival',
     description: 'Exclusive 0% making charges this week only. Visit our Ponneri High Road showroom!',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    mediaUrl: 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600',
     location: SPOTLIGHT_PRESET_LOCATIONS[0], // Ponneri
     category: 'business',
@@ -66,7 +75,7 @@ const DEMO_TEST_VIDEOS = [
     fileName: 'minjur_college_campus.mp4',
     title: 'Minjur Engineering & Tech College Admissions',
     description: 'Admissions open for 2026-27 batch. Top placement records in Chennai & Tiruvallur.',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    mediaUrl: 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789997093458_sk5cm0.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600',
     location: SPOTLIGHT_PRESET_LOCATIONS[1], // Minjur
     category: 'community',
@@ -79,7 +88,7 @@ const DEMO_TEST_VIDEOS = [
     fileName: 'tiruvallur_monsoon_advisory.mp4',
     title: 'Tiruvallur District Monsoon Public Safety Advisory',
     description: 'Emergency 24/7 disaster control room contact numbers and heavy rain precautions.',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    mediaUrl: 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789996953775_f7x7uj.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=600',
     location: SPOTLIGHT_PRESET_LOCATIONS[2], // Tiruvallur Town
     category: 'safety',
@@ -92,7 +101,7 @@ const DEMO_TEST_VIDEOS = [
     fileName: 'gummidipoondi_logistics_hub.mp4',
     title: 'Gummidipoondi Mega Logistics Park Opening',
     description: 'New warehouse facilities and logistics hubs open for industrial leasing.',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+    mediaUrl: 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789995126975_l0csk7.mp4',
     thumbnailUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600',
     location: SPOTLIGHT_PRESET_LOCATIONS[3], // Gummidipoondi
     category: 'business',
@@ -101,6 +110,17 @@ const DEMO_TEST_VIDEOS = [
     endDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
     cta: { type: 'learn_more' as const, label: 'Book Space', actionUrl: 'https://spotlight.local/logistics' }
   }
+];
+
+const PRESET_AVATARS = [
+  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200',
+  'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=200',
+  'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200',
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200'
 ];
 
 interface Spotlight360ManagerProps {
@@ -119,6 +139,22 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
   const [publishedVideos, setPublishedVideos] = useState<Spotlight360Video[]>(() =>
     getStoredSpotlight360Videos()
   );
+
+  // Creators / Reporters Directory
+  const [creators, setCreators] = useState<CreatorItem[]>(() => getStoredCreators());
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [quickCreateTargetItemId, setQuickCreateTargetItemId] = useState<string | null>(null);
+  const [newReporterName, setNewReporterName] = useState('');
+  const [newReporterHandle, setNewReporterHandle] = useState('');
+  const [newReporterHandleEdited, setNewReporterHandleEdited] = useState(false);
+  const [newReporterVerified, setNewReporterVerified] = useState(true);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
+  const [isCreatingCreator, setIsCreatingCreator] = useState(false);
+  const [bulkNewUserName, setBulkNewUserName] = useState('');
+  const [bulkNewUserHandle, setBulkNewUserHandle] = useState('');
+  const [bulkNewUserAvatar, setBulkNewUserAvatar] = useState(PRESET_AVATARS[0]);
+  const [bulkNewUserVerified, setBulkNewUserVerified] = useState(true);
 
   // Bulk Upload Queue State
   const [uploadQueue, setUploadQueue] = useState<BulkUploadVideoItem[]>([]);
@@ -147,7 +183,117 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
         saveStoredSpotlight360Videos(serverVideos);
       }
     }).catch(() => {});
+
+    apiClient.getCreators().then((serverCreators) => {
+      if (serverCreators && serverCreators.length > 0) {
+        setCreators(serverCreators);
+        serverCreators.forEach((c) => saveStoredCreator(c));
+      }
+    }).catch(() => {});
   }, []);
+
+  // Quick Create a new reporter / creator from admin dashboard
+  const handleSaveQuickCreator = async () => {
+    if (!newReporterName.trim()) {
+      alert('Please enter a reporter / creator name');
+      return;
+    }
+    const cleanHandle = newReporterHandle.trim().startsWith('@')
+      ? newReporterHandle.trim()
+      : `@${newReporterHandle.trim() || newReporterName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+    setIsCreatingCreator(true);
+    try {
+      const created = await apiClient.createCreator({
+        name: newReporterName.trim(),
+        handle: cleanHandle,
+        avatar: selectedAvatarUrl,
+        verified: newReporterVerified
+      });
+
+      const finalCreator: CreatorItem = created || {
+        id: `usr_${Date.now()}`,
+        name: newReporterName.trim(),
+        handle: cleanHandle,
+        avatar: selectedAvatarUrl,
+        verified: newReporterVerified
+      };
+
+      saveStoredCreator(finalCreator);
+      setCreators((prev) => [finalCreator, ...prev.filter((c) => c.id !== finalCreator.id)]);
+
+      // If this quick-create was triggered from a specific video item row:
+      if (quickCreateTargetItemId) {
+        setUploadQueue((prev) =>
+          prev.map((it) =>
+            it.id === quickCreateTargetItemId
+              ? {
+                  ...it,
+                  creatorId: finalCreator.id,
+                  creatorName: finalCreator.name,
+                  creatorHandle: finalCreator.handle,
+                  creatorAvatar: finalCreator.avatar,
+                  creatorVerified: finalCreator.verified
+                }
+              : it
+          )
+        );
+      }
+
+      // Reset modal state
+      setShowQuickCreateModal(false);
+      setQuickCreateTargetItemId(null);
+      setNewReporterName('');
+      setNewReporterHandle('');
+      setNewReporterHandleEdited(false);
+    } catch (err: any) {
+      alert(`Failed to create reporter: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsCreatingCreator(false);
+    }
+  };
+
+  // Create and apply a new user to all checked queue items
+  const handleApplyBulkAssignCreator = () => {
+    if (!bulkNewUserName.trim()) {
+      alert('Please enter the user / reporter name');
+      return;
+    }
+    const cleanHandle = bulkNewUserHandle.trim().startsWith('@')
+      ? bulkNewUserHandle.trim()
+      : `@${bulkNewUserHandle.trim() || bulkNewUserName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')}`;
+
+    const newCreatorId = `usr_${cleanHandle.replace(/^@/, '') || Date.now()}`;
+    const newCreator: CreatorItem = {
+      id: newCreatorId,
+      name: bulkNewUserName.trim(),
+      handle: cleanHandle,
+      avatar: bulkNewUserAvatar,
+      verified: bulkNewUserVerified
+    };
+
+    saveStoredCreator(newCreator);
+    setCreators((prev) => [newCreator, ...prev.filter((c) => c.id !== newCreator.id)]);
+    apiClient.createCreator(newCreator).catch(() => {});
+
+    setUploadQueue((prev) =>
+      prev.map((it) => {
+        if (!selectedQueueIds.has(it.id)) return it;
+        return {
+          ...it,
+          creatorId: newCreator.id,
+          creatorName: newCreator.name,
+          creatorHandle: newCreator.handle,
+          creatorAvatar: newCreator.avatar,
+          creatorVerified: newCreator.verified
+        };
+      })
+    );
+
+    setShowBulkAssignModal(false);
+    setBulkNewUserName('');
+    setBulkNewUserHandle('');
+  };
 
   // Extract thumbnail from video file using HTML5 canvas
   const generateVideoThumbnail = (file: File): Promise<string> => {
@@ -209,6 +355,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
 
       // Default preset location assigned based on index modulo
       const defaultPreset = SPOTLIGHT_PRESET_LOCATIONS[i % SPOTLIGHT_PRESET_LOCATIONS.length];
+      const defaultCreator = (creators.length > 0 ? creators[i % creators.length] : null) || DEFAULT_CREATORS[i % DEFAULT_CREATORS.length];
 
       // Clean title from filename
       const cleanTitle = file.name
@@ -227,6 +374,11 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
         category: 'business',
         mediaUrl: URL.createObjectURL(file),
         thumbnailUrl: '',
+        creatorId: defaultCreator?.id || 'usr_newsdesk',
+        creatorName: defaultCreator?.name || 'Tamil News 24/7',
+        creatorHandle: defaultCreator?.handle || '@tamilnews247',
+        creatorAvatar: defaultCreator?.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=150',
+        creatorVerified: defaultCreator?.verified ?? true,
         location: { ...defaultPreset, radiusKm: 5 as SpotlightRadiusKm },
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
@@ -246,75 +398,123 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
 
     setUploadQueue((prev) => [...newItems, ...prev]);
 
-    // Asynchronously extract thumbnails & simulate upload pipeline
+    // Asynchronously extract thumbnails & execute real Cloudflare R2 upload pipeline
     for (const item of newItems) {
       if (item.file) {
-        // Thumbnail generation
-        generateVideoThumbnail(item.file).then((thumbUrl) => {
-          setUploadQueue((current) =>
-            current.map((it) => (it.id === item.id ? { ...it, thumbnailUrl: thumbUrl } : it))
-          );
-        });
-
-        // Trigger upload pipeline simulation / actual R2 upload
-        simulateUploadPipeline(item.id);
+        // Real upload to Cloudflare R2 with progress tracking
+        uploadVideoItemToR2(item);
       }
     }
   };
 
-  // Upload pipeline: Uploading -> Processing -> Thumbnail -> Ready
-  const simulateUploadPipeline = (itemId: string) => {
-    // 1. Uploading
-    setUploadQueue((prev) =>
-      prev.map((it) => (it.id === itemId ? { ...it, uploadStage: 'uploading', uploadProgress: 15 } : it))
-    );
+  // Real upload pipeline: Uploading Video to Cloudflare R2 -> Generate & Upload Thumbnail -> Ready
+  const uploadVideoItemToR2 = async (item: BulkUploadVideoItem): Promise<{ mediaUrl: string; thumbnailUrl: string }> => {
+    if (!item.file) {
+      return { mediaUrl: item.mediaUrl, thumbnailUrl: item.thumbnailUrl || item.mediaUrl };
+    }
 
-    setTimeout(() => {
+    try {
+      // 1. Stage: Uploading Video
       setUploadQueue((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, uploadProgress: 65 } : it))
+        prev.map((it) => (it.id === item.id ? { ...it, uploadStage: 'uploading', uploadProgress: 10 } : it))
       );
-    }, 400);
 
-    setTimeout(() => {
-      setUploadQueue((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, uploadProgress: 100, uploadStage: 'processing' } : it))
-      );
-    }, 800);
+      const ext = item.file.name.split('.').pop() || 'mp4';
+      const videoFilename = `sp360_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
-    setTimeout(() => {
-      setUploadQueue((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, uploadStage: 'thumbnail' } : it))
+      const r2VideoUrl = await apiClient.uploadFileToR2(
+        item.file,
+        videoFilename,
+        'videos',
+        (percent) => {
+          setUploadQueue((prev) =>
+            prev.map((it) => (it.id === item.id ? { ...it, uploadProgress: Math.min(85, Math.max(10, percent)) } : it))
+          );
+        }
       );
-    }, 1200);
 
-    setTimeout(() => {
+      // 2. Stage: Thumbnail
       setUploadQueue((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, uploadStage: 'ready' } : it))
+        prev.map((it) => (it.id === item.id ? { ...it, mediaUrl: r2VideoUrl, uploadStage: 'thumbnail', uploadProgress: 90 } : it))
       );
-    }, 1600);
+
+      let r2ThumbUrl = item.thumbnailUrl;
+      try {
+        const thumbDataUrl = await generateVideoThumbnail(item.file);
+        const res = await fetch(thumbDataUrl);
+        const thumbBlob = await res.blob();
+        const thumbFilename = `thumb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
+        r2ThumbUrl = await apiClient.uploadFileToR2(thumbBlob, thumbFilename, 'thumbnails');
+      } catch (thumbErr) {
+        console.warn('[Thumbnail R2 Upload notice in Spotlight360]:', thumbErr);
+        if (!r2ThumbUrl || r2ThumbUrl.startsWith('data:')) {
+          r2ThumbUrl = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=400';
+        }
+      }
+
+      // 3. Stage: Ready
+      setUploadQueue((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? {
+                ...it,
+                mediaUrl: r2VideoUrl,
+                thumbnailUrl: r2ThumbUrl,
+                uploadStage: 'ready',
+                uploadProgress: 100
+              }
+            : it
+        )
+      );
+
+      return { mediaUrl: r2VideoUrl, thumbnailUrl: r2ThumbUrl };
+    } catch (uploadErr: any) {
+      console.error(`[R2 Bulk Upload Error for ${item.fileName}]:`, uploadErr);
+      setUploadQueue((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? {
+                ...it,
+                uploadStage: 'error',
+                uploadProgress: 0,
+                errorMessage: uploadErr.message || 'Upload failed'
+              }
+            : it
+        )
+      );
+      throw uploadErr;
+    }
   };
 
   // Load sample demo videos for testing
   const handleLoadSampleVideos = () => {
-    const demoItems: BulkUploadVideoItem[] = DEMO_TEST_VIDEOS.map((demo, idx) => ({
-      id: `demo_${Date.now()}_${idx}`,
-      fileName: demo.fileName,
-      fileSizeBytes: 12500000,
-      fileSizeFormatted: '12.5 MB',
-      title: demo.title,
-      description: demo.description,
-      category: demo.category,
-      mediaUrl: demo.mediaUrl,
-      thumbnailUrl: demo.thumbnailUrl,
-      location: { ...demo.location, radiusKm: 5 as SpotlightRadiusKm },
-      startDate: demo.startDate,
-      endDate: demo.endDate,
-      campaignName: demo.campaignName,
-      cta: demo.cta,
-      status: 'active',
-      uploadProgress: 100,
-      uploadStage: 'ready'
-    }));
+    const demoItems: BulkUploadVideoItem[] = DEMO_TEST_VIDEOS.map((demo, idx) => {
+      const assignedCreator = (creators.length > 0 ? creators[idx % creators.length] : null) || DEFAULT_CREATORS[idx % DEFAULT_CREATORS.length];
+      return {
+        id: `demo_${Date.now()}_${idx}`,
+        fileName: demo.fileName,
+        fileSizeBytes: 12500000,
+        fileSizeFormatted: '12.5 MB',
+        title: demo.title,
+        description: demo.description,
+        category: demo.category,
+        mediaUrl: demo.mediaUrl,
+        thumbnailUrl: demo.thumbnailUrl,
+        creatorId: assignedCreator?.id || 'usr_newsdesk',
+        creatorName: assignedCreator?.name || 'Tamil News 24/7',
+        creatorHandle: assignedCreator?.handle || '@tamilnews247',
+        creatorAvatar: assignedCreator?.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=150',
+        creatorVerified: assignedCreator?.verified ?? true,
+        location: { ...demo.location, radiusKm: 5 as SpotlightRadiusKm },
+        startDate: demo.startDate,
+        endDate: demo.endDate,
+        campaignName: demo.campaignName,
+        cta: demo.cta,
+        status: 'active',
+        uploadProgress: 100,
+        uploadStage: 'ready'
+      };
+    });
 
     setUploadQueue((prev) => [...demoItems, ...prev]);
     // Pre-select all
@@ -366,7 +566,14 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
           ...(updates.category ? { category: updates.category } : {}),
           ...(updates.campaignName ? { campaignName: updates.campaignName } : {}),
           ...(updates.status ? { status: updates.status } : {}),
-          ...(updates.cta ? { cta: updates.cta } : {})
+          ...(updates.cta ? { cta: updates.cta } : {}),
+          ...(updates.creator ? {
+            creatorId: updates.creator.id,
+            creatorName: updates.creator.name,
+            creatorHandle: updates.creator.handle,
+            creatorAvatar: updates.creator.avatar,
+            creatorVerified: updates.creator.verified
+          } : {})
         };
       })
     );
@@ -428,44 +635,69 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
 
     setIsPublishing(true);
 
-    const convertedVideos: Spotlight360Video[] = itemsToPublish.map((it) => ({
-      id: it.id,
-      title: it.title,
-      description: it.description,
-      category: it.category,
-      mediaUrl: it.mediaUrl,
-      thumbnailUrl: it.thumbnailUrl || it.mediaUrl,
-      durationSeconds: 30,
-      location: it.location,
-      startDate: it.startDate,
-      endDate: it.endDate,
-      campaignName: it.campaignName,
-      advertiserName: adminName,
-      cta: it.cta,
-      status: it.status,
-      views: 0,
-      impressions: 0,
-      clicks: 0,
-      createdAt: new Date().toISOString()
-    }));
-
     try {
-      // 1. Send to Backend API
+      // 1. Ensure all items have finished Cloudflare R2 upload (never publish temporary blob: URLs)
+      const convertedVideos: Spotlight360Video[] = [];
+
+      for (const it of itemsToPublish) {
+        let finalMediaUrl = it.mediaUrl;
+        let finalThumbnailUrl = it.thumbnailUrl;
+
+        // If video still has temporary local blob URL or uncompleted upload, execute R2 upload now
+        if (it.file && (!finalMediaUrl || finalMediaUrl.startsWith('blob:') || it.uploadStage !== 'ready')) {
+          const uploaded = await uploadVideoItemToR2(it);
+          finalMediaUrl = uploaded.mediaUrl;
+          finalThumbnailUrl = uploaded.thumbnailUrl;
+        }
+
+        // Fallback safeguard: if somehow it is still a blob URL (e.g. without file object), reject or warn
+        if (finalMediaUrl.startsWith('blob:')) {
+          throw new Error(`Video "${it.fileName}" is not uploaded to cloud storage yet. Please re-select the file.`);
+        }
+
+        convertedVideos.push({
+          id: it.id,
+          title: it.title,
+          description: it.description,
+          category: it.category,
+          mediaUrl: finalMediaUrl,
+          thumbnailUrl: finalThumbnailUrl || finalMediaUrl,
+          creatorId: it.creatorId || 'usr_newsdesk',
+          creatorName: it.creatorName || adminName,
+          creatorHandle: it.creatorHandle || '@tn_spotlight',
+          creatorAvatar: it.creatorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          creatorVerified: it.creatorVerified ?? true,
+          durationSeconds: 30,
+          location: it.location,
+          startDate: it.startDate,
+          endDate: it.endDate,
+          campaignName: it.campaignName,
+          advertiserName: adminName,
+          cta: it.cta,
+          status: it.status,
+          views: 0,
+          impressions: 0,
+          clicks: 0,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // 2. Send to Backend API
       await apiClient.createSpotlight360Videos(convertedVideos);
 
-      // 2. Persist in LocalStorage
+      // 3. Persist in LocalStorage
       addStoredSpotlight360Videos(convertedVideos);
       setPublishedVideos((prev) => [...convertedVideos, ...prev]);
 
-      // 3. Remove published items from upload queue
+      // 4. Remove published items from upload queue
       const publishedIds = new Set(itemsToPublish.map((it) => it.id));
       setUploadQueue((prev) => prev.filter((it) => !publishedIds.has(it.id)));
       setSelectedQueueIds(new Set());
 
-      // 4. Refresh global app state
+      // 5. Refresh global app state
       if (onRefreshData) onRefreshData();
 
-      setPublishSuccessMessage(`Successfully published ${convertedVideos.length} Spotlight360 video reels!`);
+      setPublishSuccessMessage(`Successfully published ${convertedVideos.length} Spotlight360 video reels to cloud CDN!`);
       setTimeout(() => setPublishSuccessMessage(null), 5000);
     } catch (err: any) {
       alert(`Publishing failed: ${err.message || 'Unknown network error'}`);
@@ -903,7 +1135,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   {/* Bulk Edit Button */}
                   <button
                     type="button"
@@ -926,6 +1158,34 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                   >
                     <Layers size={14} />
                     <span>Bulk Edit ({selectedQueueIds.size})</span>
+                  </button>
+
+                  {/* Create User for Selected Button */}
+                  <button
+                    type="button"
+                    disabled={selectedQueueIds.size === 0}
+                    onClick={() => {
+                      setBulkNewUserName('');
+                      setBulkNewUserHandle('');
+                      setShowBulkAssignModal(true);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: selectedQueueIds.size > 0 ? '#fdf4ff' : '#f1f5f9',
+                      color: selectedQueueIds.size > 0 ? '#9333ea' : '#94a3b8',
+                      border: selectedQueueIds.size > 0 ? '1px solid #f0abfc' : '1px solid #e2e8f0',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: selectedQueueIds.size > 0 ? 'pointer' : 'not-allowed'
+                    }}
+                    title="Create and set a new user for all selected videos"
+                  >
+                    <UserPlus size={14} />
+                    <span>Create User for Selected ({selectedQueueIds.size})</span>
                   </button>
 
                   {/* Publish Selected */}
@@ -992,6 +1252,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                       </th>
                       <th style={{ padding: '12px 10px', width: '70px' }}>Preview</th>
                       <th style={{ padding: '12px 12px' }}>Video / Title</th>
+                      <th style={{ padding: '12px 12px', minWidth: '220px' }}>Creator / Reporter (Create User)</th>
                       <th style={{ padding: '12px 12px' }}>Target Location & Radius</th>
                       <th style={{ padding: '12px 12px' }}>Category & Campaign</th>
                       <th style={{ padding: '12px 12px' }}>Schedule</th>
@@ -1091,6 +1352,128 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                               <span>📁 {item.fileName}</span>
                               <span>•</span>
                               <span>{item.fileSizeFormatted}</span>
+                            </div>
+                          </td>
+
+                          {/* Creator / Reporter (Create User Directly) */}
+                          <td style={{ padding: '10px 12px', minWidth: '230px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {/* User Display Name Input */}
+                              <input
+                                type="text"
+                                placeholder="Create User / Channel Name"
+                                value={item.creatorName || ''}
+                                onChange={(e) => {
+                                  const name = e.target.value;
+                                  const slug = name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                                  setUploadQueue((prev) =>
+                                    prev.map((it) =>
+                                      it.id === item.id
+                                        ? {
+                                            ...it,
+                                            creatorName: name,
+                                            creatorHandle: it.creatorHandle && it.creatorHandle !== '@reporter' ? it.creatorHandle : (slug ? `@${slug}` : '@reporter'),
+                                            creatorId: `usr_${slug || Date.now()}`
+                                          }
+                                        : it
+                                    )
+                                  );
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '5px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: 'var(--text-primary)',
+                                  background: '#ffffff'
+                                }}
+                              />
+
+                              {/* Handle & Avatar Row */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {/* Avatar Click to Cycle */}
+                                <div
+                                  onClick={() => {
+                                    const currIdx = PRESET_AVATARS.indexOf(item.creatorAvatar || '');
+                                    const nextAvatar = PRESET_AVATARS[(currIdx + 1) % PRESET_AVATARS.length];
+                                    setUploadQueue((prev) =>
+                                      prev.map((it) => (it.id === item.id ? { ...it, creatorAvatar: nextAvatar } : it))
+                                    );
+                                  }}
+                                  title="Click to cycle avatar"
+                                  style={{
+                                    width: '26px',
+                                    height: '26px',
+                                    borderRadius: '50%',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    border: '2px solid var(--brand-primary)',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  <img
+                                    src={item.creatorAvatar || PRESET_AVATARS[0]}
+                                    alt="Avatar"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </div>
+
+                                {/* Handle input */}
+                                <input
+                                  type="text"
+                                  placeholder="@handle"
+                                  value={item.creatorHandle || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const clean = val.startsWith('@') ? val : `@${val}`;
+                                    setUploadQueue((prev) =>
+                                      prev.map((it) => (it.id === item.id ? { ...it, creatorHandle: clean } : it))
+                                    );
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '4px 6px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: 'var(--text-secondary)',
+                                    background: '#ffffff',
+                                    minWidth: 0
+                                  }}
+                                />
+
+                                {/* Verified Toggle */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUploadQueue((prev) =>
+                                      prev.map((it) =>
+                                        it.id === item.id ? { ...it, creatorVerified: !it.creatorVerified } : it
+                                      )
+                                    );
+                                  }}
+                                  title={item.creatorVerified ? 'Verified Badge (Active)' : 'Unverified (Click to enable)'}
+                                  style={{
+                                    border: 'none',
+                                    background: item.creatorVerified ? '#e0f2fe' : '#f1f5f9',
+                                    color: item.creatorVerified ? '#0284c7' : '#94a3b8',
+                                    padding: '4px 6px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '2px',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  <CheckCircle2 size={12} color={item.creatorVerified ? '#0284c7' : '#94a3b8'} />
+                                </button>
+                              </div>
                             </div>
                           </td>
 
@@ -1202,7 +1585,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                               ) : item.uploadStage === 'error' ? (
                                 <button
                                   type="button"
-                                  onClick={() => simulateUploadPipeline(item.id)}
+                                  onClick={() => uploadVideoItemToR2(item)}
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1777,9 +2160,531 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
       {showBulkEditModal && (
         <BulkEditModal
           selectedCount={selectedQueueIds.size}
+          creators={creators}
           onClose={() => setShowBulkEditModal(false)}
           onApply={handleApplyBulkUpdates}
         />
+      )}
+
+      {/* Quick Create Reporter Modal */}
+      {showQuickCreateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+          onClick={() => setShowQuickCreateModal(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              maxWidth: '480px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              border: '1px solid #e2e8f0'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    Create Reporter / Channel
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
+                    Videos will stream across user feeds under this creator identity
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickCreateModal(false)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  padding: '4px'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Avatar Selector */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                  Select Reporter Avatar
+                </label>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {PRESET_AVATARS.map((avatar, idx) => {
+                    const isSelected = selectedAvatarUrl === avatar;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedAvatarUrl(avatar)}
+                        style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: '50%',
+                          border: isSelected ? '3px solid var(--brand-primary)' : '2px solid transparent',
+                          padding: '2px',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <img
+                          src={avatar}
+                          alt="Avatar option"
+                          style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        {isSelected && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: '-2px',
+                              right: '-2px',
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              background: 'var(--brand-primary)',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px'
+                            }}
+                          >
+                            <Check size={11} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reporter Name */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Channel / Reporter Display Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TN Health Desk, Priya S, Citizen Voice Ponneri"
+                  value={newReporterName}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setNewReporterName(name);
+                    if (!newReporterHandleEdited) {
+                      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                      setNewReporterHandle(slug ? `@${slug}` : '');
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                />
+              </div>
+
+              {/* Handle */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Reporter @Handle <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. @tnhealthdesk"
+                  value={newReporterHandle}
+                  onChange={(e) => {
+                    setNewReporterHandleEdited(true);
+                    setNewReporterHandle(e.target.value);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                />
+              </div>
+
+              {/* Verified Badge Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={newReporterVerified}
+                  onChange={(e) => setNewReporterVerified(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#0284c7' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={16} color="#0284c7" />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1' }}>
+                    Grant Bureau Verified Badge (Blue Checkmark)
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #f1f5f9',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowQuickCreateModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isCreatingCreator || !newReporterName.trim()}
+                onClick={handleSaveQuickCreator}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--brand-primary)',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: !isCreatingCreator && newReporterName.trim() ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 2px 8px rgba(255, 69, 0, 0.3)'
+                }}
+              >
+                {isCreatingCreator ? 'Saving...' : 'Save & Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create & Set New User for Selected Videos Modal */}
+      {showBulkAssignModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+          onClick={() => setShowBulkAssignModal(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              maxWidth: '480px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              border: '1px solid #e2e8f0'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#fdf4ff',
+                    color: '#9333ea',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    Create User for {selectedQueueIds.size} Videos
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
+                    Videos will be published under this newly created user identity
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkAssignModal(false)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  padding: '4px'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Avatar Selector */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                  Select Avatar
+                </label>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {PRESET_AVATARS.map((avatar, idx) => {
+                    const isSelected = bulkNewUserAvatar === avatar;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => setBulkNewUserAvatar(avatar)}
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '50%',
+                          border: isSelected ? '3px solid #9333ea' : '2px solid transparent',
+                          padding: '2px',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <img
+                          src={avatar}
+                          alt="Avatar option"
+                          style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        {isSelected && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: '-2px',
+                              right: '-2px',
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              background: '#9333ea',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px'
+                            }}
+                          >
+                            <Check size={11} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Creator Name */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  User / Channel Display Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chennai News Desk, Priya S, Citizen Voice"
+                  value={bulkNewUserName}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setBulkNewUserName(name);
+                    const slug = name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                    setBulkNewUserHandle(slug ? `@${slug}` : '');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                />
+              </div>
+
+              {/* Handle */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  User @Handle <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. @chennainews"
+                  value={bulkNewUserHandle}
+                  onChange={(e) => setBulkNewUserHandle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                />
+              </div>
+
+              {/* Verified Badge Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={bulkNewUserVerified}
+                  onChange={(e) => setBulkNewUserVerified(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#0284c7' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={16} color="#0284c7" />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1' }}>
+                    Grant Bureau Verified Badge (Blue Checkmark)
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #f1f5f9',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowBulkAssignModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!bulkNewUserName.trim()}
+                onClick={handleApplyBulkAssignCreator}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: bulkNewUserName.trim() ? '#9333ea' : '#cbd5e1',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: bulkNewUserName.trim() ? 'pointer' : 'not-allowed',
+                  boxShadow: bulkNewUserName.trim() ? '0 2px 8px rgba(147, 51, 234, 0.3)' : 'none'
+                }}
+              >
+                Create & Set on {selectedQueueIds.size} Videos
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* CSV Import Modal */}

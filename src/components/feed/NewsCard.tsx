@@ -220,7 +220,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             }}
           >
             <Award size={12} />
-            <span>Admin Paid Video Grant + Bounty: ₹{(post.adminPayoutAmount || 0) + (post.adminBountyAwarded || 0)}</span>
+            <span>Featured Ground Dispatch</span>
           </div>
         )}
         {post.adminReviewStatus === 'verified_approved' && (
@@ -240,7 +240,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             }}
           >
             <CheckCircle2 size={12} />
-            <span>Admin Verified & Paid: ₹{post.adminPayoutAmount || 850}</span>
+            <span>Bureau Verified Report</span>
           </div>
         )}
       </div>

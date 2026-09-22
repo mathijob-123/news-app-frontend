@@ -488,6 +488,11 @@ export interface Spotlight360Video {
   endDate: string; // YYYY-MM-DD or ISO
   campaignName?: string;
   advertiserName?: string;
+  creatorId?: string;
+  creatorName?: string;
+  creatorHandle?: string;
+  creatorAvatar?: string;
+  creatorVerified?: boolean;
   cta?: Spotlight360Cta;
   status: 'draft' | 'scheduled' | 'active' | 'paused' | 'expired';
   views: number;
@@ -512,6 +517,11 @@ export interface BulkUploadVideoItem {
   startDate: string;
   endDate: string;
   campaignName: string;
+  creatorId?: string;
+  creatorName?: string;
+  creatorHandle?: string;
+  creatorAvatar?: string;
+  creatorVerified?: boolean;
   cta: Spotlight360Cta;
   status: 'draft' | 'scheduled' | 'active';
   uploadProgress: number; // 0 to 100

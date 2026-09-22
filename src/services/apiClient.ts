@@ -553,6 +553,31 @@ export const apiClient = {
     } catch {
       return false;
     }
+  },
+
+  // --- CREATORS & REPORTERS ---
+  async getCreators(): Promise<{ id: string; name: string; handle: string; avatar: string; verified: boolean }[]> {
+    try {
+      const res = await fetch(`${API_BASE}/creators`);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createCreator(creator: { name: string; handle?: string; avatar?: string; verified?: boolean; bio?: string }): Promise<{ id: string; name: string; handle: string; avatar: string; verified: boolean } | null> {
+    try {
+      const res = await fetch(`${API_BASE}/creators`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creator)
+      });
+      const data = await res.json();
+      return data.data || null;
+    } catch {
+      return null;
+    }
   }
 };
 

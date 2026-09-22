@@ -650,7 +650,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   alt={post.headline}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
-                {post.adminReviewStatus === 'pending_review' && (
+                {post.adminReviewStatus === 'pending_review' ? (
                   <div
                     style={{
                       position: 'absolute',
@@ -671,7 +671,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <Clock size={10} />
                     <span>In Review</span>
                   </div>
-                )}
+                ) : (post.priceAward || post.adminPayoutAmount) ? (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      left: '4px',
+                      background: 'rgba(16, 185, 129, 0.95)',
+                      color: '#ffffff',
+                      fontSize: '9.5px',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    <CheckCircle2 size={10} />
+                    <span>₹{post.priceAward || post.adminPayoutAmount} Awarded</span>
+                  </div>
+                ) : null}
                 <div
                   style={{
                     position: 'absolute',
