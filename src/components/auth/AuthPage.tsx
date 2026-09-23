@@ -125,10 +125,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  const handleOneClickGoogle = async () => {
+  const handleGoogleButtonClick = () => {
     setError(null);
-
-    // If official Google prompt is ready, trigger it
     if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
       try {
         (window as any).google.accounts.id.prompt((notification: any) => {
@@ -139,22 +137,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       } catch (e) {
         console.warn('GIS prompt error:', e);
       }
-    }
-
-    // In local development or fallback simulation if GIS is not responsive
-    setIsLoading(true);
-    try {
-      const res = await loginWithGoogle('demo_google_one_click', 'creator');
-      processAuthResult(res);
-    } catch (err: any) {
-      // If server rejected demo fallback, show informative message
-      if (!gisLoaded) {
-        setError('Please sign in using the Google button above.');
-      } else {
-        setError(err.message || 'Google sign-in error.');
-      }
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError('Google Sign-In is initializing. Please tap again in a moment.');
     }
   };
 
@@ -319,7 +303,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           {!gisLoaded && (
             <button
               type="button"
-              onClick={handleOneClickGoogle}
+              onClick={handleGoogleButtonClick}
               disabled={isLoading}
               style={{
                 width: '100%',
@@ -373,35 +357,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
         </div>
 
-        {/* Quick Dev Login (Bypasses Google Origin restriction for local testing) */}
-        <div style={{ marginBottom: '20px', width: '100%', maxWidth: '320px', margin: '0 auto 20px auto' }}>
-          <button
-            type="button"
-            onClick={handleOneClickGoogle}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '11px 16px',
-              borderRadius: '999px',
-              background: 'rgba(255, 69, 0, 0.15)',
-              border: '1px solid rgba(255, 69, 0, 0.45)',
-              color: '#fb923c',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 10px rgba(255, 69, 0, 0.1)'
-            }}
-          >
-            <Zap size={15} />
-            <span>Instant SuperAdmin Dev Access (jrinfotech)</span>
-          </button>
-        </div>
-
         {/* Feature Highlights */}
         <div
           style={{
@@ -440,10 +395,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <ShieldCheck size={14} color="#10b981" />
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff' }}>Editorial Bureau</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff' }}>Verified News</span>
             </div>
             <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', lineHeight: 1.3 }}>
-              SuperAdmin access automatically synced
+              Authentic stories verified by local community
             </div>
           </div>
         </div>

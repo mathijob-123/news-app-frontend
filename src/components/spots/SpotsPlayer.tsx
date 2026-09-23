@@ -17,7 +17,8 @@ import {
   Compass,
   Award,
   PlaySquare,
-  Camera
+  Camera,
+  Loader2
 } from 'lucide-react';
 import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { formatDistance } from '../../services/geoService';
@@ -59,7 +60,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false); // Default: Sound ON as requested
+  const [isBuffering, setIsBuffering] = useState(false);
   const [watchProgress, setWatchProgress] = useState(0); // 0 to 100% of threshold
   const [isQualifiedView, setIsQualifiedView] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
@@ -91,32 +93,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
 
   const currentPost = videoReels[currentIndex] || videoReels[0];
 
-  // Reset watch tracking on slide change
-  useEffect(() => {
-    watchSecondsRef.current = 0;
-    setWatchProgress(0);
-    setIsQualifiedView(false);
-    setCaptionExpanded(false);
-    setHasPlaybackError(false);
-
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.muted = isMuted;
-      videoRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          console.warn('[SpotsPlayer Autoplay Notice]:', err);
-          if (videoRef.current) {
-            videoRef.current.muted = true;
-            setIsMuted(true);
-            videoRef.current.play()
-              .then(() => setIsPlaying(true))
-              .catch(() => setIsPlaying(false));
-          }
-        });
-    }
-  }, [currentIndex, currentPost?.id]);
-
   // Reliable video stream resolution (prevents broken/dead blob URLs or 403 Forbidden URLs from hanging)
   const resolvedVideoSrc = useMemo(() => {
     const rawUrl = currentPost?.mediaUrl || '';
@@ -130,6 +106,74 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }
     return rawUrl;
   }, [currentPost?.mediaUrl, hasPlaybackError]);
+
+  // Preload next upcoming reel in background for 0s lag on swipe
+  const nextPost = videoReels[currentIndex + 1];
+  const nextVideoSrc = useMemo(() => {
+    if (!nextPost?.mediaUrl) return '';
+    const rawUrl = nextPost.mediaUrl;
+    if (
+      rawUrl.startsWith('blob:') ||
+      rawUrl.includes('commondatastorage.googleapis.com')
+    ) {
+      return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
+    }
+    return rawUrl;
+  }, [nextPost?.mediaUrl]);
+
+  // Unlock unmuted audio playback on user gesture if browser initially blocked audio autoplay
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (videoRef.current && videoRef.current.muted && !isMuted) {
+        videoRef.current.muted = false;
+        videoRef.current.play().catch(() => {});
+      }
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+    window.addEventListener('click', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
+    };
+  }, [isMuted]);
+
+  // Reset watch tracking on slide change & play video smoothly
+  useEffect(() => {
+    watchSecondsRef.current = 0;
+    setWatchProgress(0);
+    setIsQualifiedView(false);
+    setCaptionExpanded(false);
+    setHasPlaybackError(false);
+
+    const video = videoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      video.muted = isMuted;
+
+      // Fast immediate play attempt with sound
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          })
+          .catch((err) => {
+            console.warn('[SpotsPlayer Autoplay Notice]:', err);
+            // If browser policy restricted unmuted playback before user gesture:
+            if (video) {
+              video.muted = true;
+              video.play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
+            }
+          });
+      }
+    }
+  }, [currentIndex, resolvedVideoSrc, isMuted]);
 
   // Keyboard navigation for reels (ArrowUp / ArrowDown)
   useEffect(() => {
@@ -514,60 +558,107 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
         <div className="spots-slide">
           <video
             ref={videoRef}
-            key={currentPost.id}
             src={resolvedVideoSrc}
             poster={currentPost.thumbnailUrl}
             autoPlay
             loop
             playsInline
+            preload="auto"
             muted={isMuted}
-            onPlay={() => setIsPlaying(true)}
+            onPlay={() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+            }}
             onPause={() => setIsPlaying(false)}
-            onPlaying={() => setIsPlaying(true)}
+            onPlaying={() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+            }}
+            onWaiting={() => setIsBuffering(true)}
+            onCanPlay={() => setIsBuffering(false)}
             onTimeUpdate={handleTimeUpdate}
             onError={(e) => {
               console.warn('[SpotsPlayer] Stream load error for:', currentPost.id, currentPost.mediaUrl, e);
               setHasPlaybackError(true);
+              setIsBuffering(false);
             }}
             className="spots-video"
             style={{ objectFit: 'cover', width: '100%', height: '100%' }}
           />
 
-          {/* Floating Tap for Sound Badge */}
-          {isMuted && isPlaying && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (videoRef.current) {
-                  videoRef.current.muted = false;
-                  setIsMuted(false);
-                }
-              }}
+          {/* Hidden Next Reel Preloader for Instant 0s Playback on Next Swipe */}
+          {nextVideoSrc && (
+            <video
+              src={nextVideoSrc}
+              preload="auto"
+              muted
+              playsInline
+              style={{ display: 'none', position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+            />
+          )}
+
+          {/* Buffering Loading Spinner */}
+          {isBuffering && (
+            <div
               style={{
                 position: 'absolute',
-                top: '64px',
-                right: '16px',
-                background: 'rgba(0, 0, 0, 0.65)',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 20,
+                pointerEvents: 'none',
+                background: 'rgba(0, 0, 0, 0.55)',
                 backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                borderRadius: '20px',
-                padding: '6px 12px',
-                color: '#ffffff',
-                fontSize: '11px',
-                fontWeight: 700,
+                borderRadius: '50%',
+                padding: '12px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                zIndex: 25,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                justifyContent: 'center',
+                border: '1px solid rgba(255, 255, 255, 0.2)'
               }}
             >
-              <VolumeX size={14} color="#fca5a5" />
-              <span>Tap for sound</span>
-            </button>
+              <Loader2 size={26} color="#ff4500" className="spin" />
+            </div>
           )}
+
+          {/* Interactive Sound Control Pill - Sound ON by default, easy tap to mute/unmute */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoRef.current) {
+                const nextMuted = !isMuted;
+                videoRef.current.muted = nextMuted;
+                setIsMuted(nextMuted);
+                if (!nextMuted) {
+                  videoRef.current.play().catch(() => {});
+                }
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: '64px',
+              right: '16px',
+              background: isMuted ? 'rgba(0, 0, 0, 0.75)' : 'rgba(16, 185, 129, 0.25)',
+              backdropFilter: 'blur(8px)',
+              border: isMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #10b981',
+              borderRadius: '20px',
+              padding: '6px 14px',
+              color: isMuted ? '#fca5a5' : '#6ee7b7',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              zIndex: 25,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {isMuted ? <VolumeX size={14} color="#fca5a5" /> : <Volume2 size={14} color="#6ee7b7" />}
+            <span>{isMuted ? 'Tap for Sound' : 'Sound ON'}</span>
+          </button>
 
           {/* Pause overlay icon */}
           {!isPlaying && (

@@ -88,20 +88,20 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
     }
   };
 
-  const handleGoogleQuickLogin = async () => {
-    setIsLoading(true);
+  const handleGoogleAdminButtonClick = () => {
     setError(null);
-    try {
-      const data = await loginWithGoogle('test_superadmin', 'creator');
-      onLoginSuccess({
-        id: data.user.id,
-        name: data.user.displayName,
-        role: 'SuperAdmin'
-      });
-    } catch (err: any) {
-      setError(err.message || 'Google SuperAdmin login failed');
-    } finally {
-      setIsLoading(false);
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.log('Admin OneTap prompt was not displayed or skipped');
+          }
+        });
+      } catch (e) {
+        console.warn('GIS admin prompt error:', e);
+      }
+    } else {
+      setError('Google Sign-In is initializing. Please wait a moment and try again.');
     }
   };
 
@@ -226,7 +226,7 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           {!gisLoaded && (
             <button
               type="button"
-              onClick={handleGoogleQuickLogin}
+              onClick={handleGoogleAdminButtonClick}
               disabled={isLoading}
               style={{
                 width: '100%',
@@ -262,34 +262,6 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           )}
         </div>
 
-        {/* Quick Dev Login for local development bypass */}
-        <div style={{ marginBottom: '20px', width: '100%', maxWidth: '300px' }}>
-          <button
-            type="button"
-            onClick={handleGoogleQuickLogin}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              borderRadius: '12px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              color: '#34d399',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <ShieldCheck size={14} />
-            <span>Instant SuperAdmin Dev Access (jrinfotech)</span>
-          </button>
-        </div>
-
         {/* Status Pill */}
         <div
           style={{
@@ -306,7 +278,7 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           }}
         >
           <Server size={14} />
-          <span>Configured Admin: {ADMIN_EMAIL}</span>
+          <span>Restricted Editorial Bureau Gateway</span>
         </div>
       </div>
     </div>

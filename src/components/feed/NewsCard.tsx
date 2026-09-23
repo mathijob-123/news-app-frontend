@@ -123,6 +123,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             ref={videoRef}
             src={post.mediaUrl}
             poster={post.thumbnailUrl}
+            preload="metadata"
             muted={isMuted}
             loop
             playsInline
