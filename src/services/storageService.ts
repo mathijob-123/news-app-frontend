@@ -107,6 +107,12 @@ export function deletePost(postId: string): boolean {
     const filtered = posts.filter((p) => p.id !== postId);
     savePosts(filtered);
 
+    // Also remove from Spotlight360 videos if present
+    const spVideos = getStoredSpotlight360Videos();
+    if (spVideos.some((v) => v.id === postId)) {
+      saveStoredSpotlight360Videos(spVideos.filter((v) => v.id !== postId));
+    }
+
     // Clean up stored comments for this post if any
     const rawComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
     if (rawComments) {
@@ -139,6 +145,20 @@ export function bulkUpdateStoredPosts(
     if (action === 'delete') {
       const remaining = posts.filter((p) => !idSet.has(p.id));
       savePosts(remaining);
+
+      // Also clean up from Spotlight360 videos
+      const spVideos = getStoredSpotlight360Videos();
+      saveStoredSpotlight360Videos(spVideos.filter((v) => !idSet.has(v.id)));
+
+      // Clean up comments
+      const rawComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+      if (rawComments) {
+        try {
+          const allComments = JSON.parse(rawComments);
+          postIds.forEach((id) => delete allComments[id]);
+          localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(allComments));
+        } catch {}
+      }
       return;
     }
 
@@ -1030,6 +1050,27 @@ export function addStoredSpotlight360Videos(newVideos: Spotlight360Video[]): voi
   const current = getStoredSpotlight360Videos();
   const updated = [...newVideos, ...current.filter(c => !newVideos.some(n => n.id === c.id))];
   saveStoredSpotlight360Videos(updated);
+}
+
+export function deleteStoredSpotlight360Video(videoId: string): void {
+  const current = getStoredSpotlight360Videos();
+  saveStoredSpotlight360Videos(current.filter((v) => v.id !== videoId));
+
+  // Also remove from general posts store so Reels & Feeds update
+  const posts = getStoredPosts();
+  if (posts.some((p) => p.id === videoId)) {
+    savePosts(posts.filter((p) => p.id !== videoId));
+  }
+}
+
+export function bulkDeleteStoredSpotlight360Videos(videoIds: string[]): void {
+  const idSet = new Set(videoIds);
+  const current = getStoredSpotlight360Videos();
+  saveStoredSpotlight360Videos(current.filter((v) => !idSet.has(v.id)));
+
+  // Also remove from general posts store so Reels & Feeds update
+  const posts = getStoredPosts();
+  savePosts(posts.filter((p) => !idSet.has(p.id)));
 }
 
 // --- CREATOR & REPORTER DIRECTORY ---

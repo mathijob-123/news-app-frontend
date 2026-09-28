@@ -13,18 +13,21 @@ import {
   Share2,
   Heart,
   Eye,
-  Radio
+  Radio,
+  Trash2
 } from 'lucide-react';
 import type { BulkUploadVideoItem, Spotlight360Video } from '../../../types';
 
 interface SpotlightReelPreviewModalProps {
   video: BulkUploadVideoItem | Spotlight360Video | null;
   onClose: () => void;
+  onDelete?: (video: BulkUploadVideoItem | Spotlight360Video) => void;
 }
 
 export const SpotlightReelPreviewModal: React.FC<SpotlightReelPreviewModalProps> = ({
   video,
-  onClose
+  onClose,
+  onDelete
 }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
@@ -160,6 +163,34 @@ export const SpotlightReelPreviewModal: React.FC<SpotlightReelPreviewModalProps>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (video) {
+                    onDelete(video);
+                  }
+                }}
+                style={{
+                  background: 'rgba(220, 38, 38, 0.85)',
+                  border: '1px solid rgba(254, 205, 211, 0.4)',
+                  color: '#ffffff',
+                  padding: '5px 10px',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Delete this video from Spotlight360 and Reels"
+              >
+                <Trash2 size={13} />
+                <span>Delete</span>
+              </button>
+            )}
+
             <button
               onClick={toggleMute}
               style={{

@@ -91,6 +91,13 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }
   }, [initialPostId, videoReels]);
 
+  // Safely clamp currentIndex if a video is deleted by admin while user is viewing
+  useEffect(() => {
+    if (currentIndex >= videoReels.length && videoReels.length > 0) {
+      setCurrentIndex(Math.max(0, videoReels.length - 1));
+    }
+  }, [videoReels.length, currentIndex]);
+
   const currentPost = videoReels[currentIndex] || videoReels[0];
 
   // Reliable video stream resolution (prevents broken/dead blob URLs or 403 Forbidden URLs from hanging)

@@ -1230,6 +1230,12 @@ input, textarea, select {
   cursor: pointer;
   transition: all 0.15s ease;
   border-bottom: 2.5px solid transparent;
+  color: #334155;
+}
+
+.admin-tab-button:hover {
+  background: #f8fafc;
+  color: var(--brand-primary);
 }
 
 .admin-main-container {

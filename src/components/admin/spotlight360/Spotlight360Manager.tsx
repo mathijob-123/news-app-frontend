@@ -32,7 +32,8 @@ import {
   Users,
   UserCheck,
   Check,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import type {
   Spotlight360Video,
@@ -50,6 +51,10 @@ import {
   getStoredSpotlight360Videos,
   saveStoredSpotlight360Videos,
   addStoredSpotlight360Videos,
+  deleteStoredSpotlight360Video,
+  bulkDeleteStoredSpotlight360Videos,
+  deletePost as deleteStoredPost,
+  bulkUpdateStoredPosts,
   getStoredCreators,
   saveStoredCreator,
   DEFAULT_CREATORS,
@@ -173,12 +178,20 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'scheduled' | 'draft'>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
 
+  // Bulk selection & Deletion state in Videos tab
+  const [selectedPublishedIds, setSelectedPublishedIds] = useState<Set<string>>(new Set());
+  const [videoToDelete, setVideoToDelete] = useState<Spotlight360Video | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [isDeletingSingle, setIsDeletingSingle] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [deleteFeedback, setDeleteFeedback] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load from backend on mount
   useEffect(() => {
     apiClient.getSpotlight360Videos().then((serverVideos) => {
-      if (serverVideos && serverVideos.length > 0) {
+      if (Array.isArray(serverVideos)) {
         setPublishedVideos(serverVideos);
         saveStoredSpotlight360Videos(serverVideos);
       }
@@ -250,6 +263,104 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
       alert(`Failed to create reporter: ${err.message || 'Unknown error'}`);
     } finally {
       setIsCreatingCreator(false);
+    }
+  };
+
+  // Video deletion handlers in Published Videos Tab
+  const handleToggleSelectPublished = (id: string) => {
+    setSelectedPublishedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllPublished = () => {
+    if (selectedPublishedIds.size === filteredVideos.length && filteredVideos.length > 0) {
+      setSelectedPublishedIds(new Set());
+    } else {
+      setSelectedPublishedIds(new Set(filteredVideos.map((v) => v.id)));
+    }
+  };
+
+  const handleConfirmDeleteSingle = async () => {
+    if (!videoToDelete) return;
+    const targetId = videoToDelete.id;
+    const targetTitle = videoToDelete.title;
+    setIsDeletingSingle(true);
+    try {
+      // 1. Delete from local storage (both spotlight360 and posts so reels update instantly)
+      deleteStoredSpotlight360Video(targetId);
+      deleteStoredPost(targetId);
+
+      // 2. Call backend API to delete from database and in-memory posts
+      await apiClient.deleteSpotlight360Video(targetId);
+      await apiClient.deletePost(targetId);
+
+      // 3. Update local state
+      setPublishedVideos((prev) => prev.filter((v) => v.id !== targetId));
+      setSelectedPublishedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(targetId);
+        return next;
+      });
+
+      // 4. Close preview modal if previewing this video
+      if (previewVideo && previewVideo.id === targetId) {
+        setPreviewVideo(null);
+      }
+
+      // 5. Trigger parent refresh so Reels (Spots) and feeds update immediately
+      if (onRefreshData) onRefreshData();
+
+      setDeleteFeedback(`Video "${targetTitle}" was permanently deleted from Spotlight360 and Reels.`);
+      setTimeout(() => setDeleteFeedback(null), 5000);
+    } catch (err: any) {
+      alert(`Failed to delete video: ${err.message || 'Unknown network error'}`);
+    } finally {
+      setIsDeletingSingle(false);
+      setVideoToDelete(null);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    const ids = Array.from(selectedPublishedIds);
+    if (ids.length === 0 || isBulkDeleting) return;
+
+    setIsBulkDeleting(true);
+    try {
+      // 1. Delete from local storage
+      bulkDeleteStoredSpotlight360Videos(ids);
+      bulkUpdateStoredPosts(ids, 'delete');
+
+      // 2. Call backend API
+      await apiClient.bulkDeleteSpotlight360Videos(ids);
+      await apiClient.bulkUpdatePosts({ postIds: ids, action: 'delete' });
+
+      // 3. Update local state
+      const idSet = new Set(ids);
+      setPublishedVideos((prev) => prev.filter((v) => !idSet.has(v.id)));
+      setSelectedPublishedIds(new Set());
+
+      // 4. Close preview modal if previewing one of the deleted videos
+      if (previewVideo && idSet.has(previewVideo.id)) {
+        setPreviewVideo(null);
+      }
+
+      // 5. Trigger parent refresh so Reels (Spots) and feeds update immediately
+      if (onRefreshData) onRefreshData();
+
+      setDeleteFeedback(`Successfully deleted ${ids.length} videos from Spotlight360 and citizen Reels.`);
+      setTimeout(() => setDeleteFeedback(null), 5000);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      alert(`Bulk delete failed: ${err.message || 'Unknown network error'}`);
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -1788,6 +1899,27 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
       {/* ==================================================================== */}
       {(activeSubTab === 'videos' || activeSubTab === 'scheduled' || activeSubTab === 'active') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Deletion Toast Feedback Notice */}
+          {deleteFeedback && (
+            <div
+              style={{
+                background: '#10b981',
+                color: '#ffffff',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+              }}
+            >
+              <CheckCircle2 size={16} />
+              <span>{deleteFeedback}</span>
+            </div>
+          )}
+
           {/* Search & Filter Bar */}
           <div
             style={{
@@ -1819,7 +1951,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <select
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
@@ -1855,8 +1987,112 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                 <option value="scheduled">Scheduled</option>
                 <option value="draft">Draft</option>
               </select>
+
+              {filteredVideos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSelectAllPublished}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: selectedPublishedIds.size === filteredVideos.length ? '1.5px solid var(--brand-primary)' : '1px solid #cbd5e1',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    background: selectedPublishedIds.size === filteredVideos.length ? '#fff7ed' : '#ffffff',
+                    color: selectedPublishedIds.size === filteredVideos.length ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <Check size={13} />
+                  <span>
+                    {selectedPublishedIds.size === filteredVideos.length
+                      ? 'Deselect All'
+                      : `Select All (${filteredVideos.length})`}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Bulk Action Bar (When videos are selected) */}
+          {selectedPublishedIds.size > 0 && (
+            <div
+              style={{
+                background: '#fff7ed',
+                border: '1.5px solid #ffedd5',
+                borderRadius: '12px',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: '0 4px 12px rgba(255, 69, 0, 0.08)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    background: 'var(--brand-primary)',
+                    color: '#ffffff',
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 900,
+                    fontSize: '12px'
+                  }}
+                >
+                  {selectedPublishedIds.size}
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {selectedPublishedIds.size} {selectedPublishedIds.size === 1 ? 'Video' : 'Videos'} Selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPublishedIds(new Set())}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(true)}
+                disabled={isBulkDeleting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: isBulkDeleting ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)'
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Delete Selected ({selectedPublishedIds.size})</span>
+              </button>
+            </div>
+          )}
 
           {/* Videos Grid */}
           {filteredVideos.length === 0 ? (
@@ -1900,17 +2136,21 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                 gap: '16px'
               }}
             >
-              {filteredVideos.map((video) => (
+              {filteredVideos.map((video) => {
+                const isSelected = selectedPublishedIds.has(video.id);
+
+                return (
                 <div
                   key={video.id}
                   style={{
                     background: '#ffffff',
-                    border: '1px solid var(--border-subtle)',
+                    border: isSelected ? '2px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
                     borderRadius: '14px',
                     overflow: 'hidden',
-                    boxShadow: 'var(--shadow-sm)',
+                    boxShadow: isSelected ? '0 4px 14px rgba(255, 69, 0, 0.18)' : 'var(--shadow-sm)',
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   {/* Thumbnail / Header */}
@@ -1955,11 +2195,40 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                       </div>
                     </div>
 
-                    <span
+                    {/* Checkbox for Bulk Selection */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleSelectPublished(video.id);
+                      }}
                       style={{
                         position: 'absolute',
                         top: '10px',
                         left: '10px',
+                        zIndex: 10,
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        background: isSelected ? 'var(--brand-primary)' : 'rgba(15, 23, 42, 0.75)',
+                        border: isSelected ? '2px solid var(--brand-primary)' : '2px solid rgba(255,255,255,0.8)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={isSelected ? 'Deselect video' : 'Select video for bulk action'}
+                    >
+                      {isSelected && <Check size={14} strokeWidth={3} />}
+                    </div>
+
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '42px',
                         background: 'rgba(15, 23, 42, 0.85)',
                         color: '#38bdf8',
                         padding: '3px 8px',
@@ -2016,29 +2285,61 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
                           color: 'var(--text-tertiary)'
                         }}
                       >
-                        <span>Campaign: {video.campaignName || 'Spotlight360'}</span>
-                        <button
-                          type="button"
-                          onClick={() => setPreviewVideo(video)}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--brand-primary)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '3px'
-                          }}
-                        >
-                          <Play size={11} />
-                          <span>Preview Reel</span>
-                        </button>
+                        <span style={{ maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {video.campaignName || 'Spotlight360'}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewVideo(video)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--brand-primary)',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                          >
+                            <Play size={11} />
+                            <span>Preview</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVideoToDelete(video);
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #fecdd3',
+                              background: '#fff1f2',
+                              color: '#e11d48',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Delete this video from Spotlight360 and citizen Reels"
+                          >
+                            <Trash2 size={12} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
@@ -2153,6 +2454,10 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
         <SpotlightReelPreviewModal
           video={previewVideo}
           onClose={() => setPreviewVideo(null)}
+          onDelete={(vid) => {
+            setPreviewVideo(null);
+            setVideoToDelete(vid as Spotlight360Video);
+          }}
         />
       )}
 
@@ -2694,6 +2999,335 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
           onClose={() => setShowCsvModal(false)}
           onApplyCsvData={handleApplyCsvMappings}
         />
+      )}
+
+      {/* ============================================================ */}
+      {/* SINGLE VIDEO DELETE CONFIRMATION MODAL                       */}
+      {/* ============================================================ */}
+      {videoToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => !isDeletingSingle && setVideoToDelete(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '24px',
+              border: '1.5px solid #fecdd3',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#b91c1c', margin: 0 }}>
+                    Delete Spotlight Video?
+                  </h3>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                    Hyperlocal Broadcast Deletion
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isDeletingSingle && setVideoToDelete(null)}
+                disabled={isDeletingSingle}
+                style={{ border: 'none', background: 'transparent', cursor: isDeletingSingle ? 'not-allowed' : 'pointer' }}
+              >
+                <X size={18} color="var(--text-secondary)" />
+              </button>
+            </div>
+
+            {/* Video preview summary */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center'
+              }}
+            >
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  background: '#000000',
+                  flexShrink: 0
+                }}
+              >
+                <img
+                  src={videoToDelete.thumbnailUrl || videoToDelete.mediaUrl}
+                  alt={videoToDelete.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                  <span
+                    style={{
+                      background: 'rgba(255, 69, 0, 0.1)',
+                      color: 'var(--brand-primary)',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {videoToDelete.category || 'Spotlight'}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                    {videoToDelete.location?.area || 'Tamil Nadu'}
+                  </span>
+                </div>
+                <h4
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {videoToDelete.title}
+                </h4>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Campaign: {videoToDelete.campaignName || 'Spotlight360 Hub'}
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div
+              style={{
+                background: '#fff1f2',
+                border: '1px solid #fecdd3',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '20px',
+                display: 'flex',
+                gap: '10px'
+              }}
+            >
+              <AlertTriangle size={18} color="#e11d48" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '12px', color: '#9f1239', lineHeight: 1.5 }}>
+                <strong>Permanent Deletion:</strong> This video will be permanently removed from Spotlight 360, the database, and from all citizen <strong>Reels & Feeds</strong> immediately.
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setVideoToDelete(null)}
+                disabled={isDeletingSingle}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: isDeletingSingle ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeleteSingle}
+                disabled={isDeletingSingle}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: isDeletingSingle ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                <Trash2 size={14} />
+                <span>{isDeletingSingle ? 'Deleting Video...' : 'Yes, Delete Video'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BULK VIDEOS DELETE CONFIRMATION MODAL                        */}
+      {/* ============================================================ */}
+      {showBulkDeleteModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '24px',
+              border: '1.5px solid #fecdd3',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#b91c1c', margin: 0 }}>
+                    Delete {selectedPublishedIds.size} Selected Videos?
+                  </h3>
+                  <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                    Bulk Removal Action
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                style={{ border: 'none', background: 'transparent', cursor: isBulkDeleting ? 'not-allowed' : 'pointer' }}
+              >
+                <X size={18} color="var(--text-secondary)" />
+              </button>
+            </div>
+
+            {/* Warning Message */}
+            <div
+              style={{
+                background: '#fff1f2',
+                border: '1px solid #fecdd3',
+                borderRadius: '10px',
+                padding: '14px',
+                marginBottom: '20px',
+                display: 'flex',
+                gap: '10px'
+              }}
+            >
+              <AlertTriangle size={20} color="#e11d48" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '12px', color: '#9f1239', lineHeight: 1.5 }}>
+                You are about to permanently delete <strong>{selectedPublishedIds.size} videos</strong>. They will be removed immediately from Spotlight 360, the database, and from all citizen <strong>Reels & Feeds</strong>.
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: isBulkDeleting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmBulkDelete}
+                disabled={isBulkDeleting}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                <Trash2 size={14} />
+                <span>{isBulkDeleting ? 'Deleting...' : `Delete All ${selectedPublishedIds.size} Videos`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

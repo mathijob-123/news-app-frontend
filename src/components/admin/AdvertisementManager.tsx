@@ -3,12 +3,10 @@ import {
   Megaphone,
   Plus,
   Search,
-  Filter,
   Eye,
   Edit2,
   Trash2,
   TrendingUp,
-  MousePointerClick,
   Sparkles,
   Calendar,
   MapPin,
@@ -17,9 +15,6 @@ import {
   XCircle,
   AlertTriangle,
   Play,
-  Image as ImageIcon,
-  Video,
-  LayoutTemplate,
   Target,
   PauseCircle
 } from 'lucide-react';
@@ -37,7 +32,6 @@ interface AdvertisementManagerProps {
 
 export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
   ads,
-  onRefreshAds,
   onSaveAd,
   onDeleteAd,
   onToggleStatus
@@ -50,7 +44,6 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
   const [previewAd, setPreviewAd] = useState<Advertisement | null>(null);
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [deletingAdId, setDeletingAdId] = useState<string | null>(null);
 
   // Filtered ads
   const filteredAds = useMemo(() => {
@@ -94,7 +87,6 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this advertisement?')) {
       await onDeleteAd(id);
-      setDeletingAdId(null);
     }
   };
 
@@ -115,6 +107,21 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
     }
   };
 
+  const formatAdDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* 1. Header & Quick Actions */}
@@ -124,28 +131,30 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '14px',
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
-          padding: '20px',
-          borderRadius: '20px',
-          border: '1px solid rgba(249, 115, 22, 0.3)'
+          gap: '16px',
+          background: '#0f172a',
+          padding: '22px 24px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
                 background: 'rgba(234, 88, 12, 0.2)',
                 color: '#ea580c',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                flexShrink: 0
               }}
             >
-              <Megaphone size={18} />
+              <Megaphone size={20} />
             </div>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
               Advertisements Management (விளம்பர மேலாண்மை)
@@ -162,119 +171,124 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '11px 20px',
-            borderRadius: '12px',
+            padding: '11px 22px',
+            borderRadius: '10px',
             background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
             color: '#ffffff',
             border: 'none',
             fontSize: '13px',
-            fontWeight: 800,
+            fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 4px 16px rgba(234, 88, 12, 0.4)',
-            transition: 'all 0.2s'
+            boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease'
           }}
         >
           <Plus size={18} />
-          <span>➕ Create Advertisement (புதிய விளம்பரம்)</span>
+          <span>Create Advertisement (புதிய விளம்பரம்)</span>
         </button>
       </div>
 
       {/* 2. KPI Metrics Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Active Campaigns
           </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '24px', fontWeight: 800, color: '#22c55e' }}>{activeCount}</span>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>of {ads.length} total</span>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: '#059669' }}>{activeCount}</span>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>of {ads.length} total</span>
           </div>
         </div>
 
         <div
           style={{
-            background: stoppedCount > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(30, 41, 59, 0.6)',
-            border: stoppedCount > 0 ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
+            background: stoppedCount > 0 ? '#fff1f2' : '#ffffff',
+            border: stoppedCount > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <span style={{ fontSize: '11px', color: stoppedCount > 0 ? '#fca5a5' : '#94a3b8', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <PauseCircle size={12} color={stoppedCount > 0 ? '#ef4444' : '#94a3b8'} />
+          <span style={{ fontSize: '11px', color: stoppedCount > 0 ? '#b91c1c' : '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <PauseCircle size={13} color={stoppedCount > 0 ? '#dc2626' : '#64748b'} />
             Auto-Stopped (Reach Limit)
           </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '24px', fontWeight: 800, color: stoppedCount > 0 ? '#ef4444' : '#64748b' }}>{stoppedCount}</span>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>limit reached</span>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: stoppedCount > 0 ? '#dc2626' : '#64748b' }}>{stoppedCount}</span>
+            <span style={{ fontSize: '12px', color: stoppedCount > 0 ? '#991b1b' : '#64748b', fontWeight: 500 }}>limit reached</span>
           </div>
         </div>
 
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Total Impressions (பார்வைகள்)
           </span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#38bdf8' }}>
+          <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
             {totalImpressions.toLocaleString()}
           </span>
         </div>
 
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Total Clicks (கிளிக்குகள்)
           </span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#fb923c' }}>
+          <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
             {totalClicks.toLocaleString()}
           </span>
         </div>
 
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Avg. CTR (கிளிக் விகிதம்)
           </span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#a78bfa' }}>
+          <span style={{ fontSize: '26px', fontWeight: 800, color: '#ea580c' }}>
             {averageCTR}
           </span>
         </div>
@@ -283,40 +297,43 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
       {/* 3. Feed Interleaving Simulation Explainer Banner */}
       <div
         style={{
-          background: 'rgba(234, 88, 12, 0.08)',
-          border: '1px dashed rgba(234, 88, 12, 0.4)',
-          borderRadius: '14px',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
           padding: '12px 18px',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px'
+          gap: '12px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Sparkles size={18} color="#ea580c" />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fdba74' }}>
-            Live Feed Slot Pattern:
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#ffffff', fontWeight: 700 }}>
-            <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '6px' }}>News 1</span>
-            <span>→</span>
-            <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '6px' }}>News 2</span>
-            <span>→</span>
-            <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '6px' }}>News 3</span>
-            <span>→</span>
-            <span style={{ background: '#ea580c', padding: '2px 8px', borderRadius: '6px', color: '#fff' }}>📢 AD</span>
-            <span>→</span>
-            <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '6px' }}>News 4</span>
-            <span>→</span>
-            <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '6px' }}>News 5</span>
-            <span>→</span>
-            <span style={{ background: '#ea580c', padding: '2px 8px', borderRadius: '6px', color: '#fff' }}>📢 AD</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={16} color="#ea580c" />
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+              Live Feed Slot Pattern:
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700 }}>
+            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 1</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 2</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 3</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#ea580c', color: '#ffffff', padding: '3px 8px', borderRadius: '6px' }}>📢 AD</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 4</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 5</span>
+            <span style={{ color: '#94a3b8' }}>→</span>
+            <span style={{ background: '#ea580c', color: '#ffffff', padding: '3px 8px', borderRadius: '6px' }}>📢 AD</span>
           </div>
         </div>
 
-        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+        <span style={{ fontSize: '12px', color: '#64748b' }}>
           Filtered dynamically by user location (District / Taluk / Area)
         </span>
       </div>
@@ -329,15 +346,16 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
-          background: 'rgba(30, 41, 59, 0.4)',
+          background: '#ffffff',
           padding: '12px 16px',
-          borderRadius: '14px',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}
       >
         {/* Search Input */}
         <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '400px' }}>
-          <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '11px' }} />
+          <Search size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '11px' }} />
           <input
             type="text"
             value={searchQuery}
@@ -346,12 +364,13 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
             style={{
               width: '100%',
               padding: '9px 12px 9px 36px',
-              borderRadius: '10px',
-              background: '#0f172a',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#ffffff',
-              fontSize: '12px',
-              boxSizing: 'border-box'
+              borderRadius: '8px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              color: '#0f172a',
+              fontSize: '13px',
+              boxSizing: 'border-box',
+              outline: 'none'
             }}
           />
         </div>
@@ -359,7 +378,7 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
         {/* Filter Pills */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
           {/* Status Filter */}
-          <div style={{ display: 'flex', background: '#0f172a', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             {(['all', 'active', 'stopped', 'inactive'] as const).map((s) => (
               <button
                 key={s}
@@ -370,13 +389,14 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   fontSize: '11px',
                   fontWeight: 700,
                   border: 'none',
-                  background: statusFilter === s ? (s === 'stopped' ? '#ef4444' : '#ea580c') : 'transparent',
-                  color: statusFilter === s ? '#ffffff' : '#94a3b8',
+                  background: statusFilter === s ? (s === 'stopped' ? '#dc2626' : '#ea580c') : 'transparent',
+                  color: statusFilter === s ? '#ffffff' : '#475569',
                   cursor: 'pointer',
                   textTransform: 'capitalize',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {s === 'stopped' && <AlertTriangle size={11} />}
@@ -386,7 +406,7 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
           </div>
 
           {/* Type Filter */}
-          <div style={{ display: 'flex', background: '#0f172a', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             {(['all', 'image', 'video', 'banner'] as const).map((t) => (
               <button
                 key={t}
@@ -398,9 +418,10 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   fontWeight: 700,
                   border: 'none',
                   background: typeFilter === t ? '#ea580c' : 'transparent',
-                  color: typeFilter === t ? '#ffffff' : '#94a3b8',
+                  color: typeFilter === t ? '#ffffff' : '#475569',
                   cursor: 'pointer',
-                  textTransform: 'capitalize'
+                  textTransform: 'capitalize',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {t}
@@ -414,31 +435,33 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
       {filteredAds.length === 0 ? (
         <div
           style={{
-            padding: '40px 20px',
+            padding: '48px 24px',
             textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.3)',
-            borderRadius: '16px',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
+            background: '#ffffff',
+            borderRadius: '14px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
-          <Megaphone size={36} color="#64748b" style={{ margin: '0 auto 12px' }} />
-          <h4 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>
+          <Megaphone size={40} color="#94a3b8" style={{ margin: '0 auto 14px' }} />
+          <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
             No Advertisements Found
           </h4>
-          <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#94a3b8' }}>
+          <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#64748b' }}>
             No advertisements match your current search or filter criteria.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
             style={{
-              padding: '9px 18px',
-              borderRadius: '10px',
+              padding: '10px 20px',
+              borderRadius: '8px',
               background: '#ea580c',
               color: '#ffffff',
               border: 'none',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(234, 88, 12, 0.3)'
             }}
           >
             Create New Campaign
@@ -461,38 +484,33 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
               <div
                 key={ad.id}
                 style={{
-                  background: isStopped
-                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(30, 41, 59, 0.6) 100%)'
-                    : 'rgba(30, 41, 59, 0.5)',
+                  background: isStopped ? '#fffbfb' : '#ffffff',
                   border: '1px solid',
-                  borderColor: isStopped
-                    ? 'rgba(239, 68, 68, 0.4)'
-                    : isActive
-                    ? 'rgba(234, 88, 12, 0.25)'
-                    : 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: '16px',
-                  padding: '16px',
+                  borderColor: isStopped ? '#fecdd3' : '#e2e8f0',
+                  borderRadius: '14px',
+                  padding: '16px 20px',
                   display: 'flex',
                   flexWrap: 'wrap',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '16px',
-                  transition: 'border-color 0.2s'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'border-color 0.15s, box-shadow 0.15s'
                 }}
               >
                 {/* Left: Media Thumbnail + Basic Meta */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 320px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 340px', minWidth: 0 }}>
                   {/* Thumbnail */}
                   <div
                     style={{
-                      width: '70px',
-                      height: '70px',
-                      borderRadius: '12px',
+                      width: '72px',
+                      height: '72px',
+                      borderRadius: '10px',
                       overflow: 'hidden',
-                      background: '#090d16',
+                      background: '#f1f5f9',
                       flexShrink: 0,
                       position: 'relative',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      border: '1px solid #e2e8f0'
                     }}
                   >
                     {ad.mediaUrl ? (
@@ -506,7 +524,7 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                             style={{
                               position: 'absolute',
                               inset: 0,
-                              background: 'rgba(0,0,0,0.4)',
+                              background: 'rgba(0,0,0,0.35)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -531,27 +549,29 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#64748b'
+                          color: '#94a3b8'
                         }}
                       >
-                        <Megaphone size={20} />
+                        <Megaphone size={22} />
                       </div>
                     )}
                   </div>
 
                   {/* Title & Advertiser */}
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       {/* Type badge */}
                       <span
                         style={{
                           fontSize: '10px',
                           fontWeight: 800,
-                          padding: '2px 7px',
+                          padding: '2px 8px',
                           borderRadius: '6px',
-                          background: isVideo ? 'rgba(56, 189, 248, 0.2)' : isBanner ? 'rgba(168, 85, 247, 0.2)' : 'rgba(234, 88, 12, 0.2)',
-                          color: isVideo ? '#38bdf8' : isBanner ? '#c084fc' : '#fb923c',
-                          textTransform: 'uppercase'
+                          background: isVideo ? '#eff6ff' : isBanner ? '#f5f3ff' : '#fff7ed',
+                          color: isVideo ? '#1d4ed8' : isBanner ? '#7e22ce' : '#c2410c',
+                          border: isVideo ? '1px solid #bfdbfe' : isBanner ? '1px solid #ddd6fe' : '1px solid #fed7aa',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em'
                         }}
                       >
                         {ad.adType}
@@ -562,21 +582,23 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                           style={{
                             fontSize: '10px',
                             fontWeight: 800,
-                            padding: '2px 7px',
+                            padding: '2px 8px',
                             borderRadius: '6px',
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#f87171',
+                            background: '#fef2f2',
+                            color: '#b91c1c',
+                            border: '1px solid #fecdd3',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '3px',
-                            textTransform: 'uppercase'
+                            gap: '4px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em'
                           }}
                         >
-                          <AlertTriangle size={10} /> Auto-Stopped
+                          <AlertTriangle size={11} /> Auto-Stopped
                         </span>
                       )}
 
-                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                      <span style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
                         {ad.advertiserName}
                       </span>
                     </div>
@@ -584,10 +606,10 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                     <h4
                       style={{
                         margin: '0 0 6px 0',
-                        fontSize: '14px',
+                        fontSize: '15px',
                         fontWeight: 700,
-                        color: '#f8fafc',
-                        lineHeight: 1.3,
+                        color: '#0f172a',
+                        lineHeight: 1.35,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
@@ -598,26 +620,26 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                     </h4>
 
                     {/* Meta tags */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', fontSize: '11px', color: '#64748b' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <MapPin size={11} color="#ea580c" />
-                        <span>{ad.targetLocation.district || 'All'}</span>
-                        {ad.targetLocation.taluk && <span>• {ad.targetLocation.taluk}</span>}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#64748b' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={13} color="#ea580c" />
+                        <span style={{ color: '#334155' }}>{ad.targetLocation.district || 'All'}</span>
+                        {ad.targetLocation.taluk && <span style={{ color: '#64748b' }}>• {ad.targetLocation.taluk}</span>}
                       </span>
 
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Layers size={11} color="#38bdf8" />
-                        <span>{formatPositionLabel(ad.position)}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Layers size={13} color="#0284c7" />
+                        <span style={{ color: '#334155' }}>{formatPositionLabel(ad.position)}</span>
                       </span>
 
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Calendar size={11} color="#a855f7" />
-                        <span>{ad.startDate} - {ad.endDate}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={13} color="#7c3aed" />
+                        <span style={{ color: '#334155' }}>{formatAdDate(ad.startDate)} – {formatAdDate(ad.endDate)}</span>
                       </span>
 
                       {hasReachLimit && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: isLimitReached ? '#f87171' : '#38bdf8' }}>
-                          <Target size={11} color={isLimitReached ? '#ef4444' : '#38bdf8'} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isLimitReached ? '#dc2626' : '#0284c7', fontWeight: 600 }}>
+                          <Target size={13} color={isLimitReached ? '#dc2626' : '#0284c7'} />
                           <span>Cap: {ad.reachLimit!.toLocaleString()} {ad.autoStop ? '(Auto-Stop)' : ''}</span>
                         </span>
                       )}
@@ -631,22 +653,22 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '16px',
-                    padding: '8px 14px',
+                    padding: '10px 16px',
                     borderRadius: '10px',
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0'
                   }}
                 >
                   <div style={{ textAlign: 'center', minWidth: hasReachLimit ? '130px' : 'auto' }}>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                       <span>Impressions</span>
                       {hasReachLimit && (
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: isLimitReached ? '#ef4444' : reachPercent >= 80 ? '#fb923c' : '#38bdf8' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: isLimitReached ? '#dc2626' : reachPercent >= 80 ? '#ea580c' : '#0284c7' }}>
                           ({reachPercent}%)
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: isLimitReached ? '#ef4444' : '#38bdf8' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: isLimitReached ? '#dc2626' : '#0f172a' }}>
                       {(ad.impressions || 0).toLocaleString()}
                       {hasReachLimit && (
                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
@@ -655,16 +677,16 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                       )}
                     </div>
                     {hasReachLimit && (
-                      <div style={{ width: '100%', height: '4px', borderRadius: '2px', background: 'rgba(255, 255, 255, 0.1)', marginTop: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: '#e2e8f0', marginTop: '5px', overflow: 'hidden' }}>
                         <div
                           style={{
                             width: `${reachPercent}%`,
                             height: '100%',
-                            borderRadius: '2px',
+                            borderRadius: '3px',
                             background: isLimitReached
-                              ? '#ef4444'
+                              ? '#dc2626'
                               : reachPercent >= 80
-                              ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                              ? 'linear-gradient(90deg, #f59e0b, #dc2626)'
                               : 'linear-gradient(90deg, #0284c7, #38bdf8)'
                           }}
                         />
@@ -672,20 +694,20 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                     )}
                   </div>
 
-                  <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.1)' }} />
+                  <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }} />
 
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>Clicks</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#fb923c' }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Clicks</div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>
                       {(ad.clicks || 0).toLocaleString()}
                     </div>
                   </div>
 
-                  <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.1)' }} />
+                  <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }} />
 
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>CTR</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#22c55e' }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>CTR</div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#059669' }}>
                       {ad.impressions ? `${((ad.clicks / ad.impressions) * 100).toFixed(1)}%` : '0%'}
                     </div>
                   </div>
@@ -697,18 +719,19 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   <button
                     onClick={() => onToggleStatus(ad.id, ad.status)}
                     style={{
-                      padding: '6px 12px',
+                      padding: '7px 12px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: isStopped ? '#ef4444' : isActive ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                      background: isStopped ? 'rgba(239, 68, 68, 0.15)' : isActive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                      color: isStopped ? '#f87171' : isActive ? '#4ade80' : '#94a3b8',
-                      fontSize: '11px',
+                      borderColor: isStopped ? '#fecdd3' : isActive ? '#a7f3d0' : '#cbd5e1',
+                      background: isStopped ? '#fef2f2' : isActive ? '#ecfdf5' : '#f1f5f9',
+                      color: isStopped ? '#b91c1c' : isActive ? '#047857' : '#475569',
+                      fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      gap: '5px',
+                      transition: 'all 0.15s ease'
                     }}
                     title={isStopped ? 'Limit reached & auto-stopped. Click to reactivate.' : 'Click to toggle Active / Inactive'}
                   >
@@ -721,21 +744,22 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                     <button
                       onClick={() => setEditingAd(ad)}
                       style={{
-                        padding: '6px 12px',
+                        padding: '7px 12px',
                         borderRadius: '8px',
-                        background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.25) 0%, rgba(239, 68, 68, 0.25) 100%)',
-                        border: '1px solid rgba(234, 88, 12, 0.5)',
-                        color: '#fdba74',
-                        fontSize: '11px',
-                        fontWeight: 800,
+                        background: '#fff7ed',
+                        border: '1px solid #fed7aa',
+                        color: '#c2410c',
+                        fontSize: '12px',
+                        fontWeight: 700,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '5px',
+                        transition: 'all 0.15s ease'
                       }}
                       title="Reach limit reached. Extend limit or adjust settings to resume."
                     >
-                      <TrendingUp size={12} color="#fb923c" />
+                      <TrendingUp size={13} color="#c2410c" />
                       <span>Extend Limit</span>
                     </button>
                   )}
@@ -744,21 +768,22 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   <button
                     onClick={() => setPreviewAd(ad)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '7px 12px',
                       borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      color: '#334155',
                       fontSize: '12px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px'
+                      gap: '5px',
+                      transition: 'all 0.15s ease'
                     }}
                     title="Live Preview"
                   >
-                    <Eye size={14} color="#38bdf8" />
+                    <Eye size={14} color="#0284c7" />
                     <span>Preview</span>
                   </button>
 
@@ -766,21 +791,22 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   <button
                     onClick={() => setEditingAd(ad)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '7px 12px',
                       borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      color: '#334155',
                       fontSize: '12px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px'
+                      gap: '5px',
+                      transition: 'all 0.15s ease'
                     }}
                     title="Edit Campaign"
                   >
-                    <Edit2 size={14} color="#fb923c" />
+                    <Edit2 size={14} color="#ea580c" />
                     <span>Edit</span>
                   </button>
 
@@ -788,15 +814,16 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
                   <button
                     onClick={() => handleDelete(ad.id)}
                     style={{
-                      padding: '8px',
+                      padding: '7px 10px',
                       borderRadius: '8px',
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#f87171',
+                      background: '#fff1f2',
+                      border: '1px solid #fecdd3',
+                      color: '#dc2626',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
                     }}
                     title="Delete Advertisement"
                   >

@@ -13,15 +13,8 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
-  Edit2,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
-  RefreshCw,
-  ExternalLink,
-  Lock,
-  Globe,
-  Database
+  RefreshCw
 } from 'lucide-react';
 import type {
   AppSettings,
@@ -101,12 +94,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
       sortOrder: currentSettings.categories.length + 1
     };
 
-    const updated = {
-      ...currentSettings,
-      categories: [...currentSettings.categories, newCategory]
-    };
+    const updatedCategories = [...currentSettings.categories, newCategory];
+    const updated = { ...currentSettings, categories: updatedCategories };
     setCurrentSettings(updated);
     onSaveSettings(updated);
+
     setNewCatKey('');
     setNewCatTamil('');
     setNewCatEnglish('');
@@ -167,28 +159,30 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '14px',
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
-          padding: '20px',
-          borderRadius: '20px',
-          border: '1px solid rgba(249, 115, 22, 0.3)'
+          gap: '16px',
+          background: '#0f172a',
+          padding: '22px 24px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
                 background: 'rgba(234, 88, 12, 0.2)',
                 color: '#ea580c',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                flexShrink: 0
               }}
             >
-              <Settings size={18} />
+              <Settings size={20} />
             </div>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
               App Settings & Admin Permissions (செயலி அமைப்புகள்)
@@ -199,7 +193,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {saveSuccess && (
             <span
               style={{
@@ -211,7 +205,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                 fontWeight: 700
               }}
             >
-              <CheckCircle2 size={15} />
+              <CheckCircle2 size={16} />
               <span>Settings Saved!</span>
             </span>
           )}
@@ -223,15 +217,16 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '11px 20px',
-              borderRadius: '12px',
+              padding: '11px 22px',
+              borderRadius: '10px',
               background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
               color: '#ffffff',
               border: 'none',
               fontSize: '13px',
-              fontWeight: 800,
+              fontWeight: 700,
               cursor: isSaving ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 16px rgba(234, 88, 12, 0.4)'
+              boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
             }}
           >
             {isSaving ? <RefreshCw size={16} className="spin" /> : <Save size={16} />}
@@ -246,10 +241,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
           display: 'flex',
           flexWrap: 'wrap',
           gap: '8px',
-          background: 'rgba(30, 41, 59, 0.4)',
-          padding: '8px',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
+          background: '#ffffff',
+          padding: '10px 12px',
+          borderRadius: '14px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
         }}
       >
         {[
@@ -273,18 +269,18 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                 alignItems: 'center',
                 gap: '7px',
                 padding: '9px 16px',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 border: '1px solid',
-                borderColor: isSelected ? '#ea580c' : 'transparent',
-                background: isSelected ? 'rgba(234, 88, 12, 0.2)' : 'transparent',
-                color: isSelected ? '#fb923c' : '#94a3b8',
+                borderColor: isSelected ? '#ea580c' : '#e2e8f0',
+                background: isSelected ? '#ea580c' : '#f8fafc',
+                color: isSelected ? '#ffffff' : '#334155',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                transition: 'all 0.15s'
+                transition: 'all 0.15s ease'
               }}
             >
-              <Icon size={15} color={isSelected ? '#ea580c' : '#94a3b8'} />
+              <Icon size={15} color={isSelected ? '#ffffff' : '#64748b'} />
               <span>{tab.label}</span>
             </button>
           );
@@ -294,10 +290,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
       {/* 3. Section Content */}
       <div
         style={{
-          background: 'rgba(30, 41, 59, 0.5)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '24px'
+          background: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
         }}
       >
         {/* =========================================
@@ -305,13 +302,18 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'branding' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              App Name & Branding (செயலி பெயர் மற்றும் சின்னம்)
-            </h3>
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                App Name & Branding (செயலி பெயர் மற்றும் சின்னம்)
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                Customize application title, slogans, official brand color and contact channels.
+              </p>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Application Name (செயலி பெயர்)
                 </label>
                 <input
@@ -326,10 +328,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#0f172a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
                     fontSize: '13px',
                     boxSizing: 'border-box'
                   }}
@@ -337,7 +339,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Tagline (முழக்க வரி)
                 </label>
                 <input
@@ -352,10 +354,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#0f172a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
                     fontSize: '13px',
                     boxSizing: 'border-box'
                   }}
@@ -363,7 +365,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Logo URL (லோகோ படம்)
                 </label>
                 <input
@@ -378,10 +380,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#0f172a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
                     fontSize: '13px',
                     boxSizing: 'border-box'
                   }}
@@ -389,7 +391,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Primary Brand Color
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -406,7 +408,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       width: '42px',
                       height: '42px',
                       borderRadius: '8px',
-                      border: 'none',
+                      border: '1px solid #cbd5e1',
                       cursor: 'pointer',
                       background: 'transparent'
                     }}
@@ -423,10 +425,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     style={{
                       flex: 1,
                       padding: '10px 14px',
-                      borderRadius: '10px',
-                      background: '#0f172a',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
+                      borderRadius: '8px',
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a',
                       fontSize: '13px'
                     }}
                   />
@@ -434,7 +436,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Support Email
                 </label>
                 <input
@@ -449,10 +451,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#0f172a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
                     fontSize: '13px',
                     boxSizing: 'border-box'
                   }}
@@ -460,7 +462,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Support Contact Phone
                 </label>
                 <input
@@ -475,10 +477,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#0f172a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
                     fontSize: '13px',
                     boxSizing: 'border-box'
                   }}
@@ -493,12 +495,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'categories' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
                   News Categories (செய்திப் பிரிவுகள்)
                 </h3>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
                   Manage categories visible in the Home Feed header and reporting tags.
                 </p>
               </div>
@@ -510,17 +512,17 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(234, 88, 12, 0.2)',
-                  border: '1px solid rgba(234, 88, 12, 0.4)',
-                  color: '#fb923c',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: '#fff7ed',
+                  border: '1px solid #fed7aa',
+                  color: '#c2410c',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
-                <Plus size={14} />
+                <Plus size={15} />
                 <span>Add Category</span>
               </button>
             </div>
@@ -529,9 +531,9 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
             {showAddCategory && (
               <div
                 style={{
-                  background: '#0f172a',
-                  border: '1px solid rgba(234, 88, 12, 0.4)',
-                  borderRadius: '14px',
+                  background: '#f8fafc',
+                  border: '1px solid #fed7aa',
+                  borderRadius: '12px',
                   padding: '16px',
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -540,7 +542,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                 }}
               >
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     Key (Slug)
                   </label>
                   <input
@@ -548,11 +550,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     value={newCatKey}
                     onChange={(e) => setNewCatKey(e.target.value)}
                     placeholder="e.g. politics, education"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     Tamil Name (தமிழ் பெயர்)
                   </label>
                   <input
@@ -560,11 +562,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     value={newCatTamil}
                     onChange={(e) => setNewCatTamil(e.target.value)}
                     placeholder="எ.கா: அரசியல், கல்வி"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     English Name
                   </label>
                   <input
@@ -572,7 +574,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     value={newCatEnglish}
                     onChange={(e) => setNewCatEnglish(e.target.value)}
                     placeholder="e.g. Politics, Education"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
@@ -582,7 +584,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px 14px',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       background: '#ea580c',
                       color: '#ffffff',
                       border: 'none',
@@ -607,9 +609,9 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '12px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(15, 23, 42, 0.7)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -622,8 +624,8 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }}
                     />
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
-                        {cat.nameTamil} <span style={{ color: '#94a3b8', fontWeight: 500 }}>({cat.nameEnglish})</span>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                        {cat.nameTamil} <span style={{ color: '#64748b', fontWeight: 500 }}>({cat.nameEnglish})</span>
                       </div>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>key: {cat.key}</span>
                     </div>
@@ -637,9 +639,9 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                         padding: '5px 12px',
                         borderRadius: '6px',
                         border: '1px solid',
-                        borderColor: cat.enabled ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                        background: cat.enabled ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
-                        color: cat.enabled ? '#4ade80' : '#94a3b8',
+                        borderColor: cat.enabled ? '#a7f3d0' : '#cbd5e1',
+                        background: cat.enabled ? '#ecfdf5' : '#f1f5f9',
+                        color: cat.enabled ? '#047857' : '#64748b',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer'
@@ -653,10 +655,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                         type="button"
                         onClick={() => handleDeleteCategory(cat.id)}
                         style={{
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          border: 'none',
+                          background: '#fff1f2',
+                          border: '1px solid #fecdd3',
                           borderRadius: '6px',
-                          color: '#f87171',
+                          color: '#dc2626',
                           padding: '6px',
                           cursor: 'pointer'
                         }}
@@ -676,16 +678,18 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'locations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              Location Settings (அமைவிட அமைப்புகள்)
-            </h3>
-            <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-              Coverage zones across Tamil Nadu districts, default center point, and radius limits.
-            </p>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                Location Settings (அமைவிட அமைப்புகள்)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                Coverage zones across Tamil Nadu districts, default center point, and radius limits.
+              </p>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Default Latitude
                 </label>
                 <input
@@ -698,12 +702,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       locations: { ...currentSettings.locations, defaultLat: parseFloat(e.target.value) || 13.0827 }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Default Longitude
                 </label>
                 <input
@@ -716,12 +720,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       locations: { ...currentSettings.locations, defaultLng: parseFloat(e.target.value) || 80.2707 }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Default Radius Filter (km)
                 </label>
                 <input
@@ -733,14 +737,14 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       locations: { ...currentSettings.locations, defaultRadiusKm: parseInt(e.target.value) || 25 }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
             {/* Configured Districts & Taluks Hierarchy */}
             <div>
-              <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', marginBottom: '10px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '10px' }}>
                 Configured Districts & Coverage Hierarchy
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
@@ -748,29 +752,30 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   <div
                     key={dist.name}
                     style={{
-                      background: '#0f172a',
-                      borderRadius: '12px',
+                      background: '#f8fafc',
+                      borderRadius: '10px',
                       padding: '14px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                      border: '1px solid #e2e8f0'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                      <MapPin size={14} color="#ea580c" />
-                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#f8fafc' }}>
+                      <MapPin size={15} color="#ea580c" />
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>
                         {dist.name} District
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {dist.taluks.map((t) => (
                         <span
                           key={t.name}
                           style={{
-                            fontSize: '10px',
-                            background: 'rgba(255, 255, 255, 0.06)',
+                            fontSize: '11px',
+                            background: '#ffffff',
                             padding: '3px 8px',
                             borderRadius: '6px',
-                            color: '#94a3b8'
+                            border: '1px solid #e2e8f0',
+                            color: '#334155'
                           }}
                         >
                           {t.name} ({t.areas.length} areas)
@@ -789,11 +794,16 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'notifications' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              Notification Settings (அறிவிப்பு அமைப்புகள்)
-            </h3>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                Notification Settings (அறிவிப்பு அமைப்புகள்)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                Configure push notifications and alerts triggered for breaking stories and reporter payouts.
+              </p>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {[
                 { key: 'pushAlertsEnabled', label: 'Push Alerts Master Switch', desc: 'Enable browser and mobile push alerts' },
                 { key: 'breakingNewsAlerts', label: 'Breaking News Alerts', desc: 'Auto-broadcast instant notifications when admin flags breaking news' },
@@ -810,16 +820,16 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '14px 18px',
-                      borderRadius: '12px',
-                      background: 'rgba(15, 23, 42, 0.7)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)'
+                      borderRadius: '10px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0'
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
                         {item.label}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
                         {item.desc}
                       </div>
                     </div>
@@ -837,11 +847,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }
                       style={{
                         padding: '6px 14px',
-                        borderRadius: '8px',
+                        borderRadius: '6px',
                         border: '1px solid',
-                        borderColor: isChecked ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                        background: isChecked ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
-                        color: isChecked ? '#4ade80' : '#94a3b8',
+                        borderColor: isChecked ? '#a7f3d0' : '#cbd5e1',
+                        background: isChecked ? '#ecfdf5' : '#f1f5f9',
+                        color: isChecked ? '#047857' : '#64748b',
                         fontSize: '12px',
                         fontWeight: 700,
                         cursor: 'pointer'
@@ -861,9 +871,14 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'advertisements' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              Advertisement Settings (விளம்பர அமைப்புகள்)
-            </h3>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                Advertisement Settings (விளம்பர அமைப்புகள்)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                Global switches, session frequency caps, and video ad interstitial controls.
+              </p>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
               <div
@@ -872,16 +887,16 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '14px 18px',
-                  borderRadius: '12px',
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)'
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
                     Global Ads Switch
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
                     Enable/disable commercial ad insertions
                   </div>
                 </div>
@@ -899,11 +914,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   }
                   style={{
                     padding: '6px 14px',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     border: '1px solid',
-                    borderColor: currentSettings.advertisements.globalAdsEnabled ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                    background: currentSettings.advertisements.globalAdsEnabled ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
-                    color: currentSettings.advertisements.globalAdsEnabled ? '#4ade80' : '#94a3b8',
+                    borderColor: currentSettings.advertisements.globalAdsEnabled ? '#a7f3d0' : '#cbd5e1',
+                    background: currentSettings.advertisements.globalAdsEnabled ? '#ecfdf5' : '#f1f5f9',
+                    color: currentSettings.advertisements.globalAdsEnabled ? '#047857' : '#64748b',
                     fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -914,7 +929,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Sponsored Badge Label Text
                 </label>
                 <input
@@ -926,12 +941,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       advertisements: { ...currentSettings.advertisements, sponsoredBadgeText: e.target.value }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Max Ads Per Viewer Session
                 </label>
                 <input
@@ -943,7 +958,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       advertisements: { ...currentSettings.advertisements, maxAdsPerSession: parseInt(e.target.value) || 8 }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -953,16 +968,16 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '14px 18px',
-                  borderRadius: '12px',
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)'
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
                     Spots (Reels) Ad Interstitials
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
                     Show sponsored videos in vertical reels
                   </div>
                 </div>
@@ -980,11 +995,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   }
                   style={{
                     padding: '6px 14px',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     border: '1px solid',
-                    borderColor: currentSettings.advertisements.enableVideoInterstitialInSpots ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                    background: currentSettings.advertisements.enableVideoInterstitialInSpots ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
-                    color: currentSettings.advertisements.enableVideoInterstitialInSpots ? '#4ade80' : '#94a3b8',
+                    borderColor: currentSettings.advertisements.enableVideoInterstitialInSpots ? '#a7f3d0' : '#cbd5e1',
+                    background: currentSettings.advertisements.enableVideoInterstitialInSpots ? '#ecfdf5' : '#f1f5f9',
+                    color: currentSettings.advertisements.enableVideoInterstitialInSpots ? '#047857' : '#64748b',
                     fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -1002,16 +1017,18 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'socialImport' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              Social Media Content Import Settings (சமூக வலைத்தள செய்தி இறக்குமதி)
-            </h3>
-            <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
-              Configure automatic feed channels and handles for YouTube, Twitter/X, Instagram, and RSS feeds.
-            </p>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                Social Media Content Import Settings (சமூக வலைத்தள செய்தி இறக்குமதி)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                Configure automatic feed channels and handles for YouTube, Twitter/X, Instagram, and RSS feeds.
+              </p>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   YouTube Channels (comma-separated)
                 </label>
                 <input
@@ -1026,12 +1043,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Twitter / X Handles (comma-separated)
                 </label>
                 <input
@@ -1046,12 +1063,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Instagram Pages (comma-separated)
                 </label>
                 <input
@@ -1066,12 +1083,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   RSS Feed URLs (comma-separated)
                 </label>
                 <input
@@ -1086,7 +1103,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       }
                     })
                   }
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
@@ -1098,43 +1115,48 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
         ========================================= */}
         {activeSection === 'api' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-              API Settings & Integration Health (API அமைப்புகள்)
-            </h3>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                API Settings & Integration Health (API அமைப்புகள்)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                Infrastructure connections status: Cloudflare R2 CDN, Supabase PostgreSQL, and Google OAuth.
+              </p>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               {/* Cloudflare R2 */}
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>Cloudflare R2 Media Bucket</span>
-                  <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 800 }}>CONNECTED</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Cloudflare R2 Media Bucket</span>
+                  <span style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '2px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', fontWeight: 800 }}>CONNECTED</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
-                  Bucket: <code style={{ color: '#fb923c' }}>spotlight-media</code><br />
-                  Public CDN: <code style={{ color: '#38bdf8' }}>pub-5051362230a34232ba4afb2cf7ac345c.r2.dev</code>
+                <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.6 }}>
+                  Bucket: <code style={{ color: '#c2410c', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>spotlight-media</code><br />
+                  Public CDN: <code style={{ color: '#0369a1', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>pub-5051362230a34232ba4afb2cf7ac345c.r2.dev</code>
                 </div>
               </div>
 
               {/* Supabase PostgreSQL */}
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>Supabase PostgreSQL</span>
-                  <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 800 }}>CONFIGURED</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Supabase PostgreSQL</span>
+                  <span style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '2px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', fontWeight: 800 }}>CONFIGURED</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
-                  Region: <code style={{ color: '#fb923c' }}>ap-southeast-1</code><br />
-                  Pooling: <code style={{ color: '#38bdf8' }}>Connection Pooler (Port 5432)</code>
+                <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.6 }}>
+                  Region: <code style={{ color: '#c2410c', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>ap-southeast-1</code><br />
+                  Pooling: <code style={{ color: '#0369a1', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Connection Pooler (Port 5432)</code>
                 </div>
               </div>
 
               {/* Google OAuth */}
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>Google OAuth 2.0 Client</span>
-                  <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 800 }}>READY</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Google OAuth 2.0 Client</span>
+                  <span style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '2px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', fontWeight: 800 }}>READY</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5 }}>
-                  Client ID: <code style={{ color: '#fb923c' }}>457891409432...googleusercontent.com</code>
+                <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.6 }}>
+                  Client ID: <code style={{ color: '#c2410c', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>457891409432...googleusercontent.com</code>
                 </div>
               </div>
             </div>
@@ -1148,10 +1170,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
                   Admin Users & Permissions (நிர்வாகப் பொறுப்புகள் & அனுமதிகள்)
                 </h3>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
                   Role-based access control across Super Admin, Editor, Moderator, and Ad Manager.
                 </p>
               </div>
@@ -1164,12 +1186,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   alignItems: 'center',
                   gap: '6px',
                   padding: '9px 16px',
-                  borderRadius: '10px',
+                  borderRadius: '8px',
                   background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
                   color: '#ffffff',
                   border: 'none',
                   fontSize: '12px',
-                  fontWeight: 800,
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
@@ -1181,33 +1203,33 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
             {/* Role Permissions Matrix Table (Requirement Specification) */}
             <div
               style={{
-                background: 'rgba(15, 23, 42, 0.7)',
-                borderRadius: '14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: '#ffffff',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
                 overflow: 'hidden'
               }}
             >
-              <div style={{ padding: '12px 16px', background: 'rgba(30, 41, 59, 0.5)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#fdba74' }}>
+              <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#c2410c' }}>
                   Official Roles & Permissions Matrix (அனுமதி அட்டவணை):
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1px', background: 'rgba(255, 255, 255, 0.05)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1px', background: '#e2e8f0' }}>
                 {[
                   { role: 'Super Admin', access: 'Full access (அனைத்து அணுகல்)', desc: 'News approval, Delete Videos & Feeds, Treasury Payouts, Advertisements, Analytics, Settings, Admin management', color: '#ea580c' },
-                  { role: 'Editor', access: 'News create / edit / publish / delete', desc: 'Create editorial stories, calibrate geotag/RPM, publish and delete news videos & feeds', color: '#38bdf8' },
-                  { role: 'Moderator', access: 'Review / approve & delete content', desc: 'Review citizen dispatches, approve/reject reports, and delete inappropriate videos & feeds', color: '#a855f7' },
-                  { role: 'Ad Manager', access: 'Advertisements மட்டும்', desc: 'Commercial campaigns, ad creation, targeting, scheduling, and ad analytics only (No feed deletion)', color: '#22c55e' }
+                  { role: 'Editor', access: 'News create / edit / publish / delete', desc: 'Create editorial stories, calibrate geotag/RPM, publish and delete news videos & feeds', color: '#0284c7' },
+                  { role: 'Moderator', access: 'Review / approve & delete content', desc: 'Review citizen dispatches, approve/reject reports, and delete inappropriate videos & feeds', color: '#7c3aed' },
+                  { role: 'Ad Manager', access: 'Advertisements மட்டும்', desc: 'Commercial campaigns, ad creation, targeting, scheduling, and ad analytics only (No feed deletion)', color: '#059669' }
                 ].map((item) => (
-                  <div key={item.role} style={{ background: '#0f172a', padding: '14px' }}>
+                  <div key={item.role} style={{ background: '#ffffff', padding: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }} />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>{item.role}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>{item.role}</span>
                     </div>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: item.color, marginBottom: '4px' }}>
                       {item.access}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
                       {item.desc}
                     </div>
                   </div>
@@ -1219,8 +1241,8 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
             {onSwitchSimulatedRole && (
               <div
                 style={{
-                  background: 'rgba(234, 88, 12, 0.1)',
-                  border: '1px solid rgba(234, 88, 12, 0.3)',
+                  background: '#fff7ed',
+                  border: '1px solid #fed7aa',
                   borderRadius: '12px',
                   padding: '12px 16px',
                   display: 'flex',
@@ -1232,7 +1254,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Shield size={16} color="#ea580c" />
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#ffffff' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#9a3412' }}>
                     Admin View Simulator (பார்வை உருவகப்படுத்துதல்):
                   </span>
                 </div>
@@ -1249,12 +1271,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       type="button"
                       onClick={() => onSwitchSimulatedRole(r.role)}
                       style={{
-                        padding: '5px 12px',
+                        padding: '6px 12px',
                         borderRadius: '6px',
                         border: '1px solid',
-                        borderColor: currentSimulatedRole === r.role ? '#ea580c' : 'rgba(255, 255, 255, 0.15)',
-                        background: currentSimulatedRole === r.role ? '#ea580c' : 'rgba(0, 0, 0, 0.3)',
-                        color: '#ffffff',
+                        borderColor: currentSimulatedRole === r.role ? '#ea580c' : '#fed7aa',
+                        background: currentSimulatedRole === r.role ? '#ea580c' : '#ffffff',
+                        color: currentSimulatedRole === r.role ? '#ffffff' : '#9a3412',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer'
@@ -1272,9 +1294,9 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
               <form
                 onSubmit={handleCreateAdminUser}
                 style={{
-                  background: '#0f172a',
-                  border: '1px solid rgba(234, 88, 12, 0.4)',
-                  borderRadius: '14px',
+                  background: '#f8fafc',
+                  border: '1px solid #fed7aa',
+                  borderRadius: '12px',
                   padding: '18px',
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1283,7 +1305,7 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                 }}
               >
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     Admin Name
                   </label>
                   <input
@@ -1292,12 +1314,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     onChange={(e) => setNewAdminName(e.target.value)}
                     placeholder="e.g. Ramesh Kumar"
                     required
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     Email Address
                   </label>
                   <input
@@ -1306,18 +1328,18 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     onChange={(e) => setNewAdminEmail(e.target.value)}
                     placeholder="e.g. ramesh@spotlight.local"
                     required
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                     Role (பொறுப்பு)
                   </label>
                   <select
                     value={newAdminRole}
                     onChange={(e) => setNewAdminRole(e.target.value as AdminRoleType)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '12px' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontSize: '12px' }}
                   >
                     <option value="super_admin">Super Admin (Full access)</option>
                     <option value="editor">Editor (News create/edit/publish)</option>
@@ -1332,12 +1354,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     style={{
                       width: '100%',
                       padding: '9px 16px',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       background: '#ea580c',
                       color: '#ffffff',
                       border: 'none',
                       fontSize: '12px',
-                      fontWeight: 800,
+                      fontWeight: 700,
                       cursor: 'pointer'
                     }}
                   >
@@ -1359,9 +1381,9 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     justifyContent: 'space-between',
                     gap: '12px',
                     padding: '14px 18px',
-                    borderRadius: '12px',
-                    background: 'rgba(15, 23, 42, 0.7)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1370,8 +1392,8 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                         width: '36px',
                         height: '36px',
                         borderRadius: '50%',
-                        background: '#1e293b',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: '#fff7ed',
+                        border: '1px solid #fed7aa',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1384,10 +1406,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
                         {user.name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
                         {user.email}
                       </div>
                     </div>
@@ -1401,11 +1423,11 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       style={{
                         padding: '6px 10px',
                         borderRadius: '6px',
-                        background: '#0f172a',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fb923c',
-                        fontSize: '11px',
-                        fontWeight: 700
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        color: '#0f172a',
+                        fontSize: '12px',
+                        fontWeight: 600
                       }}
                     >
                       <option value="super_admin">Super Admin</option>
@@ -1418,12 +1440,12 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       type="button"
                       onClick={() => handleToggleAdminStatus(user)}
                       style={{
-                        padding: '5px 10px',
+                        padding: '5px 12px',
                         borderRadius: '6px',
                         border: '1px solid',
-                        borderColor: user.status === 'active' ? '#22c55e' : 'rgba(255, 255, 255, 0.2)',
-                        background: user.status === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
-                        color: user.status === 'active' ? '#4ade80' : '#94a3b8',
+                        borderColor: user.status === 'active' ? '#a7f3d0' : '#cbd5e1',
+                        background: user.status === 'active' ? '#ecfdf5' : '#f1f5f9',
+                        color: user.status === 'active' ? '#047857' : '#64748b',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer'
@@ -1436,10 +1458,10 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                       type="button"
                       onClick={() => onDeleteAdminUser(user.id)}
                       style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: 'none',
+                        background: '#fff1f2',
+                        border: '1px solid #fecdd3',
                         borderRadius: '6px',
-                        color: '#f87171',
+                        color: '#dc2626',
                         padding: '6px',
                         cursor: 'pointer'
                       }}

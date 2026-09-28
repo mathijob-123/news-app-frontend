@@ -118,6 +118,33 @@ export const apiClient = {
     }
   },
 
+  async deleteSpotlight360Video(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/spotlight360/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      return Boolean(data.success);
+    } catch (err) {
+      console.warn('[apiClient.deleteSpotlight360Video] Network error:', err);
+      return false;
+    }
+  },
+
+  async bulkDeleteSpotlight360Videos(videoIds: string[]): Promise<{ success: boolean; count: number }> {
+    try {
+      const res = await fetch(`${API_BASE}/spotlight360/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoIds })
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('[apiClient.bulkDeleteSpotlight360Videos] Network error:', err);
+      return { success: false, count: 0 };
+    }
+  },
+
   async getUser(): Promise<User> {
     const res = await fetch(`${API_BASE}/user`);
     const data = await res.json();

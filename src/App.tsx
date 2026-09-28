@@ -104,7 +104,7 @@ export const AppContent: React.FC = () => {
   const refreshAppData = async () => {
     try {
       const serverPosts = await apiClient.getPosts();
-      if (serverPosts && serverPosts.length > 0) {
+      if (Array.isArray(serverPosts)) {
         setPosts(serverPosts);
         savePosts(serverPosts);
       } else {

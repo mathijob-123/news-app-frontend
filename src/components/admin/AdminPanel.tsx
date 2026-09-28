@@ -865,7 +865,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('requests')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'requests' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'requests' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'requests' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -894,7 +894,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('payouts')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'payouts' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'payouts' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'payouts' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -909,7 +909,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('spotlight360')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'spotlight360' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'spotlight360' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'spotlight360' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -937,7 +937,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('advertisements')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'advertisements' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'advertisements' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'advertisements' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -966,7 +966,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('analytics')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'analytics' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'analytics' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'analytics' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -981,7 +981,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('settings')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'settings' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'settings' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'settings' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
@@ -996,7 +996,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               onClick={() => setActiveTab('copyright')}
               className="admin-tab-button"
               style={{
-                color: activeTab === 'copyright' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+                color: activeTab === 'copyright' ? 'var(--brand-primary)' : '#334155',
                 borderBottom: activeTab === 'copyright' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
