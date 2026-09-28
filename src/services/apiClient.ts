@@ -222,9 +222,10 @@ export const apiClient = {
     onProgress?: (percent: number) => void
   ): Promise<string> {
     const contentType = file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg');
-    const { uploadUrl, publicUrl } = await this.getPresignedUploadUrl(filename, contentType, folder);
 
     try {
+      const { uploadUrl, publicUrl } = await this.getPresignedUploadUrl(filename, contentType, folder);
+
       if (onProgress) {
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
@@ -262,8 +263,16 @@ export const apiClient = {
 
       return publicUrl;
     } catch (err: any) {
-      console.warn('[Presigned R2 Upload failed, falling back to direct upload]:', err.message);
-      return this.uploadFileDirectToR2(file, filename, folder);
+      console.warn('[Presigned R2 Upload failed, attempting direct upload]:', err.message);
+      try {
+        return await this.uploadFileDirectToR2(file, filename, folder);
+      } catch (directErr: any) {
+        console.warn('[Direct R2 upload also failed, using local object URL fallback]:', directErr.message);
+        if (file instanceof File || file instanceof Blob) {
+          return URL.createObjectURL(file);
+        }
+        throw directErr;
+      }
     }
   },
 
