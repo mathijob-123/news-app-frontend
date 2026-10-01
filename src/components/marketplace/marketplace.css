@@ -1,0 +1,1736 @@
+/* ==========================================================================
+   LocalPlus Marketplace Design System
+   Matches Reference Image: Orange Primary, Dark Navy, Slate Blue, Clean White
+   ========================================================================== */
+
+:root {
+  --lp-orange: #ea580c;
+  --lp-orange-hover: #c2410c;
+  --lp-orange-light: #fff7ed;
+  --lp-orange-glow: rgba(234, 88, 12, 0.25);
+  --lp-navy: #0f172a;
+  --lp-slate-dark: #1e293b;
+  --lp-slate-body: #475569;
+  --lp-slate-light: #94a3b8;
+  --lp-bg-subtle: #f8fafc;
+  --lp-border: #e2e8f0;
+  --lp-green: #10b981;
+  --lp-green-light: #ecfdf5;
+  --lp-radius-sm: 8px;
+  --lp-radius-md: 12px;
+  --lp-radius-lg: 16px;
+  --lp-radius-full: 9999px;
+  --lp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --lp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
+  --lp-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.09);
+}
+
+/* Master App Layout Container */
+.localplus-app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background-color: #f1f5f9;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--lp-navy);
+}
+
+/* --------------------------------------------------------------------------
+   1. SIDEBAR (Left Column on Desktop)
+   -------------------------------------------------------------------------- */
+.localplus-sidebar {
+  position: absolute !important;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 82%;
+  max-width: 320px;
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid var(--lp-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 14px 14px;
+  z-index: 85;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 6px 0 25px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.localplus-sidebar.open {
+  transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.localplus-brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding-left: 6px;
+  cursor: pointer;
+}
+
+.localplus-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 4px 10px var(--lp-orange-glow);
+  flex-shrink: 0;
+}
+
+.localplus-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.localplus-brand-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lp-navy);
+  line-height: 1.1;
+}
+
+.localplus-brand-title span {
+  color: var(--lp-orange);
+}
+
+.localplus-brand-tagline {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--lp-slate-light);
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+/* Sidebar Navigation Items */
+.sidebar-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lp-slate-body);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.sidebar-nav-item:hover {
+  background: #f8fafc;
+  color: var(--lp-navy);
+}
+
+.sidebar-nav-item.active {
+  background: var(--lp-orange-light);
+  color: var(--lp-orange);
+  font-weight: 700;
+  border-color: #fed7aa;
+}
+
+.sidebar-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-nav-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--lp-orange);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--lp-border);
+  margin: 12px 6px;
+}
+
+/* Sidebar Bottom Promo Card */
+.sidebar-promo-card {
+  margin-top: 16px;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(180deg, #eff6ff 0%, #fed7aa 100%);
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.sidebar-promo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 6px var(--lp-orange-glow);
+}
+
+.sidebar-promo-card h4 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--lp-navy);
+  line-height: 1.3;
+}
+
+.sidebar-promo-card p {
+  font-size: 11px;
+  color: var(--lp-slate-body);
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   2. MAIN CONTENT STAGE (Center + Optional Right Panel)
+   -------------------------------------------------------------------------- */
+.localplus-main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--lp-bg-subtle);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Global Top Header Bar */
+.marketplace-top-header {
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+  z-index: 40;
+  gap: 16px;
+}
+
+/* Global Marketplace Tabs Navigation [ 🛍 OLX / Buy & Sell ] [ 💼 Jobs ] [ 🏠 Real Estate ] */
+.marketplace-global-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.marketplace-global-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.m-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  border: 1px solid var(--lp-border);
+  background: #ffffff;
+  color: var(--lp-slate-body);
+}
+
+.m-tab-btn:hover {
+  background: #f8fafc;
+  color: var(--lp-navy);
+  border-color: #cbd5e1;
+}
+
+.m-tab-btn.active {
+  background: var(--lp-orange);
+  color: #ffffff;
+  border-color: var(--lp-orange);
+  box-shadow: 0 3px 10px var(--lp-orange-glow);
+}
+
+/* Header Right Actions (Location, Bell, Chat, Avatar, Post Ad) */
+.m-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.m-location-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--lp-border);
+  padding: 7px 14px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lp-slate-dark);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.m-location-pill:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.m-action-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--lp-border);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-slate-body);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.m-action-circle-btn:hover {
+  background: #f8fafc;
+  color: var(--lp-navy);
+  border-color: #cbd5e1;
+}
+
+.m-avatar-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #0d9488;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.m-post-ad-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px var(--lp-orange-glow);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.m-post-ad-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px var(--lp-orange-glow);
+}
+
+/* Marketplace Split Stage Body (Center Content + Right Detail Panel) */
+.marketplace-stage-body {
+  display: flex;
+  flex: 1;
+  height: calc(100% - 64px);
+  overflow: hidden;
+  position: relative;
+}
+
+.marketplace-center-content {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px 14px 24px;
+  scrollbar-width: thin;
+}
+
+/* --------------------------------------------------------------------------
+   3. OLX / BUY & SELL MAIN VIEW
+   -------------------------------------------------------------------------- */
+.olx-header-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.olx-header-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.olx-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--lp-border, #e2e8f0);
+  color: var(--lp-slate-body, #475569);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+}
+
+.olx-back-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--lp-navy, #0f172a);
+}
+
+.olx-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.olx-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-orange, #ea580c);
+  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.08);
+  flex-shrink: 0;
+}
+
+.olx-title-text h2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--lp-navy, #0f172a);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.olx-title-text p {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lp-slate-light, #94a3b8);
+  margin: 3px 0 0 0;
+}
+
+/* Fallback / Legacy single-row class */
+.olx-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+/* ROW 2: Search Bar + Filter Icon (Full width row below heading) */
+.olx-search-filter-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.olx-search-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.olx-search-input-wrapper input {
+  width: 100%;
+  padding: 11px 40px 11px 42px;
+  border-radius: 9999px;
+  border: 1px solid var(--lp-border, #e2e8f0);
+  background: #ffffff;
+  font-size: 13.5px;
+  color: var(--lp-navy, #0f172a);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.olx-search-input-wrapper input::placeholder {
+  color: #94a3b8;
+}
+
+.olx-search-input-wrapper input:focus {
+  border-color: var(--lp-orange, #ea580c);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
+  outline: none;
+}
+
+.olx-search-icon {
+  position: absolute;
+  left: 15px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.olx-search-clear-btn {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  border-radius: 50%;
+  transition: color 0.15s;
+}
+
+.olx-search-clear-btn:hover {
+  color: var(--lp-navy, #0f172a);
+}
+
+.olx-filter-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--lp-border, #e2e8f0);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-slate-body, #475569);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.olx-filter-btn:hover {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: var(--lp-orange, #ea580c);
+}
+
+/* Marketplace Categories Horizontal Strip */
+.olx-categories-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 20px;
+  scrollbar-width: none;
+}
+
+.olx-categories-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.olx-cat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 76px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.olx-cat-item:hover {
+  transform: translateY(-2px);
+}
+
+.olx-cat-icon-container {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--lp-shadow-sm);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.olx-cat-item.active .olx-cat-icon-container {
+  border-color: var(--lp-orange);
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+}
+
+.olx-cat-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--lp-slate-dark);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Category Colors */
+.cat-mobiles { background: #f5f3ff; color: #7c3aed; }
+.cat-electronics { background: #eff6ff; color: #2563eb; }
+.cat-vehicles { background: #f0fdf4; color: #16a34a; }
+.cat-furniture { background: #fff7ed; color: #ea580c; }
+.cat-fashion { background: #fdf2f8; color: #db2777; }
+.cat-home_kitchen { background: #f0fdfa; color: #0d9488; }
+.cat-property { background: #fef2f2; color: #dc2626; }
+.cat-services { background: #f1f5f9; color: #0284c7; }
+
+/* Promotional Banner */
+.olx-promo-banner {
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 60%, #fdba74 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--lp-shadow-md);
+  border: 1px solid #fde68a;
+  min-height: 140px;
+}
+
+.olx-promo-text {
+  max-width: 50%;
+  z-index: 2;
+}
+
+.olx-promo-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #ea580c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.olx-promo-text h3 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #78350f;
+  line-height: 1.15;
+}
+
+.olx-promo-text p {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+  margin-top: 4px;
+}
+
+.olx-promo-image-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+
+.olx-promo-bg-decor {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.9;
+  mask-image: linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0));
+  -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0));
+}
+
+.olx-banner-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+.olx-banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(120, 53, 15, 0.3);
+}
+
+.olx-banner-dot.active {
+  width: 18px;
+  border-radius: 4px;
+  background: #ea580c;
+}
+
+/* Section Header (Popular Near You / Featured) */
+.olx-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.olx-section-header h3 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--lp-navy);
+}
+
+.olx-see-all-link {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-orange);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.olx-see-all-link:hover {
+  text-decoration: underline;
+}
+
+/* Product Cards Grid */
+.olx-products-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* Single Product Card */
+.olx-product-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  overflow: hidden;
+  box-shadow: var(--lp-shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.olx-product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--lp-shadow-md);
+  border-color: #cbd5e1;
+}
+
+.olx-product-card.selected {
+  border-color: var(--lp-orange);
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.25);
+}
+
+.olx-card-media-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.olx-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.olx-product-card:hover .olx-card-img {
+  transform: scale(1.04);
+}
+
+.olx-card-fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-slate-body);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+}
+
+.olx-card-fav-btn:hover {
+  transform: scale(1.1);
+  color: #ef4444;
+}
+
+.olx-card-fav-btn.active {
+  color: #ef4444;
+  background: #ffffff;
+}
+
+.olx-card-badge-status {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+}
+
+.olx-card-content {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.olx-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--lp-navy);
+  margin-bottom: 4px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.olx-card-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.olx-card-price {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lp-navy);
+}
+
+.olx-card-negotiable {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--lp-green);
+  background: var(--lp-green-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.olx-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.olx-card-location, .olx-card-time {
+  font-size: 11px;
+  color: var(--lp-slate-light);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Featured Categories Grid */
+.featured-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.featured-cat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.featured-cat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--lp-orange);
+  box-shadow: var(--lp-shadow-md);
+}
+
+/* --------------------------------------------------------------------------
+   4. PRODUCT DETAIL RIGHT PANEL (380px on Desktop)
+   -------------------------------------------------------------------------- */
+.product-detail-panel {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 30;
+  box-shadow: none;
+}
+
+.p-detail-top-nav {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--lp-border);
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 10;
+}
+
+.p-detail-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--lp-navy);
+  cursor: pointer;
+}
+
+.p-detail-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.p-detail-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Image Carousel */
+.p-image-carousel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  background: #000000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.p-carousel-main-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p-carousel-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.p-carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.p-carousel-nav-btn.left { left: 8px; }
+.p-carousel-nav-btn.right { right: 8px; }
+
+/* Thumbnails Strip */
+.p-thumbnails-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.p-thumb-item {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.p-thumb-item.active {
+  border-color: var(--lp-orange);
+}
+
+.p-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Pricing and Title */
+.p-detail-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--lp-navy);
+  line-height: 1.25;
+}
+
+.p-price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.p-detail-price {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--lp-orange);
+}
+
+.p-badge-negotiable {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--lp-green-light);
+  color: var(--lp-green);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.p-detail-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--lp-slate-body);
+}
+
+/* Badges strip */
+.p-meta-badges-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lp-border);
+}
+
+.p-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--lp-slate-body);
+  border: 1px solid var(--lp-border);
+}
+
+.p-meta-pill.verified {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+/* Specs Table */
+.p-specs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.p-specs-heading {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--lp-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.p-specs-table {
+  width: 100%;
+  border: 1px solid var(--lp-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.p-specs-row {
+  display: flex;
+  padding: 6px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.p-specs-row:last-child {
+  border-bottom: none;
+}
+
+.p-specs-key {
+  width: 38%;
+  color: var(--lp-slate-light);
+  font-weight: 600;
+}
+
+.p-specs-val {
+  width: 62%;
+  color: var(--lp-navy);
+  font-weight: 600;
+}
+
+/* Description */
+.p-desc-block p {
+  font-size: 12.5px;
+  color: var(--lp-slate-body);
+  line-height: 1.5;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+/* Seller Card */
+.p-seller-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.p-seller-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.p-seller-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.p-seller-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lp-navy);
+}
+
+.p-seller-meta {
+  font-size: 11px;
+  color: var(--lp-slate-light);
+}
+
+.p-view-profile-btn {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--lp-orange);
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Detail Action Buttons: [ Save ] [ WhatsApp ] */
+.p-action-buttons-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.p-btn-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--lp-border);
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lp-slate-dark);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.p-btn-save:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.p-btn-save.saved {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.p-btn-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #25d366;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.p-btn-whatsapp:hover {
+  background: #1eb857;
+}
+
+/* Chat With Seller Box */
+.p-chat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+}
+
+.p-chat-messages {
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.p-chat-bubble {
+  max-width: 85%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.p-chat-bubble.seller {
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  color: var(--lp-slate-dark);
+  align-self: flex-start;
+}
+
+.p-chat-bubble.me {
+  background: #0d9488;
+  color: #ffffff;
+  align-self: flex-end;
+}
+
+.p-chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  border-radius: 9999px;
+  padding: 4px 6px 4px 12px;
+}
+
+.p-chat-input-row input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--lp-navy);
+}
+
+.p-chat-send-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0d9488;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.p-chat-send-btn:hover {
+  background: #0f766e;
+}
+
+/* --------------------------------------------------------------------------
+   5. JOBS MARKETPLACE
+   -------------------------------------------------------------------------- */
+.jobs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jobs-hero-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.jobs-categories-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.job-pill {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lp-slate-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.job-pill.active {
+  background: var(--lp-orange);
+  color: #ffffff;
+  border-color: var(--lp-orange);
+}
+
+.jobs-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.job-card {
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--lp-shadow-sm);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.job-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--lp-shadow-md);
+  border-color: #cbd5e1;
+}
+
+.job-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.job-company-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--lp-border);
+}
+
+.job-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.job-meta-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: var(--lp-slate-body);
+}
+
+.job-meta-salary {
+  background: #ecfdf5;
+  color: #059669;
+  font-weight: 700;
+}
+
+.job-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* --------------------------------------------------------------------------
+   6. REAL ESTATE MARKETPLACE
+   -------------------------------------------------------------------------- */
+.real-estate-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.re-hero-bar {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #bbf7d0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.re-types-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.re-type-btn {
+  padding: 7px 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid var(--lp-border);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-slate-body);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.re-type-btn.active {
+  background: var(--lp-orange);
+  color: #ffffff;
+  border-color: var(--lp-orange);
+}
+
+.re-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.re-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  overflow: hidden;
+  box-shadow: var(--lp-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.re-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--lp-shadow-md);
+}
+
+.re-card-img-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  position: relative;
+  background: #e2e8f0;
+}
+
+.re-card-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.re-specs-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--lp-slate-body);
+  margin: 6px 0;
+}
+
+/* --------------------------------------------------------------------------
+   7. MODALS (Post Ad, My Ads, Seller Profile, Job Details, Property Details)
+   -------------------------------------------------------------------------- */
+.modal-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.m-modal-card {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--lp-shadow-lg);
+  overflow: hidden;
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.m-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.m-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.m-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+/* Multi-step progress bar */
+.post-ad-steps-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.post-ad-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.step-num-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: var(--lp-slate-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.post-ad-step-item.active .step-num-circle {
+  background: var(--lp-orange);
+  color: #ffffff;
+}
+
+.post-ad-step-item.completed .step-num-circle {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lp-slate-body);
+}
+
+/* Form controls */
+.form-group-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-group-block label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-navy);
+}
+
+.form-input-field, .form-select-field, .form-textarea-field {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--lp-border);
+  background: #ffffff;
+  font-size: 13px;
+  color: var(--lp-navy);
+  transition: border-color 0.15s;
+}
+
+.form-input-field:focus, .form-select-field:focus, .form-textarea-field:focus {
+  border-color: var(--lp-orange);
+  outline: none;
+}
+
+/* Mobile Bottom Navigation Bar (Shown on Mobile screens or center container) */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: #ffffff;
+  border-top: 1px solid var(--lp-border);
+  z-index: 60;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 10px;
+}
+
+.mobile-fab-center {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -24px;
+  box-shadow: 0 4px 14px var(--lp-orange-glow);
+  cursor: pointer;
+  border: 3px solid #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   8. RESPONSIVE BREAKPOINTS
+   -------------------------------------------------------------------------- */
+
+
+@media (max-width: 600px) {
+  .olx-products-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .olx-promo-text h3 {
+    font-size: 17px;
+  }
+}

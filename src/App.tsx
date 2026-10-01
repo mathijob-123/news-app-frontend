@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BottomNav } from './components/layout/BottomNav';
+import { BottomNav, MainBottomNav } from './components/layout/BottomNav';
+import { OlxBottomNav, OlxTabType } from './components/layout/OlxBottomNav';
+import { JobsBottomNav, JobsTabType } from './components/layout/JobsBottomNav';
+import { RealEstateBottomNav, RealEstateTabType } from './components/layout/RealEstateBottomNav';
+import { ContextualBottomNav, AppModule } from './components/layout/ContextualBottomNav';
 import { Header } from './components/layout/Header';
 import { BreakingBanner } from './components/feed/BreakingBanner';
 import { CategoryFilter } from './components/feed/CategoryFilter';
@@ -19,7 +23,40 @@ import { CopyrightReportModal } from './components/copyright/CopyrightReportModa
 import { NotificationModal } from './components/notifications/NotificationModal';
 import { LocationPickerModal } from './components/common/LocationPickerModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Newspaper, Plus, Compass, ShieldCheck, WifiOff } from 'lucide-react';
+import { Sidebar, MainNavSection } from './components/layout/Sidebar';
+import { MarketplaceTabs, MarketplaceNavTab } from './components/marketplace/MarketplaceTabs';
+import { MarketplaceHomeScreen } from './components/marketplace/MarketplaceHomeScreen';
+import { OlxProfileScreen } from './components/marketplace/OlxProfileScreen';
+import { OlxExploreScreen } from './components/marketplace/OlxExploreScreen';
+import { OlxAlertsScreen } from './components/marketplace/OlxAlertsScreen';
+import { ProductDetailsPanel } from './components/marketplace/ProductDetailsPanel';
+import { PropertyDetailsPanel } from './components/marketplace/PropertyDetailsPanel';
+import { PostAdModal } from './components/marketplace/PostAdModal';
+import { MyAdsModal } from './components/marketplace/MyAdsModal';
+import { JobsMarketplace } from './components/marketplace/JobsMarketplace';
+import { JobsProfileScreen } from './components/marketplace/JobsProfileScreen';
+import { JobsApplicationsScreen } from './components/marketplace/JobsApplicationsScreen';
+import { JobsSearchScreen } from './components/marketplace/JobsSearchScreen';
+import { PostJobModal } from './components/marketplace/PostJobModal';
+import { RealEstateMarketplace } from './components/marketplace/RealEstateMarketplace';
+import { RealEstateProfileScreen } from './components/marketplace/RealEstateProfileScreen';
+import { RealEstateExploreScreen } from './components/marketplace/RealEstateExploreScreen';
+import { RealEstateSavedScreen } from './components/marketplace/RealEstateSavedScreen';
+import { PostPropertyModal } from './components/marketplace/PostPropertyModal';
+import { SavedItemsModal } from './components/marketplace/SavedItemsModal';
+import { SellerProfileModal } from './components/marketplace/SellerProfileModal';
+import './components/marketplace/marketplace.css';
+import {
+  getStoredProducts,
+  fetchProductsFromSupabase,
+  fetchPropertiesFromSupabase,
+  getStoredJobs,
+  getStoredProperties,
+  toggleStoredProductFavorite,
+  toggleStoredPropertySaved
+} from './services/marketplaceService';
+import type { MarketplaceProduct, ProductSeller, MarketplaceProperty } from './types/marketplace';
+import { Newspaper, Plus, Compass, ShieldCheck, WifiOff, ArrowLeft } from 'lucide-react';
 import type {
   VideoPost,
   User,
@@ -86,6 +123,118 @@ export const AppContent: React.FC = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Navigation History Tracking for seamless natural Back button flow inside mobile app shell
+  const [previousTab, setPreviousTab] = useState<TabType>('spots');
+  const [previousView, setPreviousView] = useState<'spots' | 'feed' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
+  const [activeView, setActiveView] = useState<'spots' | 'feed' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
+  // Module Navigation: 'main' | 'olx' | 'jobs' | 'realEstate'
+  const [activeModule, setActiveModule] = useState<AppModule>('main');
+  const [olxTab, setOlxTab] = useState<OlxTabType>('home');
+  const [jobsTab, setJobsTab] = useState<JobsTabType>('jobsHome');
+  const [realEstateTab, setRealEstateTab] = useState<RealEstateTabType>('home');
+  const [showPostJobModal, setShowPostJobModal] = useState(false);
+  const [showPostPropertyModal, setShowPostPropertyModal] = useState(false);
+  const [navSection, setNavSection] = useState<MainNavSection>('home');
+  const [marketplaceProducts, setMarketplaceProducts] = useState<MarketplaceProduct[]>(() => getStoredProducts());
+  const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<MarketplaceProperty | null>(null);
+  const [showPostAdModal, setShowPostAdModal] = useState(false);
+  const [showMyAdsModal, setShowMyAdsModal] = useState(false);
+  const [showSavedModal, setShowSavedModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<ProductSeller | null>(null);
+  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
+
+  const currentMarketplaceTab: MarketplaceNavTab = useMemo(() => {
+    if (activeView === 'jobs' || navSection === 'jobs') return 'jobs';
+    if (activeView === 'real_estate' || navSection === 'real_estate') return 'real_estate';
+    return 'olx';
+  }, [activeView, navSection]);
+
+  const handleSidebarSelect = (section: MainNavSection) => {
+    if (activeView === 'spots' || activeView === 'feed' || activeView === 'profile' || activeView === 'monetization') {
+      setPreviousView(activeView);
+      setPreviousTab(activeTab);
+    }
+    if (section === 'saved') {
+      setShowSavedModal(true);
+      setIsSidebarOpenMobile(false);
+      return;
+    }
+    if (section === 'home') {
+      setActiveModule('main');
+      setActiveView('spots');
+      setActiveTab('spots');
+      setNavSection('home');
+      setSelectedProperty(null);
+    } else if (section === 'news_feed') {
+      setActiveModule('main');
+      setActiveView('feed');
+      setActiveTab('home');
+      setNavSection('news_feed');
+      setSelectedProperty(null);
+    } else if (section === 'profile') {
+      setActiveModule('main');
+      setActiveView('profile');
+      setActiveTab('profile');
+      setNavSection('profile');
+      setSelectedProperty(null);
+    } else if (section === 'olx' || section === 'services' || section === 'vehicles' || section === 'local_businesses') {
+      setSelectedProduct(null);
+      setSelectedProperty(null);
+      setActiveModule('olx');
+      setOlxTab('home');
+      setActiveView('olx');
+      setNavSection(section);
+    } else if (section === 'jobs') {
+      setSelectedProduct(null);
+      setSelectedProperty(null);
+      setActiveModule('jobs');
+      setJobsTab('jobsHome');
+      setActiveView('jobs');
+      setNavSection('jobs');
+    } else if (section === 'real_estate') {
+      setSelectedProduct(null);
+      setSelectedProperty(null);
+      setActiveModule('realEstate');
+      setRealEstateTab('home');
+      setActiveView('real_estate');
+      setNavSection('real_estate');
+    } else if (section === 'events') {
+      setActiveModule('main');
+      setActiveView('feed');
+      setActiveTab('home');
+      setCategoryFilter('all');
+      setSelectedProperty(null);
+    }
+    setIsSidebarOpenMobile(false);
+  };
+
+  const handleToggleProductFavorite = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    toggleStoredProductFavorite(id);
+    const updated = getStoredProducts();
+    setMarketplaceProducts(updated);
+    if (selectedProduct && selectedProduct.id === id) {
+      setSelectedProduct(updated.find((p) => p.id === id) || null);
+    }
+  };
+
+  const handleTogglePropertySaved = (id: string) => {
+    toggleStoredPropertySaved(id);
+    if (selectedProperty && selectedProperty.id === id) {
+      const updatedList = getStoredProperties();
+      setSelectedProperty(updatedList.find((p) => p.id === id) || null);
+    }
+  };
+
+  const handleAdPublished = (newProd: MarketplaceProduct) => {
+    const updated = getStoredProducts();
+    setMarketplaceProducts(updated);
+    setSelectedProduct(newProd);
+    setActiveModule('olx');
+    setOlxTab('profile');
+  };
 
   // Dedicated URL Routing (supports / and /admin)
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
@@ -173,8 +322,21 @@ export const AppContent: React.FC = () => {
       }
     }
 
+    async function loadServerMarketplace() {
+      try {
+        const serverProducts = await fetchProductsFromSupabase();
+        if (isMounted && serverProducts && serverProducts.length > 0) {
+          setMarketplaceProducts(serverProducts);
+        }
+        await fetchPropertiesFromSupabase();
+      } catch (err) {
+        console.warn('[App] Could not fetch marketplace from Supabase:', err);
+      }
+    }
+
     loadServerPosts();
     loadServerAds();
+    loadServerMarketplace();
     return () => { isMounted = false; };
   }, []);
 
@@ -330,7 +492,7 @@ export const AppContent: React.FC = () => {
       try {
         await navigator.share({
           title: post.headline,
-          text: `LocalPulse: ${post.headline} (${post.location.placeName})`,
+          text: `LocalPlus: ${post.headline} (${post.location.placeName})`,
           url: window.location.href
         });
       } catch {
@@ -438,7 +600,8 @@ export const AppContent: React.FC = () => {
         >
           <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffffff' }} />
         </div>
-        <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em' }}>LocalPulse Spotlight</div>
+        <div style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>LocalPlus</div>
+        <div style={{ fontSize: '12px', color: '#fb923c', fontWeight: 700, marginTop: '2px', letterSpacing: '0.04em' }}>Connect • Buy • Sell • Grow</div>
         <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '6px' }}>
           Verifying secure session (Supabase & Cloudflare R2)...
         </div>
@@ -490,9 +653,181 @@ export const AppContent: React.FC = () => {
     );
   }
 
+  // Shared Modals and Overlays
+  const renderGlobalModals = () => (
+    <>
+      {/* 1. Post Ad Multi-Step Modal */}
+      <PostAdModal
+        isOpen={showPostAdModal}
+        initialType={activeModule === 'olx' ? 'sell_something' : undefined}
+        onClose={() => setShowPostAdModal(false)}
+        onAdPublished={(newProd) => {
+          handleAdPublished(newProd);
+          setShowMyAdsModal(true);
+        }}
+        currentUserDefaultLocation={activeLocation.neighborhood || activeLocation.placeName || 'Avadi / Ambattur, Chennai'}
+      />
+
+      {/* 2. My Ads Modal */}
+      <MyAdsModal
+        isOpen={showMyAdsModal}
+        onClose={() => setShowMyAdsModal(false)}
+        products={marketplaceProducts}
+        onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
+        onViewProduct={(p) => {
+          setSelectedProduct(p);
+          setActiveView('olx');
+        }}
+      />
+
+      {/* 3. Saved Items Modal */}
+      <SavedItemsModal
+        isOpen={showSavedModal}
+        onClose={() => setShowSavedModal(false)}
+        savedProducts={marketplaceProducts.filter((p) => p.isFavorite)}
+        savedJobs={getStoredJobs().filter((j) => j.isSaved)}
+        savedProperties={getStoredProperties().filter((prop) => prop.isSaved)}
+        onSelectProduct={(p) => {
+          setSelectedProduct(p);
+          setActiveView('olx');
+        }}
+        onSelectProperty={(prop) => {
+          setSelectedProperty(prop);
+          setActiveModule('realEstate');
+        }}
+        onRemoveSavedProduct={(id) => handleToggleProductFavorite(id)}
+      />
+
+      {/* 3b. Post Job Modal */}
+      <PostJobModal
+        isOpen={showPostJobModal}
+        onClose={() => setShowPostJobModal(false)}
+        onJobPublished={() => {
+          setJobsTab('jobsHome');
+        }}
+      />
+
+      {/* 3c. Post Property Modal */}
+      <PostPropertyModal
+        isOpen={showPostPropertyModal}
+        onClose={() => setShowPostPropertyModal(false)}
+        onPropertyPublished={(newProp) => {
+          setSelectedProperty(newProp);
+          setActiveModule('realEstate');
+          setRealEstateTab('home');
+        }}
+      />
+
+      {/* 4. Seller Profile Modal */}
+      {selectedSeller && (
+        <SellerProfileModal
+          seller={selectedSeller}
+          onClose={() => setSelectedSeller(null)}
+          sellerProducts={marketplaceProducts.filter((p) => p.seller.id === selectedSeller.id)}
+          onSelectProduct={(p) => {
+            setSelectedProduct(p);
+            setActiveView('olx');
+          }}
+        />
+      )}
+
+      {/* 5. Search & Interactive Hyperlocal Map Modal */}
+      {showSearchModal && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 60,
+            background: 'var(--bg-app)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <SearchScreen
+            posts={postsWithDistance}
+            userLocation={activeLocation}
+            onOpenPost={(post) => {
+              setShowSearchModal(false);
+              handleOpenPostInSpots(post);
+            }}
+            onClose={() => setShowSearchModal(false)}
+          />
+        </div>
+      )}
+
+      {/* 6. Create / Upload Report Modal */}
+      {showCreateModal && (
+        <CreateModal
+          currentUser={user}
+          activeLocation={activeLocation}
+          onClose={() => setShowCreateModal(false)}
+          onPublishPost={handlePublishPost}
+        />
+      )}
+
+      {/* 7. Global Comments Drawer */}
+      {commentsDrawerPost && (
+        <CommentsDrawer
+          comments={getStoredComments(commentsDrawerPost.id)}
+          currentUser={user}
+          onClose={() => setCommentsDrawerPost(null)}
+          onAddComment={(text) => handleAddComment(commentsDrawerPost.id, text)}
+        />
+      )}
+
+      {/* 8. DMCA Copyright Infringement Report Modal */}
+      {reportCopyrightPost && (
+        <CopyrightReportModal
+          post={reportCopyrightPost}
+          currentUser={user}
+          onClose={() => setReportCopyrightPost(null)}
+          onSuccess={() => {
+            setReportCopyrightPost(null);
+            refreshAppData();
+          }}
+        />
+      )}
+
+      {/* 9. User Notifications Drawer */}
+      {showNotificationModal && (
+        <NotificationModal
+          userId={user.id}
+          onClose={() => {
+            setShowNotificationModal(false);
+            refreshAppData();
+          }}
+        />
+      )}
+
+      {/* 10. Global Hyperlocal Hub / Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        activeLocation={activeLocation}
+        onSelectLocation={handleSelectLocation}
+      />
+    </>
+  );
+
+  // SINGLE PERSISTENT LOCALPLUS APP SHELL
   return (
     <div className="app-container">
       <div className="app-device-shell">
+        {/* Main Top Header with Hamburger Button */}
+        <Header
+          activeLocation={activeLocation}
+          onSelectLocation={handleSelectLocation}
+          onOpenSearch={() => setShowSearchModal(true)}
+          onOpenAdmin={() => navigateTo('/admin')}
+          onOpenNotifications={() => setShowNotificationModal(true)}
+          onToggleMenu={() => {
+            setPreviousView(activeView);
+            setPreviousTab(activeTab);
+            setIsSidebarOpenMobile(true);
+          }}
+          unreadAlertCount={unreadNotificationsCount}
+        />
+
         {/* Offline Warning Banner */}
         {isOffline && (
           <div
@@ -501,49 +836,55 @@ export const AppContent: React.FC = () => {
               color: 'var(--brand-alert)',
               fontSize: '11px',
               fontWeight: 700,
-              padding: '4px 12px',
+              padding: '6px 16px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               borderBottom: '1px solid #fecaca',
-              zIndex: 100
+              zIndex: 35
             }}
           >
             <WifiOff size={13} />
-            <span>Offline Mode: Browsing cached hyperlocal news stories</span>
+            <span>Offline Mode: Browsing cached hyperlocal news stories & listings</span>
           </div>
         )}
 
-        {/* Top Header (Shown on Home, Monetization, Profile; Hidden in Spots for full immersion) */}
-        {activeTab !== 'spots' && (
-          <Header
-            activeLocation={activeLocation}
-            onSelectLocation={handleSelectLocation}
-            onOpenSearch={() => setShowSearchModal(true)}
-            onOpenAdmin={() => navigateTo('/admin')}
-            unreadAlertCount={unreadNotificationsCount}
-            onOpenNotifications={() => setShowNotificationModal(true)}
-          />
-        )}
+        {/* Dynamic App Content Area: Only current page content changes inside the SAME mobile viewport */}
+        <div className="app-screen-content">
+          {/* SPOTS PLAYER: Reels / Vertical Short Video News */}
+          {activeView === 'spots' && (
+            <div style={{ height: '100%', width: '100%' }}>
+              <SpotsPlayer
+                posts={spotsPosts}
+                initialPostId={selectedSpotPostId}
+                currentUser={user}
+                activeLocation={activeLocation}
+                onOpenLocationPicker={() => setShowLocationModal(true)}
+                onLike={handleLike}
+                onSave={handleSave}
+                onShare={handleShare}
+                onAddComment={handleAddComment}
+                getCommentsForPost={(id) => getStoredComments(id)}
+                onSendTip={handleSendTip}
+                onOpenCreate={() => setShowPostAdModal(true)}
+                onReportCopyright={(p) => setReportCopyrightPost(p)}
+              />
+            </div>
+          )}
 
-        {/* Main App Screens */}
-        <main className="app-screen-content">
-          {/* TAB 1: HOME (News Feed) */}
-          {activeTab === 'home' && (
-            <div>
-              {/* Breaking Alert Banner */}
+          {/* NEWS FEED */}
+          {activeView === 'feed' && (
+            <div style={{ padding: '0 0 16px' }}>
               <BreakingBanner
                 breakingPost={breakingPost}
                 onOpenPost={handleOpenPostInSpots}
               />
 
-              {/* Category Filter */}
               <CategoryFilter
                 selectedCategory={categoryFilter}
                 onSelectCategory={setCategoryFilter}
               />
 
-              {/* Feed Cards List */}
               <div style={{ padding: '8px 0' }}>
                 {feedPosts.length === 0 ? (
                   <div
@@ -635,23 +976,6 @@ export const AppContent: React.FC = () => {
                         </button>
                       )}
                     </div>
-
-                    <div
-                      style={{
-                        marginTop: '20px',
-                        paddingTop: '16px',
-                        borderTop: '1px solid #f1f5f9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        fontSize: '11px',
-                        color: 'var(--text-tertiary)'
-                      }}
-                    >
-                      <ShieldCheck size={13} color="#059669" />
-                      <span>Admin treasury pays ₹50 - ₹500 for verified video reports</span>
-                    </div>
                   </div>
                 ) : (
                   feedItems.map((item, idx) => {
@@ -689,139 +1013,391 @@ export const AppContent: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: SPOTS (Vertical Reels) */}
-          {activeTab === 'spots' && (
-            <SpotsPlayer
-              posts={spotsPosts}
-              initialPostId={selectedSpotPostId}
-              currentUser={user}
-              activeLocation={activeLocation}
-              onOpenLocationPicker={() => setShowLocationModal(true)}
-              onLike={handleLike}
-              onSave={handleSave}
-              onShare={handleShare}
-              onAddComment={handleAddComment}
-              getCommentsForPost={(id) => getStoredComments(id)}
-              onSendTip={handleSendTip}
-              onOpenCreate={() => setShowCreateModal(true)}
-              onReportCopyright={(p) => setReportCopyrightPost(p)}
-            />
+          {/* CREATOR MONETIZATION */}
+          {activeView === 'monetization' && (
+            <div style={{ padding: '0 0 16px' }}>
+              <MonetizationScreen
+                user={user}
+                wallet={wallet}
+                transactions={transactions}
+                userPosts={posts.filter((p) => p.creatorId === user.id)}
+                allPosts={postsWithDistance}
+                onRequestPayout={handleRequestPayout}
+                onAdminApprovePayout={handleAdminApprovePayout}
+              />
+            </div>
           )}
 
-          {/* TAB 3: MONETIZATION */}
-          {activeTab === 'monetization' && (
-            <MonetizationScreen
-              user={user}
-              wallet={wallet}
-              transactions={transactions}
-              userPosts={posts.filter((p) => p.creatorId === user.id)}
-              allPosts={postsWithDistance}
-              onRequestPayout={handleRequestPayout}
-              onAdminApprovePayout={handleAdminApprovePayout}
-            />
+          {/* PROFILE: Preserves existing UI inside the SAME app viewport */}
+          {activeView === 'profile' && (
+            <div>
+              <ProfileScreen
+                user={user}
+                posts={postsWithDistance}
+                onOpenPost={handleOpenPostInSpots}
+                onNavigateToMonetization={() => {
+                  setActiveTab('monetization');
+                  setActiveView('monetization');
+                }}
+                onUpdateUser={handleUpdateUser}
+                onOpenAdmin={() => navigateTo('/admin')}
+                onToggleMenu={() => {
+                  setPreviousView('profile');
+                  setPreviousTab('profile');
+                  setIsSidebarOpenMobile(true);
+                }}
+                onOpenPostAd={() => setShowPostAdModal(true)}
+                onOpenProduct={(p) => {
+                  setPreviousView('profile');
+                  setPreviousTab('profile');
+                  setSelectedProduct(p);
+                  setActiveModule('olx');
+                  setActiveView('olx');
+                }}
+                onNavigateToMarketplace={() => {
+                  setPreviousView('profile');
+                  setPreviousTab('profile');
+                  setSelectedProduct(null);
+                  setActiveModule('olx');
+                  setOlxTab('home');
+                  setActiveView('olx');
+                }}
+              />
+            </div>
           )}
 
-          {/* TAB 4: PROFILE */}
-          {activeTab === 'profile' && (
-            <ProfileScreen
-              user={user}
-              posts={postsWithDistance}
-              onOpenPost={handleOpenPostInSpots}
-              onNavigateToMonetization={() => setActiveTab('monetization')}
-              onUpdateUser={handleUpdateUser}
-              onOpenAdmin={() => navigateTo('/admin')}
-            />
-          )}
-        </main>
+          {/* OLX / BUY & SELL: Renders inside the SAME app viewport */}
+          {activeView === 'olx' && (
+            <div>
+              {olxTab === 'home' && (
+                <MarketplaceHomeScreen
+                  products={marketplaceProducts}
+                  selectedProduct={selectedProduct}
+                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onToggleFavorite={handleToggleProductFavorite}
+                  onOpenPostAd={() => setShowPostAdModal(true)}
+                  onNavigateHome={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                    setSelectedProduct(null);
+                  }}
+                  onOpenNotifications={() => setShowNotificationModal(true)}
+                  onNavigateProfile={() => {
+                    setOlxTab('profile');
+                  }}
+                />
+              )}
 
-        {/* Bottom Navigation (4 Tabs + Center [+] FAB: Home, Spots, (+), Earnings, Profile) */}
-        <BottomNav
-          activeTab={activeTab}
-          onChangeTab={(tab) => {
-            if (tab === 'spots') {
-              setSelectedSpotPostId(undefined);
-            }
+              {olxTab === 'explore' && (
+                <OlxExploreScreen
+                  products={marketplaceProducts}
+                  selectedProduct={selectedProduct}
+                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onToggleFavorite={handleToggleProductFavorite}
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                    setSelectedProduct(null);
+                  }}
+                />
+              )}
+
+              {olxTab === 'alerts' && (
+                <OlxAlertsScreen
+                  products={marketplaceProducts}
+                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                    setSelectedProduct(null);
+                  }}
+                />
+              )}
+
+              {olxTab === 'profile' && (
+                <OlxProfileScreen
+                  user={user}
+                  products={marketplaceProducts}
+                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onOpenPostAd={() => setShowPostAdModal(true)}
+                  onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                    setSelectedProduct(null);
+                  }}
+                  onOpenSettings={() => {
+                    setActiveModule('main');
+                    setActiveView('profile');
+                    setActiveTab('profile');
+                  }}
+                  onOpenSavedItems={() => setShowSavedModal(true)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* JOBS: Renders inside the SAME app viewport */}
+          {activeView === 'jobs' && (
+            <div>
+              {jobsTab === 'jobsHome' && (
+                <div>
+                  <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setActiveModule('main');
+                        setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                        setActiveTab(previousTab || 'spots');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        fontWeight: 700,
+                        fontSize: '12px',
+                        color: 'var(--lp-slate-body)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back</span>
+                    </button>
+                  </div>
+                  <JobsMarketplace
+                    currentLocationName={activeLocation.neighborhood || activeLocation.placeName || 'Chennai'}
+                  />
+                </div>
+              )}
+
+              {jobsTab === 'search' && (
+                <JobsSearchScreen
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                />
+              )}
+
+              {jobsTab === 'applications' && (
+                <JobsApplicationsScreen
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                />
+              )}
+
+              {jobsTab === 'profile' && (
+                <JobsProfileScreen
+                  user={user}
+                  onOpenPostJob={() => setShowPostJobModal(true)}
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* REAL ESTATE: Renders inside the SAME app viewport */}
+          {activeView === 'real_estate' && (
+            <div>
+              {realEstateTab === 'home' && (
+                <div>
+                  <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setActiveModule('main');
+                        setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                        setActiveTab(previousTab || 'spots');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        fontWeight: 700,
+                        fontSize: '12px',
+                        color: 'var(--lp-slate-body)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back</span>
+                    </button>
+                  </div>
+                  <RealEstateMarketplace
+                    currentLocationName={activeLocation.neighborhood || activeLocation.placeName || 'Chennai'}
+                    onSelectProperty={(prop) => setSelectedProperty(prop)}
+                    onToggleSave={handleTogglePropertySaved}
+                  />
+                </div>
+              )}
+
+              {realEstateTab === 'explore' && (
+                <RealEstateExploreScreen
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                  onSelectProperty={(prop) => setSelectedProperty(prop)}
+                />
+              )}
+
+              {realEstateTab === 'saved' && (
+                <RealEstateSavedScreen
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                  onSelectProperty={(prop) => setSelectedProperty(prop)}
+                />
+              )}
+
+              {realEstateTab === 'profile' && (
+                <RealEstateProfileScreen
+                  user={user}
+                  onOpenPostProperty={() => setShowPostPropertyModal(true)}
+                  onBackToMain={() => {
+                    setActiveModule('main');
+                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                    setActiveTab(previousTab || 'spots');
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Contextual Bottom Navigation across all 4 modules: Main, OLX, Jobs, Real Estate */}
+        <ContextualBottomNav
+          activeModule={activeModule}
+          mainTab={activeTab}
+          onChangeMainTab={(tab) => {
             setActiveTab(tab);
+            if (tab === 'spots') setActiveView('spots');
+            else if (tab === 'home') setActiveView('feed');
+            else if (tab === 'monetization') setActiveView('monetization');
+            else if (tab === 'profile') setActiveView('profile');
+            setSelectedProduct(null);
+            setSelectedProperty(null);
           }}
-          onOpenCreate={() => setShowCreateModal(true)}
+          onOpenMainCreate={() => setShowCreateModal(true)}
+          olxTab={olxTab}
+          onChangeOlxTab={(tab) => {
+            setOlxTab(tab);
+            setSelectedProduct(null);
+            setSelectedProperty(null);
+          }}
+          onOpenOlxPostAd={() => setShowPostAdModal(true)}
+          olxUnreadAlertsCount={2}
+          jobsTab={jobsTab}
+          onChangeJobsTab={(tab) => {
+            setJobsTab(tab);
+            setSelectedProduct(null);
+            setSelectedProperty(null);
+          }}
+          onOpenJobsPostJob={() => setShowPostJobModal(true)}
+          jobsApplicationsCount={3}
+          realEstateTab={realEstateTab}
+          onChangeRealEstateTab={(tab) => {
+            setRealEstateTab(tab);
+            setSelectedProduct(null);
+            setSelectedProperty(null);
+          }}
+          onOpenRealEstatePostProperty={() => setShowPostPropertyModal(true)}
+          realEstateSavedCount={getStoredProperties().filter((p) => p.isSaved).length}
         />
 
-        {/* Search & Interactive Hyperlocal Map Modal (Triggered via Top Header Search Button) */}
-        {showSearchModal && (
+        {/* Product Details Panel overlay INSIDE the app-device-shell if selectedProduct */}
+        {selectedProduct && (
           <div
             style={{
               position: 'absolute',
-              inset: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               zIndex: 60,
-              background: 'var(--bg-app)',
+              background: '#ffffff',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              overflow: 'hidden'
             }}
           >
-            <SearchScreen
-              posts={postsWithDistance}
-              userLocation={activeLocation}
-              onOpenPost={(post) => {
-                setShowSearchModal(false);
-                handleOpenPostInSpots(post);
-              }}
-              onClose={() => setShowSearchModal(false)}
+            <ProductDetailsPanel
+              product={selectedProduct}
+              onClose={() => setSelectedProduct(null)}
+              onToggleFavorite={(id) => handleToggleProductFavorite(id)}
+              onViewSellerProfile={(seller) => setSelectedSeller(seller)}
             />
           </div>
         )}
 
-        {/* Create / Upload Report Modal */}
-        {showCreateModal && (
-          <CreateModal
-            currentUser={user}
-            activeLocation={activeLocation}
-            onClose={() => setShowCreateModal(false)}
-            onPublishPost={handlePublishPost}
-          />
-        )}
-
-        {/* Global Comments Drawer (when opened from Home feed) */}
-        {commentsDrawerPost && (
-          <CommentsDrawer
-            comments={getStoredComments(commentsDrawerPost.id)}
-            currentUser={user}
-            onClose={() => setCommentsDrawerPost(null)}
-            onAddComment={(text) => handleAddComment(commentsDrawerPost.id, text)}
-          />
-        )}
-
-        {/* DMCA Copyright Infringement Report Modal */}
-        {reportCopyrightPost && (
-          <CopyrightReportModal
-            post={reportCopyrightPost}
-            currentUser={user}
-            onClose={() => setReportCopyrightPost(null)}
-            onSuccess={() => {
-              setReportCopyrightPost(null);
-              refreshAppData();
+        {/* Property Details Panel overlay INSIDE the app-device-shell if selectedProperty */}
+        {selectedProperty && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 60,
+              background: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
             }}
-          />
+          >
+            <PropertyDetailsPanel
+              property={selectedProperty}
+              onClose={() => setSelectedProperty(null)}
+              onToggleSave={handleTogglePropertySaved}
+              isSaved={selectedProperty.isSaved}
+            />
+          </div>
         )}
 
-        {/* User Notifications Drawer */}
-        {showNotificationModal && (
-          <NotificationModal
-            userId={user.id}
-            onClose={() => {
-              setShowNotificationModal(false);
-              refreshAppData();
-            }}
-          />
-        )}
-
-        {/* Global Hyperlocal Hub / Location Picker Modal */}
-        <LocationPickerModal
-          isOpen={showLocationModal}
-          onClose={() => setShowLocationModal(false)}
-          activeLocation={activeLocation}
-          onSelectLocation={handleSelectLocation}
+        {/* Mobile Navigation Drawer INSIDE the App Device Shell */}
+        <Sidebar
+          activeSection={
+            activeView === 'spots'
+              ? 'home'
+              : activeView === 'feed'
+              ? 'news_feed'
+              : activeView === 'profile'
+              ? 'profile'
+              : activeView === 'jobs'
+              ? 'jobs'
+              : activeView === 'real_estate'
+              ? 'real_estate'
+              : 'olx'
+          }
+          onSelectSection={handleSidebarSelect}
+          isOpen={isSidebarOpenMobile}
+          onCloseMobile={() => setIsSidebarOpenMobile(false)}
         />
       </div>
+
+      {renderGlobalModals()}
     </div>
   );
 };

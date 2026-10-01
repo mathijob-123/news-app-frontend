@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Edit3,
@@ -21,9 +21,32 @@ import {
   RefreshCw,
   Award,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  Menu,
+  ShoppingBag,
+  Briefcase,
+  Building,
+  Wrench,
+  Car,
+  Plus,
+  Eye,
+  MessageCircle,
+  Pause,
+  Play,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import type { User, VideoPost } from '../../types';
+import type { MarketplaceProduct, MarketplaceJob, MarketplaceProperty } from '../../types/marketplace';
+import {
+  getStoredProducts,
+  getStoredJobs,
+  getStoredProperties,
+  markStoredProductSold,
+  renewStoredProduct,
+  deleteStoredProduct,
+  toggleStoredProductPause
+} from '../../services/marketplaceService';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 
@@ -34,9 +57,13 @@ interface ProfileScreenProps {
   onNavigateToMonetization: () => void;
   onUpdateUser: (updated: User) => void;
   onOpenAdmin?: () => void;
+  onToggleMenu?: () => void;
+  onOpenPostAd?: () => void;
+  onOpenProduct?: (product: MarketplaceProduct) => void;
+  onNavigateToMarketplace?: () => void;
 }
 
-type ProfileTab = 'posts' | 'spots' | 'saved' | 'liked';
+type ProfileTab = 'posts' | 'spots' | 'marketplace' | 'saved' | 'liked';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   user,
@@ -44,7 +71,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenPost,
   onNavigateToMonetization,
   onUpdateUser,
-  onOpenAdmin
+  onOpenAdmin,
+  onToggleMenu,
+  onOpenPostAd,
+  onOpenProduct,
+  onNavigateToMarketplace
 }) => {
   const { logout, updateUser: authUpdateUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
@@ -91,6 +122,60 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     onUpdateUser(updated);
     authUpdateUser(updated);
     setShowEditModal(false);
+  };
+
+  // Marketplace state inside Profile
+  const [marketplaceProducts, setMarketplaceProducts] = useState<MarketplaceProduct[]>(() => getStoredProducts());
+  const [activeMarketplaceModule, setActiveMarketplaceModule] = useState<
+    'my_ads' | 'my_jobs' | 'my_properties' | 'my_services' | 'my_vehicles' | 'saved_items'
+  >('my_ads');
+  const [myAdsSubTab, setMyAdsSubTab] = useState<'active' | 'sold' | 'pending' | 'expired'>('active');
+  const [analyticsProduct, setAnalyticsProduct] = useState<MarketplaceProduct | null>(null);
+
+  const refreshMarketplace = () => {
+    setMarketplaceProducts(getStoredProducts());
+  };
+
+  const myMarketplaceAds = marketplaceProducts.filter((p) => p.isMine || p.seller.id === user.id);
+  const myServices = myMarketplaceAds.filter((p) => p.category === 'services');
+  const myVehicles = myMarketplaceAds.filter((p) => p.category === 'vehicles');
+  const myProperties = myMarketplaceAds.filter((p) => p.category === 'property');
+  const savedMarketplaceItems = marketplaceProducts.filter((p) => p.isFavorite);
+  const myJobs = getStoredJobs().filter((j) => j.isSaved || j.salary.includes('Negotiable'));
+
+  // Filtering My Ads by status: active, sold, pending, expired
+  const filteredMyAds = myMarketplaceAds.filter((p) => {
+    if (myAdsSubTab === 'active') return p.status === 'active' || !p.status;
+    if (myAdsSubTab === 'sold') return p.status === 'sold';
+    if (myAdsSubTab === 'pending') return (p as any).status === 'pending';
+    if (myAdsSubTab === 'expired') return (p as any).status === 'expired' || p.status === 'paused';
+    return true;
+  });
+
+  const handleMarkSold = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    markStoredProductSold(id);
+    refreshMarketplace();
+  };
+
+  const handleTogglePause = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    toggleStoredProductPause(id);
+    refreshMarketplace();
+  };
+
+  const handleRenew = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    renewStoredProduct(id);
+    refreshMarketplace();
+  };
+
+  const handleDeleteAd = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      deleteStoredProduct(id);
+      refreshMarketplace();
+    }
   };
 
   // Content tab filtering
@@ -183,16 +268,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Action Buttons beside Avatar */}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {isAdmin && onOpenAdmin && (
               <button
                 onClick={onOpenAdmin}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: '20px',
+                  padding: '5px 10px',
+                  borderRadius: '16px',
                   background: '#ecfdf5',
                   border: '1px solid #a7f3d0',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   color: '#059669',
                   display: 'flex',
@@ -201,7 +287,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                <ShieldCheck size={13} />
+                <ShieldCheck size={12} />
                 <span>Admin</span>
               </button>
             )}
@@ -209,8 +295,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <button
               onClick={() => setShowEditModal(true)}
               style={{
-                padding: '6px 12px',
-                borderRadius: '20px',
+                padding: '5px 10px',
+                borderRadius: '8px',
                 background: '#f1f5f9',
                 border: '1px solid var(--border-subtle)',
                 fontSize: '12px',
@@ -222,15 +308,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 cursor: 'pointer'
               }}
             >
-              <Edit3 size={13} />
+              <Edit3 size={12} />
               <span>Edit</span>
             </button>
 
             <button
               onClick={() => setShowSettingsModal(true)}
               style={{
-                padding: '7px',
-                borderRadius: '50%',
+                padding: '6px',
+                borderRadius: '8px',
                 background: '#f1f5f9',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--text-secondary)',
@@ -238,14 +324,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               }}
               title="Settings & PWA config"
             >
-              <Settings size={16} />
+              <Settings size={15} />
             </button>
 
             <button
               onClick={logout}
               style={{
-                padding: '7px',
-                borderRadius: '50%',
+                padding: '6px',
+                borderRadius: '8px',
                 background: '#fef2f2',
                 border: '1px solid #fecaca',
                 color: '#ef4444',
@@ -253,7 +339,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               }}
               title="Sign Out"
             >
-              <LogOut size={16} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
@@ -494,6 +580,71 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         })()}
       </div>
 
+      {/* Quick Marketplace Access Banner */}
+      <div
+        onClick={() => setActiveTab('marketplace')}
+        style={{
+          background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+          border: '1px solid #fed7aa',
+          borderRadius: '12px',
+          padding: '10px 14px',
+          margin: '12px 16px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          boxShadow: '0 2px 6px rgba(234, 88, 12, 0.08)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '8px',
+              background: '#ea580c',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)'
+            }}
+          >
+            <ShoppingBag size={18} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '13px', color: '#9a3412' }}>
+              My Marketplace & Classifieds
+            </div>
+            <div style={{ fontSize: '11px', color: '#c2410c' }}>
+              {myMarketplaceAds.length} Active Ads • {savedMarketplaceItems.length} Saved • Analytics & Enquiries
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenPostAd?.();
+          }}
+          style={{
+            background: '#ea580c',
+            color: '#ffffff',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <Plus size={14} />
+          <span>Post Ad</span>
+        </button>
+      </div>
+
       {/* 2. Content Tabs */}
       <div
         style={{
@@ -502,13 +653,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           borderBottom: '1px solid var(--border-subtle)',
           position: 'sticky',
           top: 0,
-          zIndex: 10
+          zIndex: 10,
+          marginTop: '12px',
+          overflowX: 'auto'
         }}
       >
         <button
           onClick={() => setActiveTab('posts')}
           style={{
             flex: 1,
+            minWidth: '70px',
             padding: '10px 0',
             display: 'flex',
             alignItems: 'center',
@@ -528,6 +682,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onClick={() => setActiveTab('spots')}
           style={{
             flex: 1,
+            minWidth: '70px',
             padding: '10px 0',
             display: 'flex',
             alignItems: 'center',
@@ -544,9 +699,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('marketplace')}
+          style={{
+            flex: 1.2,
+            minWidth: '85px',
+            padding: '10px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: activeTab === 'marketplace' ? 'var(--lp-orange)' : 'var(--text-tertiary)',
+            borderBottom: activeTab === 'marketplace' ? '2.5px solid var(--lp-orange)' : '2.5px solid transparent'
+          }}
+        >
+          <ShoppingBag size={15} />
+          <span>My Ads ({myMarketplaceAds.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('saved')}
           style={{
             flex: 1,
+            minWidth: '70px',
             padding: '10px 0',
             display: 'flex',
             alignItems: 'center',
@@ -566,6 +742,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onClick={() => setActiveTab('liked')}
           style={{
             flex: 1,
+            minWidth: '70px',
             padding: '10px 0',
             display: 'flex',
             alignItems: 'center',
@@ -582,9 +759,439 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </button>
       </div>
 
-      {/* 3. Grid Display */}
+      {/* 3. Grid Display or Marketplace View */}
       <div style={{ padding: '8px' }}>
-        {displayedList.length === 0 ? (
+        {activeTab === 'marketplace' ? (
+          <div>
+            {/* Marketplace Module Navigation Pill Selector */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                overflowX: 'auto',
+                paddingBottom: '8px',
+                marginBottom: '14px'
+              }}
+            >
+              {[
+                { id: 'my_ads', label: `My Ads (${myMarketplaceAds.length})`, icon: <ShoppingBag size={14} /> },
+                { id: 'my_jobs', label: `My Jobs (${myJobs.length})`, icon: <Briefcase size={14} /> },
+                { id: 'my_properties', label: `My Properties (${myProperties.length})`, icon: <Building size={14} /> },
+                { id: 'my_services', label: `My Services (${myServices.length})`, icon: <Wrench size={14} /> },
+                { id: 'my_vehicles', label: `My Vehicles (${myVehicles.length})`, icon: <Car size={14} /> },
+                { id: 'saved_items', label: `Saved (${savedMarketplaceItems.length})`, icon: <Bookmark size={14} /> }
+              ].map((mod) => (
+                <button
+                  key={mod.id}
+                  onClick={() => setActiveMarketplaceModule(mod.id as any)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    background: activeMarketplaceModule === mod.id ? '#ea580c' : '#ffffff',
+                    color: activeMarketplaceModule === mod.id ? '#ffffff' : 'var(--text-secondary)',
+                    border: `1px solid ${activeMarketplaceModule === mod.id ? '#ea580c' : 'var(--border-subtle)'}`,
+                    boxShadow: activeMarketplaceModule === mod.id ? '0 2px 6px rgba(234, 88, 12, 0.25)' : 'none'
+                  }}
+                >
+                  {mod.icon}
+                  <span>{mod.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* If Module is "my_ads" */}
+            {activeMarketplaceModule === 'my_ads' && (
+              <div>
+                {/* 4 Status Tabs: Active, Sold, Pending, Expired */}
+                <div
+                  style={{
+                    display: 'flex',
+                    background: '#f1f5f9',
+                    borderRadius: '10px',
+                    padding: '3px',
+                    marginBottom: '14px'
+                  }}
+                >
+                  {(['active', 'sold', 'pending', 'expired'] as const).map((tab) => {
+                    const count = myMarketplaceAds.filter((p) => {
+                      if (tab === 'active') return p.status === 'active' || !p.status;
+                      if (tab === 'sold') return p.status === 'sold';
+                      if (tab === 'pending') return (p as any).status === 'pending';
+                      if (tab === 'expired') return (p as any).status === 'expired' || p.status === 'paused';
+                      return false;
+                    }).length;
+
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setMyAdsSubTab(tab)}
+                        style={{
+                          flex: 1,
+                          padding: '7px 4px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'capitalize',
+                          cursor: 'pointer',
+                          background: myAdsSubTab === tab ? '#ffffff' : 'transparent',
+                          color: myAdsSubTab === tab ? '#ea580c' : 'var(--text-secondary)',
+                          boxShadow: myAdsSubTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span>{tab}</span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            padding: '1px 5px',
+                            borderRadius: '10px',
+                            background: myAdsSubTab === tab ? '#fff7ed' : '#e2e8f0',
+                            color: myAdsSubTab === tab ? '#ea580c' : '#64748b'
+                          }}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Ads List */}
+                {filteredMyAds.length === 0 ? (
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '14px',
+                      padding: '32px 16px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <ShoppingBag size={32} color="#94a3b8" style={{ margin: '0 auto 8px' }} />
+                    <h5 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      No {myAdsSubTab} listings found
+                    </h5>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '14px' }}>
+                      {myAdsSubTab === 'active'
+                        ? 'You have no live listings currently on LocalPlus marketplace.'
+                        : `No items marked as ${myAdsSubTab}.`}
+                    </p>
+                    <button
+                      onClick={() => onOpenPostAd?.()}
+                      style={{
+                        background: '#ea580c',
+                        color: '#ffffff',
+                        padding: '9px 18px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + Post New Listing
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {filteredMyAds.map((ad) => (
+                      <div
+                        key={ad.id}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '14px',
+                          padding: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <div
+                          style={{ display: 'flex', gap: '12px', cursor: 'pointer' }}
+                          onClick={() => onOpenProduct?.(ad)}
+                        >
+                          <img
+                            src={ad.images[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=300&q=80'}
+                            alt={ad.title}
+                            style={{
+                              width: '84px',
+                              height: '84px',
+                              borderRadius: '10px',
+                              objectFit: 'cover',
+                              flexShrink: 0
+                            }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  color: '#ea580c',
+                                  background: '#fff7ed',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                {ad.category}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  background: ad.status === 'sold' ? '#eff6ff' : ad.status === 'paused' ? '#f1f5f9' : '#ecfdf5',
+                                  color: ad.status === 'sold' ? '#2563eb' : ad.status === 'paused' ? '#64748b' : '#059669',
+                                  border: `1px solid ${ad.status === 'sold' ? '#bfdbfe' : ad.status === 'paused' ? '#cbd5e1' : '#a7f3d0'}`
+                                }}
+                              >
+                                {ad.status === 'sold' ? 'Sold' : ad.status === 'paused' ? 'Paused' : 'Active'}
+                              </span>
+                            </div>
+
+                            <h4
+                              style={{
+                                fontSize: '13.5px',
+                                fontWeight: 800,
+                                color: 'var(--text-primary)',
+                                margin: '4px 0 2px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                            >
+                              {ad.title}
+                            </h4>
+
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                              ₹{ad.price.toLocaleString('en-IN')}
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Eye size={12} />
+                                <span>{ad.viewsCount || 14} Views</span>
+                              </span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <MessageCircle size={12} />
+                                <span>4 Enquiries</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action buttons requested: Edit, Mark as Sold, Renew, Pause, Delete, View analytics, View enquiries */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid #f1f5f9'
+                          }}
+                        >
+                          <button
+                            onClick={(e) => handleMarkSold(ad.id, e)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: ad.status === 'sold' ? '#f0fdf4' : '#eff6ff',
+                              color: ad.status === 'sold' ? '#16a34a' : '#2563eb',
+                              border: '1px solid',
+                              borderColor: ad.status === 'sold' ? '#bbf7d0' : '#bfdbfe',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {ad.status === 'sold' ? 'Mark Active' : 'Mark as Sold'}
+                          </button>
+
+                          <button
+                            onClick={(e) => handleTogglePause(ad.id, e)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: '#f8fafc',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {ad.status === 'paused' ? 'Resume' : 'Pause'}
+                          </button>
+
+                          <button
+                            onClick={(e) => handleRenew(ad.id, e)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: '#f8fafc',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Renew
+                          </button>
+
+                          <button
+                            onClick={() => setAnalyticsProduct(ad)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: '#fff7ed',
+                              color: '#ea580c',
+                              border: '1px solid #fed7aa',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Analytics
+                          </button>
+
+                          <button
+                            onClick={() => onOpenProduct?.(ad)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: '#f8fafc',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Enquiries
+                          </button>
+
+                          <button
+                            onClick={(e) => handleDeleteAd(ad.id, e)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              background: '#fef2f2',
+                              color: '#ef4444',
+                              border: '1px solid #fecaca',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              marginLeft: 'auto'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Other Marketplace Modules */}
+            {activeMarketplaceModule === 'my_jobs' && (
+              <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-subtle)' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: 800, marginBottom: '8px' }}>Saved & Applied Jobs ({myJobs.length})</h4>
+                {myJobs.map((j) => (
+                  <div key={j.id} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <div style={{ fontWeight: 700, fontSize: '13px' }}>{j.title}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{j.company} • {j.location} • ₹{j.salary}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeMarketplaceModule === 'my_properties' && (
+              <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-subtle)' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: 800, marginBottom: '8px' }}>My Real Estate Listings ({myProperties.length})</h4>
+                {myProperties.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No real estate properties listed yet.</p>
+                ) : (
+                  myProperties.map((p) => (
+                    <div key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>{p.title}</div>
+                      <div style={{ fontSize: '11px', color: '#ea580c', fontWeight: 700 }}>₹{p.price.toLocaleString('en-IN')}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeMarketplaceModule === 'my_services' && (
+              <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-subtle)' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: 800, marginBottom: '8px' }}>My Offered Services ({myServices.length})</h4>
+                {myServices.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No professional services listed yet.</p>
+                ) : (
+                  myServices.map((s) => (
+                    <div key={s.id} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>{s.title}</div>
+                      <div style={{ fontSize: '11px', color: '#ea580c', fontWeight: 700 }}>₹{s.price.toLocaleString('en-IN')}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeMarketplaceModule === 'my_vehicles' && (
+              <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-subtle)' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: 800, marginBottom: '8px' }}>My Vehicles for Sale ({myVehicles.length})</h4>
+                {myVehicles.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No vehicles listed yet.</p>
+                ) : (
+                  myVehicles.map((v) => (
+                    <div key={v.id} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>{v.title}</div>
+                      <div style={{ fontSize: '11px', color: '#ea580c', fontWeight: 700 }}>₹{v.price.toLocaleString('en-IN')}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeMarketplaceModule === 'saved_items' && (
+              <div style={{ background: '#ffffff', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-subtle)' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: 800, marginBottom: '8px' }}>Saved Marketplace Items ({savedMarketplaceItems.length})</h4>
+                {savedMarketplaceItems.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No items bookmarked yet.</p>
+                ) : (
+                  savedMarketplaceItems.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => onOpenProduct?.(item)}
+                      style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                    >
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>{item.title}</div>
+                      <div style={{ fontSize: '11px', color: '#ea580c', fontWeight: 700 }}>₹{item.price.toLocaleString('en-IN')} • {item.location}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ) : displayedList.length === 0 ? (
           <div
             style={{
               background: '#ffffff',
@@ -849,6 +1456,86 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 Reset App & Demo Storage
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Modal */}
+      {analyticsProduct && (
+        <div className="bottom-sheet-backdrop" onClick={() => setAnalyticsProduct(null)}>
+          <div className="bottom-sheet-content" onClick={(e) => e.stopPropagation()} style={{ padding: '20px', maxWidth: '440px', margin: '0 auto' }}>
+            <div className="sheet-handle-bar" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--lp-navy)' }}>
+                  Listing Performance & Analytics
+                </h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {analyticsProduct.title}
+                </p>
+              </div>
+              <button onClick={() => setAnalyticsProduct(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Views</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: '#ea580c', marginTop: '2px' }}>
+                  {analyticsProduct.viewsCount || 24}
+                </div>
+                <div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>+12% this week</div>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Impressions</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {(analyticsProduct.viewsCount || 24) * 8}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>In Hyperlocal Feed</div>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Direct Enquiries</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
+                  6
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Chat & WhatsApp</div>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Buyer CTR</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                  4.8%
+                </div>
+                <div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>Above Average</div>
+              </div>
+            </div>
+
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '10px', padding: '10px 12px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#9a3412' }}>Seller Pro Tip</div>
+              <div style={{ fontSize: '11px', color: '#c2410c', marginTop: '2px', lineHeight: 1.4 }}>
+                Keep your WhatsApp number active and respond within 15 minutes to improve trust score and conversion.
+              </div>
+            </div>
+
+            <button
+              onClick={() => setAnalyticsProduct(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '10px',
+                background: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Close Analytics
+            </button>
           </div>
         </div>
       )}

@@ -2,6 +2,16 @@ import type { User, RegisterPayload, LoginPayload, AuthResponse } from '../types
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
 
+async function parseResponseJson(res: Response): Promise<any> {
+  try {
+    const text = await res.text();
+    if (!text || !text.trim()) return {};
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 export const authService = {
   // 1. Email & Password Register
   async register(payload: RegisterPayload): Promise<AuthResponse> {
@@ -10,7 +20,7 @@ export const authService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to create account');
     }
@@ -24,7 +34,7 @@ export const authService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to sign in');
     }
@@ -38,7 +48,7 @@ export const authService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Bureau authentication failed');
     }
@@ -52,7 +62,7 @@ export const authService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential, role })
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Google authentication failed');
     }
@@ -66,7 +76,7 @@ export const authService = {
         'Authorization': `Bearer ${token}`
       }
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Session expired');
     }
@@ -89,7 +99,7 @@ export const authService = {
               imageBase64
             })
           });
-          const data = await res.json();
+          const data = await parseResponseJson(res);
           if (!res.ok || !data.success) {
             throw new Error(data.error || 'Failed to upload avatar to R2');
           }
@@ -98,7 +108,7 @@ export const authService = {
           reject(err);
         }
       };
-      reader.onerror = (e) => reject(new Error('Failed to read image file'));
+      reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(file);
     });
   },
@@ -123,7 +133,7 @@ export const authService = {
       },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
+    const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to complete profile onboarding');
     }

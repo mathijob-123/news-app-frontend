@@ -17,14 +17,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   return (
     <nav className={`app-bottom-nav ${activeTab === 'spots' ? 'spots-mode' : ''}`}>
-      {/* 1. Spots (Vertical Video News Reels First) */}
+      {/* 1. Sports/Spots (Vertical Video News Reels First) */}
       <button
         className={`nav-tab-item ${activeTab === 'spots' ? 'active' : ''}`}
         onClick={() => onChangeTab('spots')}
-        title="Spots — Short Video News Reels"
+        title="Sports/Spots — Short Video News Reels"
       >
         <PlaySquare size={19} />
-        <span>Spots</span>
+        <span>Sports/Spots</span>
       </button>
 
       {/* 2. Feed */}
@@ -70,3 +70,5 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     </nav>
   );
 };
+
+export const MainBottomNav = BottomNav;

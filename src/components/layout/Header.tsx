@@ -13,7 +13,8 @@ import {
   Sparkles,
   ExternalLink,
   Flame,
-  Award
+  Award,
+  Menu
 } from 'lucide-react';
 import type { LocationCoordinates } from '../../types';
 import { PRESET_LOCATIONS } from '../../services/geoService';
@@ -26,6 +27,7 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenAdmin?: () => void;
   onOpenNotifications?: () => void;
+  onToggleMenu?: () => void;
   unreadAlertCount?: number;
 }
 
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenAdmin,
   onOpenNotifications,
+  onToggleMenu,
   unreadAlertCount = 0
 }) => {
   const { user, logout, isAdmin } = useAuth();
@@ -44,10 +47,31 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header className="app-header">
-        {/* Brand Logo */}
-        <div className="app-logo">
-          <div className="pulse-beacon" />
-          <span style={{ letterSpacing: '-0.03em' }}>LocalPulse</span>
+        {/* Brand Logo & Hamburger Menu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onToggleMenu && (
+            <button
+              onClick={onToggleMenu}
+              style={{
+                padding: '6px',
+                borderRadius: '8px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title="Menu & Marketplace Modules"
+            >
+              <Menu size={16} />
+            </button>
+          )}
+          <div className="app-logo">
+            <div className="pulse-beacon" />
+            <span style={{ letterSpacing: '-0.03em' }}>LocalPlus</span>
+          </div>
         </div>
 
         {/* Dynamic Location Switcher */}
