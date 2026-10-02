@@ -39,7 +39,8 @@ import {
   Trash2,
   Globe,
   CheckSquare,
-  Sparkles
+  Sparkles,
+  ShoppingBag
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { VideoPost, AdminReviewStatus, Advertisement, AppSettings, AdminUser, AdminRoleType, SocialMediaPost, NewsCategory, LocationCoordinates } from '../../types';
@@ -70,6 +71,9 @@ import { AdvertisementManager } from './AdvertisementManager';
 import { AppSettingsManager } from './AppSettingsManager';
 import { CopyrightManager } from './CopyrightManager';
 import { Spotlight360Manager } from './spotlight360/Spotlight360Manager';
+import { LocalPlusMarketplaceManager } from './marketplace/LocalPlusMarketplaceManager';
+import { MarketplaceAnalyticsView } from './marketplace/MarketplaceAnalyticsView';
+import { marketplaceAdminService, MarketplaceStats } from '../../services/marketplaceAdminService';
 
 interface AdminPanelProps {
   posts: VideoPost[];
@@ -79,7 +83,7 @@ interface AdminPanelProps {
   adminUser?: { id: string; name: string; role: string };
 }
 
-type AdminTab = 'requests' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360';
+type AdminTab = 'requests' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360' | 'localplus_marketplace';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   posts,
@@ -133,10 +137,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Pending copyright claims counter for tab badge
   const [pendingCopyrightCount, setPendingCopyrightCount] = useState<number>(0);
+  const [marketplaceStats, setMarketplaceStats] = useState<MarketplaceStats | null>(null);
+  const [pendingMarketplaceReportsCount, setPendingMarketplaceReportsCount] = useState<number>(0);
 
   React.useEffect(() => {
     apiClient.getCopyrightReports('pending').then((reps) => {
       if (reps) setPendingCopyrightCount(reps.length);
+    }).catch(() => {});
+
+    marketplaceAdminService.getStats().then((st) => {
+      if (st) setMarketplaceStats(st);
+    }).catch(() => {});
+
+    marketplaceAdminService.getReports({ status: 'new' }).then((reps) => {
+      if (reps) setPendingMarketplaceReportsCount(reps.length);
     }).catch(() => {});
   }, [activeTab]);
 
@@ -144,7 +158,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const isTabAllowed = (tab: AdminTab, role: AdminRoleType): boolean => {
     if (role === 'super_admin') return true;
     if (role === 'ad_manager') return tab === 'advertisements' || tab === 'spotlight360' || tab === 'analytics';
-    if (role === 'editor' || role === 'moderator') return tab === 'requests' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright';
+    if (role === 'editor' || role === 'moderator') {
+      return tab === 'requests' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright' || tab === 'localplus_marketplace';
+    }
     return true;
   };
 
@@ -928,6 +944,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 NEW
               </span>
+            </button>
+          )}
+
+          {/* TAB: LOCALPLUS MARKETPLACE (Super Admin, Editor, Moderator) */}
+          {isTabAllowed('localplus_marketplace', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('localplus_marketplace')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'localplus_marketplace' ? 'var(--brand-primary)' : '#334155',
+                borderBottom: activeTab === 'localplus_marketplace' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <ShoppingBag size={16} />
+              <span>LocalPlus Marketplace</span>
+              {pendingMarketplaceReportsCount > 0 ? (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  {pendingMarketplaceReportsCount}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    background: 'linear-gradient(90deg, #ff4500, #ea580c)',
+                    color: '#ffffff',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    letterSpacing: '0.4px'
+                  }}
+                >
+                  NEW
+                </span>
+              )}
             </button>
           )}
 
@@ -2278,9 +2337,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* LocalPlus Marketplace Telemetry (Requirement 9) */}
+            <div style={{ marginTop: '12px' }}>
+              <MarketplaceAnalyticsView stats={marketplaceStats} />
+            </div>
           </div>
         )}
 
+        {/* ============================================================ */}
+        {/* TAB: LOCALPLUS MARKETPLACE MANAGEMENT                        */}
+        {/* ============================================================ */}
+        {activeTab === 'localplus_marketplace' && (
+          <LocalPlusMarketplaceManager
+            currentSimulatedRole={simulatedRole}
+            onRefreshParentData={onRefreshData}
+          />
+        )}
 
         {/* ============================================================ */}
         {/* TAB 4: ADVERTISEMENTS MANAGEMENT (Admin -> Advertisements)   */}
