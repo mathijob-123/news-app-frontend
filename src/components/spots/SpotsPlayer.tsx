@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -11,19 +11,15 @@ import {
   Play,
   DollarSign,
   Flag,
-  SlidersHorizontal,
   ChevronDown,
   ShieldCheck,
   Compass,
-  Award,
-  PlaySquare,
   Camera,
   Loader2
 } from 'lucide-react';
 import type { VideoPost, User, LocationCoordinates } from '../../types';
-import { formatDistance } from '../../services/geoService';
 import { isWatchQualified } from '../../services/monetizationEngine';
-import { recordQualifiedView } from '../../services/storageService';
+import { recordQualifiedView, isCrypticHash, getCleanHeadline } from '../../services/storageService';
 import { CommentsDrawer } from './CommentsDrawer';
 import { TipModal } from './TipModal';
 
@@ -43,6 +39,661 @@ interface SpotsPlayerProps {
   onReportCopyright?: (post: VideoPost) => void;
 }
 
+interface ReelCardProps {
+  post: VideoPost;
+  index: number;
+  isActive: boolean;
+  isNear: boolean;
+  isMuted: boolean;
+  onToggleMute: () => void;
+  currentUser: User;
+  activeLocation?: LocationCoordinates;
+  onOpenLocationPicker?: () => void;
+  onLike: (postId: string) => void;
+  onSave: (postId: string) => void;
+  onShare: (post: VideoPost) => void;
+  onOpenComments: (post: VideoPost) => void;
+  onOpenTip: (post: VideoPost) => void;
+  onReportCopyright?: (post: VideoPost) => void;
+  isFollowed: boolean;
+  onToggleFollow: (creatorId: string) => void;
+}
+
+const resolveVideoSrc = (rawUrl?: string, hasPlaybackError?: boolean) => {
+  if (
+    !rawUrl ||
+    hasPlaybackError ||
+    rawUrl.startsWith('blob:') ||
+    rawUrl.includes('commondatastorage.googleapis.com')
+  ) {
+    return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
+  }
+  return rawUrl;
+};
+
+const ReelCard: React.FC<ReelCardProps> = ({
+  post,
+  index,
+  isActive,
+  isNear,
+  isMuted,
+  onToggleMute,
+  currentUser,
+  activeLocation,
+  onOpenLocationPicker,
+  onLike,
+  onSave,
+  onShare,
+  onOpenComments,
+  onOpenTip,
+  onReportCopyright,
+  isFollowed,
+  onToggleFollow
+}) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [watchProgress, setWatchProgress] = useState(0);
+  const [isQualifiedView, setIsQualifiedView] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lastTapRef = useRef<number>(0);
+
+  const videoSrc = useMemo(() => {
+    return resolveVideoSrc(post.mediaUrl, hasPlaybackError);
+  }, [post.mediaUrl, hasPlaybackError]);
+
+  // Handle Play/Pause when entering or leaving active view
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isActive) {
+      video.muted = isMuted;
+      video.currentTime = 0;
+      setWatchProgress(0);
+      setIsQualifiedView(false);
+
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          })
+          .catch((err) => {
+            console.warn('[SpotsPlayer ReelCard Autoplay Notice]:', err);
+            if (video) {
+              video.muted = true;
+              video
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
+            }
+          });
+      }
+    } else {
+      video.pause();
+      video.currentTime = 0;
+      setIsPlaying(false);
+      setIsBuffering(false);
+      setCaptionExpanded(false);
+    }
+  }, [isActive, videoSrc]);
+
+  // Sync mute state dynamically
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
+  // Time update tracking for watch progress & monetization qualification
+  const handleTimeUpdate = () => {
+    if (!videoRef.current || isQualifiedView) return;
+    const current = videoRef.current.currentTime;
+    const duration = post.durationSeconds || 15;
+    const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
+    const progress = Math.min(100, (current / thresholdSeconds) * 100);
+    setWatchProgress(progress);
+
+    if (isWatchQualified(current, duration)) {
+      setIsQualifiedView(true);
+      recordQualifiedView(post.id);
+    }
+  };
+
+  // Double tap to like or single tap to toggle play/pause
+  const handleCardClick = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      if (!post.isLiked) {
+        onLike(post.id);
+      }
+      setShowHeartBurst(true);
+      setTimeout(() => setShowHeartBurst(false), 750);
+    } else {
+      if (videoRef.current) {
+        if (videoRef.current.paused) {
+          videoRef.current
+            .play()
+            .then(() => setIsPlaying(true))
+            .catch(() => {});
+        } else {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        }
+      }
+    }
+    lastTapRef.current = now;
+  };
+
+  const isPhotoPost =
+    post.type === 'image' ||
+    (Boolean(post.mediaUrl) &&
+      !post.mediaUrl.match(/\.(mp4|webm|mov|m4v|ogg)/i) &&
+      Boolean(post.mediaUrl.match(/\.(jpe?g|png|gif|webp|avif|bmp|svg)/i)));
+
+  return (
+    <div className="spots-reel-card" onClick={handleCardClick}>
+      {/* 1. Media Element */}
+      {isPhotoPost ? (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#050505',
+            overflow: 'hidden'
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-20px',
+              backgroundImage: `url(${post.mediaUrl || post.thumbnailUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(30px) brightness(0.4)',
+              transform: 'scale(1.15)',
+              opacity: 0.7
+            }}
+          />
+          <img
+            src={post.mediaUrl || post.thumbnailUrl}
+            alt={post.headline}
+            style={{
+              position: 'relative',
+              zIndex: 2,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block'
+            }}
+          />
+        </div>
+      ) : isNear ? (
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          poster={post.thumbnailUrl}
+          autoPlay={isActive}
+          loop
+          playsInline
+          preload={isActive ? 'auto' : 'metadata'}
+          muted={isMuted}
+          onPlay={() => {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          }}
+          onPause={() => setIsPlaying(false)}
+          onPlaying={() => {
+            setIsPlaying(true);
+            setIsBuffering(false);
+          }}
+          onWaiting={() => setIsBuffering(true)}
+          onCanPlay={() => setIsBuffering(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onError={() => {
+            setHasPlaybackError(true);
+            setIsBuffering(false);
+          }}
+          className="spots-video"
+          style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            background: post.thumbnailUrl
+              ? `url(${post.thumbnailUrl}) center/cover no-repeat`
+              : '#0a0a0a'
+          }}
+        />
+      )}
+
+      {/* Top Gradient for header clarity */}
+      <div className="spots-top-gradient" />
+
+      {/* 2. Top Header Bar: Location pill */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 14,
+          left: 14,
+          right: 14,
+          zIndex: 30,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pointerEvents: 'none'
+        }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenLocationPicker) onOpenLocationPicker();
+          }}
+          style={{
+            pointerEvents: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '20px',
+            padding: '5px 12px',
+            color: '#ffffff',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          <MapPin size={12} color="var(--brand-primary)" />
+          <span
+            style={{
+              maxWidth: '140px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {activeLocation?.neighborhood ||
+              activeLocation?.placeName ||
+              post.location.neighborhood ||
+              post.location.placeName}
+          </span>
+          <ChevronDown size={12} />
+        </button>
+      </div>
+
+      {/* 4. Qualified View Progress Bar */}
+      {isActive && watchProgress > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            zIndex: 40
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${watchProgress}%`,
+              background: 'var(--brand-gradient)',
+              transition: 'width 0.1s linear'
+            }}
+          />
+        </div>
+      )}
+
+      {/* Buffering Loading Spinner */}
+      {isBuffering && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20,
+            pointerEvents: 'none',
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '50%',
+            padding: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <Loader2 size={26} color="#ff4500" className="spin" />
+        </div>
+      )}
+
+      {/* Pause Icon Indicator */}
+      {!isPlaying && !isBuffering && isActive && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(6px)',
+            border: '1.5px solid rgba(255, 255, 255, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            pointerEvents: 'none',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            zIndex: 22
+          }}
+        >
+          <Play size={32} fill="#ffffff" style={{ marginLeft: '4px' }} />
+        </div>
+      )}
+
+      {/* Double-tap Heart Burst */}
+      {showHeartBurst && (
+        <div className="spots-heart-burst">
+          <Heart size={90} fill="#ff3b5c" />
+        </div>
+      )}
+
+      {/* 5. Bottom Gradient for Overlay Readability */}
+      <div className="spots-bottom-gradient" />
+
+      {/* 6. Right Action Rail (Instagram Style) */}
+      <div className="spots-action-rail">
+        {/* Like */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(post.id);
+          }}
+        >
+          <div className={`rail-icon-circle ${post.isLiked ? 'liked' : ''}`}>
+            <Heart size={22} fill={post.isLiked ? '#ffffff' : 'none'} />
+          </div>
+          <span className="rail-label">{post.likeCount}</span>
+        </button>
+
+        {/* Comment */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenComments(post);
+          }}
+        >
+          <div className="rail-icon-circle">
+            <MessageCircle size={22} />
+          </div>
+          <span className="rail-label">{post.commentCount}</span>
+        </button>
+
+        {/* Tip / Support Creator */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenTip(post);
+          }}
+        >
+          <div
+            className="rail-icon-circle"
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              borderColor: '#34d399'
+            }}
+          >
+            <DollarSign size={22} />
+          </div>
+          <span className="rail-label">Tip</span>
+        </button>
+
+        {/* Share */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onShare(post);
+          }}
+        >
+          <div className="rail-icon-circle">
+            <Share2 size={22} />
+          </div>
+          <span className="rail-label">{post.shareCount}</span>
+        </button>
+
+        {/* Save */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(post.id);
+          }}
+        >
+          <div className="rail-icon-circle">
+            <Bookmark size={22} fill={post.isSaved ? '#ffffff' : 'none'} />
+          </div>
+          <span className="rail-label">Save</span>
+        </button>
+
+        {/* Sound Toggle */}
+        <button
+          className="rail-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMute();
+          }}
+        >
+          <div className="rail-icon-circle">
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </div>
+          <span className="rail-label">{isMuted ? 'Muted' : 'Sound'}</span>
+        </button>
+
+        {/* Report Copyright & Citizen Ethics */}
+        <button
+          className="rail-btn"
+          title="Report copyright infringement / ethics"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onReportCopyright) {
+              onReportCopyright(post);
+            } else {
+              alert('Report filed with LocalPulse Citizen Ethics & Trust Board for rapid review.');
+            }
+          }}
+        >
+          <div className="rail-icon-circle" style={{ width: '34px', height: '34px' }}>
+            <Flag size={15} color="rgba(255, 255, 255, 0.7)" />
+          </div>
+          <span className="rail-label" style={{ fontSize: '9px' }}>
+            Report
+          </span>
+        </button>
+      </div>
+
+      {/* 7. Bottom Overlay Content (Creator, Headline, Location Pin) */}
+      <div className="spots-overlay-content">
+        {/* Creator & Follow Row */}
+        <div className="spots-creator-row">
+          <img
+            src={
+              post.creatorAvatar ||
+              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                post.creatorName || 'Reporter'
+              )}`
+            }
+            alt={post.creatorName}
+            className="spots-creator-avatar"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                post.creatorName || 'Reporter'
+              )}`;
+            }}
+          />
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: '12.5px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.85)'
+              }}
+            >
+              @{post.creatorHandle}
+            </span>
+            {post.creatorVerified && (
+              <CheckCircle2 size={12} color="var(--brand-primary)" fill="#ffffff" />
+            )}
+          </div>
+
+          <button
+            className="spots-follow-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFollow(post.creatorId);
+            }}
+            style={{
+              background: isFollowed ? 'rgba(255, 255, 255, 0.25)' : 'var(--brand-gradient)'
+            }}
+          >
+            {isFollowed ? 'Following' : '+ Follow'}
+          </button>
+
+          {/* Inline Compact Meta Pills */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                background: 'rgba(255, 69, 0, 0.85)',
+                padding: '1.5px 6px',
+                borderRadius: '4px',
+                fontSize: '9.5px',
+                fontWeight: 700
+              }}
+            >
+              <MapPin size={9} />
+              <span>
+                {post.location.neighborhood || post.location.placeName || 'Local'}
+              </span>
+            </span>
+
+            <span
+              style={{
+                background: 'rgba(15, 23, 42, 0.65)',
+                padding: '1.5px 6px',
+                borderRadius: '4px',
+                fontSize: '9px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em'
+              }}
+            >
+              {post.category}
+            </span>
+
+            {(post.adminReviewStatus === 'bounty_awarded' ||
+              post.adminReviewStatus === 'verified_approved') && (
+              <span
+                style={{
+                  background: 'rgba(16, 185, 129, 0.9)',
+                  color: '#ffffff',
+                  padding: '1.5px 6px',
+                  borderRadius: '4px',
+                  fontSize: '9.5px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px'
+                }}
+              >
+                <CheckCircle2 size={9} />
+                <span>Verified</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Headline */}
+        <h2 className="spots-headline">
+          {getCleanHeadline(post.headline, post.caption, post.location.neighborhood || post.location.placeName)}
+        </h2>
+
+        {/* Caption */}
+        {post.caption &&
+          !isCrypticHash(post.caption) &&
+          post.caption.trim() !== getCleanHeadline(post.headline, post.caption, post.location.neighborhood || post.location.placeName).trim() && (
+          <p
+            className={`spots-caption ${captionExpanded ? 'expanded' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCaptionExpanded(!captionExpanded);
+            }}
+          >
+            {post.caption}
+          </p>
+        )}
+
+        {/* Compact Source Citation - Excludes all Campaign and Spotlight360 launch tags */}
+        {post.sourceCitation &&
+          !post.sourceCitation.toLowerCase().includes('campaign') &&
+          !post.sourceCitation.toLowerCase().includes('spotlight360') && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              color: '#34d399',
+              fontSize: '9.5px',
+              padding: '1px 5px',
+              borderRadius: '3px',
+              maxWidth: 'fit-content'
+            }}
+          >
+            <ShieldCheck size={9} />
+            <span>{post.sourceCitation}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   posts,
   initialPostId,
@@ -58,85 +709,41 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onOpenCreate,
   onReportCopyright
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false); // Default: Sound ON as requested
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [watchProgress, setWatchProgress] = useState(0); // 0 to 100% of threshold
-  const [isQualifiedView, setIsQualifiedView] = useState(false);
-  const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false); // Sound ON by default
+  const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
+  const [activeModalPost, setActiveModalPost] = useState<VideoPost | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
-  const [captionExpanded, setCaptionExpanded] = useState(false);
-  const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
-  const [hasPlaybackError, setHasPlaybackError] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const lastTapRef = useRef<number>(0);
-  const watchSecondsRef = useRef<number>(0);
-  const touchStartYRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const activeIndexRef = useRef(0);
+  activeIndexRef.current = activeIndex;
 
-  // Spotlight Rule: STRICTLY video / reel posts only (NO images, NO fallback to images!)
+  // STRICTLY video / reel posts only
   const videoReels = useMemo(() => {
     return posts.filter((p) => p.type === 'video');
   }, [posts]);
 
-  // Set initial post index if specified
+  // Set initial post and scroll to it on mount or prop update
   useEffect(() => {
-    if (initialPostId) {
+    if (initialPostId && containerRef.current && videoReels.length > 0) {
       const idx = videoReels.findIndex((p) => p.id === initialPostId);
       if (idx !== -1) {
-        setCurrentIndex(idx);
+        setActiveIndex(idx);
+        containerRef.current.scrollTo({
+          top: idx * containerRef.current.clientHeight,
+          behavior: 'instant'
+        });
       }
     }
   }, [initialPostId, videoReels]);
 
-  // Safely clamp currentIndex if a video is deleted by admin while user is viewing
-  useEffect(() => {
-    if (currentIndex >= videoReels.length && videoReels.length > 0) {
-      setCurrentIndex(Math.max(0, videoReels.length - 1));
-    }
-  }, [videoReels.length, currentIndex]);
-
-  const currentPost = videoReels[currentIndex] || videoReels[0];
-
-  // Reliable video stream resolution (prevents broken/dead blob URLs or 403 Forbidden URLs from hanging)
-  const resolvedVideoSrc = useMemo(() => {
-    const rawUrl = currentPost?.mediaUrl || '';
-    if (
-      !rawUrl ||
-      hasPlaybackError ||
-      rawUrl.startsWith('blob:') ||
-      rawUrl.includes('commondatastorage.googleapis.com')
-    ) {
-      return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
-    }
-    return rawUrl;
-  }, [currentPost?.mediaUrl, hasPlaybackError]);
-
-  // Preload next upcoming reel in background for 0s lag on swipe
-  const nextPost = videoReels[currentIndex + 1];
-  const nextVideoSrc = useMemo(() => {
-    if (!nextPost?.mediaUrl) return '';
-    const rawUrl = nextPost.mediaUrl;
-    if (
-      rawUrl.startsWith('blob:') ||
-      rawUrl.includes('commondatastorage.googleapis.com')
-    ) {
-      return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
-    }
-    return rawUrl;
-  }, [nextPost?.mediaUrl]);
-
-  // Unlock unmuted audio playback on user gesture if browser initially blocked audio autoplay
+  // Unlock unmuted audio on user gesture
   useEffect(() => {
     const unlockAudio = () => {
-      if (videoRef.current && videoRef.current.muted && !isMuted) {
-        videoRef.current.muted = false;
-        videoRef.current.play().catch(() => {});
-      }
+      // Browsers allow unmuted audio once any pointer interaction occurs
     };
-
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('touchstart', unlockAudio, { once: true });
     window.addEventListener('click', unlockAudio, { once: true });
@@ -145,135 +752,51 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
       window.removeEventListener('touchstart', unlockAudio);
       window.removeEventListener('click', unlockAudio);
     };
-  }, [isMuted]);
+  }, []);
 
-  // Reset watch tracking on slide change & play video smoothly
-  useEffect(() => {
-    watchSecondsRef.current = 0;
-    setWatchProgress(0);
-    setIsQualifiedView(false);
-    setCaptionExpanded(false);
-    setHasPlaybackError(false);
+  // Continuous physics scroll listener: detects which reel is active
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const { scrollTop, clientHeight } = container;
+    if (clientHeight <= 0) return;
 
-    const video = videoRef.current;
-    if (video) {
-      video.currentTime = 0;
-      video.muted = isMuted;
-
-      // Fast immediate play attempt with sound
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setIsBuffering(false);
-          })
-          .catch((err) => {
-            console.warn('[SpotsPlayer Autoplay Notice]:', err);
-            // If browser policy restricted unmuted playback before user gesture:
-            if (video) {
-              video.muted = true;
-              video.play()
-                .then(() => setIsPlaying(true))
-                .catch(() => setIsPlaying(false));
-            }
-          });
-      }
+    const newIndex = Math.round(scrollTop / clientHeight);
+    if (
+      newIndex >= 0 &&
+      newIndex < videoReels.length &&
+      newIndex !== activeIndexRef.current
+    ) {
+      setActiveIndex(newIndex);
     }
-  }, [currentIndex, resolvedVideoSrc, isMuted]);
+  }, [videoReels.length]);
 
-  // Keyboard navigation for reels (ArrowUp / ArrowDown)
+  // Desktop navigation with Arrow keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!containerRef.current) return;
+      const clientHeight = containerRef.current.clientHeight;
+
       if (e.key === 'ArrowDown') {
-        goToNext();
+        e.preventDefault();
+        const nextIdx = Math.min(videoReels.length - 1, activeIndexRef.current + 1);
+        containerRef.current.scrollTo({
+          top: nextIdx * clientHeight,
+          behavior: 'smooth'
+        });
       } else if (e.key === 'ArrowUp') {
-        goToPrev();
+        e.preventDefault();
+        const prevIdx = Math.max(0, activeIndexRef.current - 1);
+        containerRef.current.scrollTo({
+          top: prevIdx * clientHeight,
+          behavior: 'smooth'
+        });
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, videoReels.length]);
-
-  // Handle video playback time updates & qualified view tracking
-  const handleTimeUpdate = () => {
-    if (!videoRef.current || isQualifiedView) return;
-    const current = videoRef.current.currentTime;
-    watchSecondsRef.current = current;
-
-    // Threshold: min(3s, 50% of video duration)
-    const duration = currentPost.durationSeconds || 15;
-    const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
-    const progress = Math.min(100, (current / thresholdSeconds) * 100);
-    setWatchProgress(progress);
-
-    if (isWatchQualified(current, duration)) {
-      setIsQualifiedView(true);
-      recordQualifiedView(currentPost.id);
-    }
-  };
-
-  // Double tap to like or single tap to pause/play
-  const handleVideoAreaClick = () => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-
-    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      // Double tap!
-      if (!currentPost.isLiked) {
-        onLike(currentPost.id);
-      }
-      setShowHeartBurst(true);
-      setTimeout(() => setShowHeartBurst(false), 750);
-    } else {
-      // Single tap toggle play/pause
-      if (videoRef.current) {
-        if (videoRef.current.paused) {
-          videoRef.current.play();
-          setIsPlaying(true);
-        } else {
-          videoRef.current.pause();
-          setIsPlaying(false);
-        }
-      }
-    }
-    lastTapRef.current = now;
-  };
-
-  // Swipe up / down gestures
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartYRef.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const diff = touchStartYRef.current - touchEndY;
-
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) {
-        // Swiped UP -> Next video
-        goToNext();
-      } else {
-        // Swiped DOWN -> Previous video
-        goToPrev();
-      }
-    }
-  };
-
-  const goToNext = () => {
-    if (currentIndex < videoReels.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      // Loop back to start
-      setCurrentIndex(0);
-    }
-  };
-
-  const goToPrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
+  }, [videoReels.length]);
 
   const toggleFollow = (creatorId: string) => {
     setFollowedCreators((prev) => ({
@@ -282,10 +805,14 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }));
   };
 
-  // Empty state: Spotlight rule requirement:
-  // "If there are no reels for that location, display a message like 'No reels available for your location,' rather than showing an image."
-  if (!currentPost) {
-    const locName = activeLocation?.neighborhood || activeLocation?.placeName || 'your location';
+  const handleToggleMute = () => {
+    setIsMuted((prev) => !prev);
+  };
+
+  // Empty state: When no video reels are available for the location
+  if (videoReels.length === 0) {
+    const locName =
+      activeLocation?.neighborhood || activeLocation?.placeName || 'your location';
     return (
       <div
         className="spots-container"
@@ -300,10 +827,25 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
         }}
       >
         {/* Top Header Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10, paddingTop: '4px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 10,
+            paddingTop: '4px'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div className="pulse-beacon" />
-            <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
+            <span
+              style={{
+                fontSize: '14px',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                color: '#ffffff'
+              }}
+            >
               Spotlight Reels
             </span>
           </div>
@@ -326,7 +868,14 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               }}
             >
               <MapPin size={11} color="var(--brand-primary)" />
-              <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span
+                style={{
+                  maxWidth: '120px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
                 {locName}
               </span>
               <ChevronDown size={11} />
@@ -359,30 +908,11 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '16px',
-              boxShadow: '0 0 35px rgba(255, 69, 0, 0.25)'
+              marginBottom: '18px',
+              color: 'var(--brand-primary)'
             }}
           >
-            <PlaySquare size={38} color="var(--brand-primary)" strokeWidth={2} />
-          </div>
-
-          {/* Location Badge */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              marginBottom: '12px'
-            }}
-          >
-            <MapPin size={13} color="var(--brand-primary)" />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#f1f5f9' }}>
-              {locName}
-            </span>
+            <Camera size={36} />
           </div>
 
           <h3
@@ -390,23 +920,11 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               fontSize: '18px',
               fontWeight: 800,
               color: '#ffffff',
-              letterSpacing: '-0.02em',
-              marginBottom: '6px'
+              marginBottom: '8px'
             }}
           >
-            No reels available for your location
+            No Reels In This Vicinity Yet
           </h3>
-
-          <div
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--brand-primary)',
-              marginBottom: '12px'
-            }}
-          >
-            உங்கள் பகுதியில் ரீல்ஸ் எதுவும் இல்லை
-          </div>
 
           <p
             style={{
@@ -417,11 +935,20 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             }}
           >
             {activeLocation?.placeName
-              ? `There are currently no video reels published for ${activeLocation.neighborhood || activeLocation.placeName}. Spotlight exclusively streams video dispatches from your active location.`
+              ? `There are currently no video reels published for ${
+                  activeLocation.neighborhood || activeLocation.placeName
+                }. Spotlight exclusively streams video dispatches from your active location.`
               : 'There are currently no video reels published for your location. Spotlight exclusively streams video dispatches from your active location.'}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              width: '100%'
+            }}
+          >
             {onOpenCreate && (
               <button
                 onClick={onOpenCreate}
@@ -470,7 +997,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           </div>
         </div>
 
-        {/* Bottom Trust & Treasury Banner */}
+        {/* Bottom Trust Banner */}
         <div
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
@@ -485,8 +1012,15 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           }}
         >
           <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.8)', lineHeight: 1.35 }}>
-            <span style={{ fontWeight: 700, color: '#ffffff' }}>Spotlight Verified:</span> Only high-trust video reels from your immediate vicinity are broadcast here.
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              lineHeight: 1.35
+            }}
+          >
+            <span style={{ fontWeight: 700, color: '#ffffff' }}>Spotlight Verified:</span> Only
+            high-trust video reels from your immediate vicinity are broadcast here.
           </div>
         </div>
       </div>
@@ -494,482 +1028,67 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   }
 
   return (
-    <div
-      className="spots-container"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* 1. Top Location Pill & Reeling Badge */}
+    <div className="spots-container">
+      {/* Instagram-Style Vertical Reel Snap-Scroll Feed */}
       <div
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 14,
-          right: 14,
-          zIndex: 30,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          pointerEvents: 'none'
-        }}
+        ref={containerRef}
+        className="spots-reel-list"
+        onScroll={handleScroll}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onOpenLocationPicker) onOpenLocationPicker();
-          }}
-          style={{
-            pointerEvents: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '20px',
-            padding: '5px 12px',
-            color: '#ffffff',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          <MapPin size={12} color="var(--brand-primary)" />
-          <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {activeLocation?.neighborhood || activeLocation?.placeName || currentPost.location.neighborhood || currentPost.location.placeName}
-          </span>
-          <ChevronDown size={12} />
-        </button>
-
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            fontSize: '11px',
-            fontWeight: 700,
-            color: 'var(--brand-primary)'
-          }}
-        >
-          <span>REELS ONLY</span>
-        </div>
-      </div>
-
-      {/* 2. Main Reel Video Surface (STRICTLY video posts only, no images) */}
-      <div className="spots-slider" onClick={handleVideoAreaClick}>
-        <div className="spots-slide">
-          <video
-            ref={videoRef}
-            src={resolvedVideoSrc}
-            poster={currentPost.thumbnailUrl}
-            autoPlay
-            loop
-            playsInline
-            preload="auto"
-            muted={isMuted}
-            onPlay={() => {
-              setIsPlaying(true);
-              setIsBuffering(false);
+        {videoReels.map((post, idx) => (
+          <ReelCard
+            key={post.id}
+            post={post}
+            index={idx}
+            isActive={idx === activeIndex}
+            isNear={Math.abs(idx - activeIndex) <= 1}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
+            currentUser={currentUser}
+            activeLocation={activeLocation}
+            onOpenLocationPicker={onOpenLocationPicker}
+            onLike={onLike}
+            onSave={onSave}
+            onShare={onShare}
+            onOpenComments={(p) => {
+              setActiveModalPost(p);
+              setShowComments(true);
             }}
-            onPause={() => setIsPlaying(false)}
-            onPlaying={() => {
-              setIsPlaying(true);
-              setIsBuffering(false);
+            onOpenTip={(p) => {
+              setActiveModalPost(p);
+              setShowTipModal(true);
             }}
-            onWaiting={() => setIsBuffering(true)}
-            onCanPlay={() => setIsBuffering(false)}
-            onTimeUpdate={handleTimeUpdate}
-            onError={(e) => {
-              console.warn('[SpotsPlayer] Stream load error for:', currentPost.id, currentPost.mediaUrl, e);
-              setHasPlaybackError(true);
-              setIsBuffering(false);
-            }}
-            className="spots-video"
-            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+            onReportCopyright={onReportCopyright}
+            isFollowed={!!followedCreators[post.creatorId]}
+            onToggleFollow={toggleFollow}
           />
-
-          {/* Hidden Next Reel Preloader for Instant 0s Playback on Next Swipe */}
-          {nextVideoSrc && (
-            <video
-              src={nextVideoSrc}
-              preload="auto"
-              muted
-              playsInline
-              style={{ display: 'none', position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
-            />
-          )}
-
-          {/* Buffering Loading Spinner */}
-          {isBuffering && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                zIndex: 20,
-                pointerEvents: 'none',
-                background: 'rgba(0, 0, 0, 0.55)',
-                backdropFilter: 'blur(8px)',
-                borderRadius: '50%',
-                padding: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid rgba(255, 255, 255, 0.2)'
-              }}
-            >
-              <Loader2 size={26} color="#ff4500" className="spin" />
-            </div>
-          )}
-
-          {/* Interactive Sound Control Pill - Sound ON by default, easy tap to mute/unmute */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (videoRef.current) {
-                const nextMuted = !isMuted;
-                videoRef.current.muted = nextMuted;
-                setIsMuted(nextMuted);
-                if (!nextMuted) {
-                  videoRef.current.play().catch(() => {});
-                }
-              }
-            }}
-            style={{
-              position: 'absolute',
-              top: '64px',
-              right: '16px',
-              background: isMuted ? 'rgba(0, 0, 0, 0.75)' : 'rgba(16, 185, 129, 0.25)',
-              backdropFilter: 'blur(8px)',
-              border: isMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #10b981',
-              borderRadius: '20px',
-              padding: '6px 14px',
-              color: isMuted ? '#fca5a5' : '#6ee7b7',
-              fontSize: '11px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              zIndex: 25,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            {isMuted ? <VolumeX size={14} color="#fca5a5" /> : <Volume2 size={14} color="#6ee7b7" />}
-            <span>{isMuted ? 'Tap for Sound' : 'Sound ON'}</span>
-          </button>
-
-          {/* Pause overlay icon */}
-          {!isPlaying && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: 'rgba(0, 0, 0, 0.65)',
-                backdropFilter: 'blur(6px)',
-                border: '1.5px solid rgba(255, 255, 255, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                pointerEvents: 'none',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
-              }}
-            >
-              <Play size={32} fill="#ffffff" style={{ marginLeft: '4px' }} />
-            </div>
-          )}
-
-          {/* Double-tap Heart Burst */}
-          {showHeartBurst && (
-            <div className="spots-heart-burst">
-              <Heart size={90} fill="#ff3b5c" />
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* 3. Bottom Gradient for Overlay Readability */}
-      <div className="spots-bottom-gradient" />
-
-      {/* 4. Right Action Rail */}
-      <div className="spots-action-rail">
-        {/* Like */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onLike(currentPost.id);
-          }}
-        >
-          <div className={`rail-icon-circle ${currentPost.isLiked ? 'liked' : ''}`}>
-            <Heart size={22} fill={currentPost.isLiked ? '#ffffff' : 'none'} />
-          </div>
-          <span className="rail-label">{currentPost.likeCount}</span>
-        </button>
-
-        {/* Comment */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowComments(true);
-          }}
-        >
-          <div className="rail-icon-circle">
-            <MessageCircle size={22} />
-          </div>
-          <span className="rail-label">{currentPost.commentCount}</span>
-        </button>
-
-        {/* Tip / Support Creator */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowTipModal(true);
-          }}
-        >
-          <div
-            className="rail-icon-circle"
-            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderColor: '#34d399' }}
-          >
-            <DollarSign size={22} />
-          </div>
-          <span className="rail-label">Tip</span>
-        </button>
-
-        {/* Share */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onShare(currentPost);
-          }}
-        >
-          <div className="rail-icon-circle">
-            <Share2 size={22} />
-          </div>
-          <span className="rail-label">{currentPost.shareCount}</span>
-        </button>
-
-        {/* Save / Bookmark */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSave(currentPost.id);
-          }}
-        >
-          <div className="rail-icon-circle">
-            <Bookmark size={22} fill={currentPost.isSaved ? '#ffffff' : 'none'} />
-          </div>
-          <span className="rail-label">Save</span>
-        </button>
-
-        {/* Sound Toggle (Mute / Unmute) */}
-        {currentPost.type === 'video' && (
-          <button
-            className="rail-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (videoRef.current) {
-                videoRef.current.muted = !videoRef.current.muted;
-                setIsMuted(videoRef.current.muted);
-              }
-            }}
-          >
-            <div className="rail-icon-circle">
-              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-            </div>
-            <span className="rail-label">{isMuted ? 'Muted' : 'Sound'}</span>
-          </button>
-        )}
-
-        {/* Report Copyright & Citizen Ethics */}
-        <button
-          className="rail-btn"
-          title="Report copyright infringement / ethics"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onReportCopyright) {
-              onReportCopyright(currentPost);
-            } else {
-              alert('Report filed with LocalPulse Citizen Ethics & Trust Board for rapid review.');
-            }
-          }}
-        >
-          <div className="rail-icon-circle" style={{ width: '34px', height: '34px' }}>
-            <Flag size={15} color="rgba(255, 255, 255, 0.7)" />
-          </div>
-          <span className="rail-label" style={{ fontSize: '9px' }}>Report</span>
-        </button>
-      </div>
-
-      {/* 5. Bottom Overlay Content (Creator, Headline, Location Pin) */}
-      <div className="spots-overlay-content">
-        {/* Compact Creator & Meta Row */}
-        <div className="spots-creator-row">
-          <img
-            src={currentPost.creatorAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentPost.creatorName || 'Reporter')}`}
-            alt={currentPost.creatorName}
-            className="spots-creator-avatar"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentPost.creatorName || 'Reporter')}`;
-            }}
-          />
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontWeight: 700, fontSize: '12.5px', textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}>
-              @{currentPost.creatorHandle}
-            </span>
-            {currentPost.creatorVerified && (
-              <CheckCircle2 size={12} color="var(--brand-primary)" fill="#ffffff" />
-            )}
-          </div>
-
-          <button
-            className="spots-follow-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFollow(currentPost.creatorId);
-            }}
-            style={{
-              background: followedCreators[currentPost.creatorId]
-                ? 'rgba(255, 255, 255, 0.25)'
-                : 'var(--brand-gradient)'
-            }}
-          >
-            {followedCreators[currentPost.creatorId] ? 'Following' : '+ Follow'}
-          </button>
-
-          {/* Inline Compact Meta Pills */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '2px',
-                background: 'rgba(255, 69, 0, 0.85)',
-                padding: '1.5px 6px',
-                borderRadius: '4px',
-                fontSize: '9.5px',
-                fontWeight: 700
-              }}
-            >
-              <MapPin size={9} />
-              <span>
-                {currentPost.location.neighborhood || currentPost.location.placeName || 'Local'}
-              </span>
-            </span>
-
-            <span
-              style={{
-                background: 'rgba(15, 23, 42, 0.65)',
-                padding: '1.5px 6px',
-                borderRadius: '4px',
-                fontSize: '9px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em'
-              }}
-            >
-              {currentPost.category}
-            </span>
-
-            {(currentPost.adminReviewStatus === 'bounty_awarded' || currentPost.adminReviewStatus === 'verified_approved') && (
-              <span
-                style={{
-                  background: 'rgba(16, 185, 129, 0.9)',
-                  color: '#ffffff',
-                  padding: '1.5px 6px',
-                  borderRadius: '4px',
-                  fontSize: '9.5px',
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '2px'
-                }}
-              >
-                <CheckCircle2 size={9} />
-                <span>
-                  {currentUser && currentUser.id === currentPost.creatorId && (currentPost.priceAward || currentPost.adminPayoutAmount)
-                    ? `Verified • ₹${currentPost.priceAward || currentPost.adminPayoutAmount} Awarded to You`
-                    : 'Verified'}
-                </span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Headline (Clamped to 2 lines max) */}
-        <h2 className="spots-headline">{currentPost.headline}</h2>
-
-        {/* Caption (Deduplicated: only show if distinct from headline) */}
-        {currentPost.caption && currentPost.caption.trim() !== currentPost.headline.trim() && (
-          <p
-            className={`spots-caption ${captionExpanded ? 'expanded' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setCaptionExpanded(!captionExpanded);
-            }}
-          >
-            {currentPost.caption}
-          </p>
-        )}
-
-        {/* Compact Source Citation */}
-        {currentPost.sourceCitation && (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '3px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              color: '#34d399',
-              fontSize: '9.5px',
-              padding: '1px 5px',
-              borderRadius: '3px',
-              maxWidth: 'fit-content'
-            }}
-          >
-            <ShieldCheck size={9} />
-            <span>{currentPost.sourceCitation}</span>
-          </div>
-        )}
-      </div>
-
-      {/* 6. Comments Drawer */}
-      {showComments && (
+      {/* Comments Drawer */}
+      {showComments && activeModalPost && (
         <CommentsDrawer
-          comments={getCommentsForPost(currentPost.id)}
+          comments={getCommentsForPost(activeModalPost.id)}
           currentUser={currentUser}
-          onClose={() => setShowComments(false)}
-          onAddComment={(text) => onAddComment(currentPost.id, text)}
+          onClose={() => {
+            setShowComments(false);
+            setActiveModalPost(null);
+          }}
+          onAddComment={(text) => onAddComment(activeModalPost.id, text)}
         />
       )}
 
-      {/* 7. Tip Modal */}
-      {showTipModal && (
+      {/* Tip Modal */}
+      {showTipModal && activeModalPost && (
         <TipModal
-          post={currentPost}
-          onClose={() => setShowTipModal(false)}
-          onSendTip={(amt) => onSendTip(currentPost.id, amt, currentPost.creatorName)}
+          post={activeModalPost}
+          onClose={() => {
+            setShowTipModal(false);
+            setActiveModalPost(null);
+          }}
+          onSendTip={(amt) =>
+            onSendTip(activeModalPost.id, amt, activeModalPost.creatorName)
+          }
         />
       )}
     </div>

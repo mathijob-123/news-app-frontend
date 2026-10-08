@@ -107,7 +107,7 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                 style={{
                   width: '36px',
                   height: '36px',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
                   background: 'var(--lp-orange)',
                   display: 'flex',
                   alignItems: 'center',
@@ -273,10 +273,10 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                   <button
                     className="btn-primary"
                     style={{
-                      background: 'none',
-                      border: '1px solid var(--lp-border)',
-                      padding: '5px 12px',
-                      borderRadius: '8px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: 700,
                       color: 'var(--lp-slate-dark)',
@@ -287,7 +287,7 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                       handleOpenJobDetails(job);
                     }}
                   >
-                    View Job
+                    View Details
                   </button>
 
                   <button
@@ -296,11 +296,12 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                       background: 'var(--lp-orange)',
                       color: '#ffffff',
                       border: 'none',
-                      padding: '5px 14px',
-                      borderRadius: '8px',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(234, 88, 12, 0.28)'
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -308,7 +309,7 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                       setShowApplyModal(true);
                     }}
                   >
-                    Apply
+                    Apply Now
                   </button>
                 </div>
               </div>
@@ -436,14 +437,14 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                 onClick={() => setShowApplyModal(true)}
                 style={{
                   padding: '9px 24px',
-                  borderRadius: '8px',
+                  borderRadius: '20px',
                   border: 'none',
                   background: 'var(--lp-orange)',
                   color: '#ffffff',
                   fontSize: '13px',
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 3px 10px var(--lp-orange-glow)'
+                  boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)'
                 }}
               >
                 Apply Now
@@ -547,13 +548,14 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                   disabled={applySuccess}
                   style={{
                     padding: '9px 24px',
-                    borderRadius: '8px',
+                    borderRadius: '20px',
                     border: 'none',
                     background: applySuccess ? '#10b981' : 'var(--lp-orange)',
                     color: '#ffffff',
                     fontSize: '13px',
                     fontWeight: 800,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)'
                   }}
                 >
                   {applySuccess ? 'Submitting...' : 'Submit Application'}

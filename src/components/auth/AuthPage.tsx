@@ -149,12 +149,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         inset: 0,
         width: '100%',
         height: '100%',
-        background: 'radial-gradient(circle at 50% 12%, #1e1b4b 0%, #090d16 50%, #030712 100%)',
+        /* Soft, airy pastel mesh canvas from Image 2 */
+        background: 'radial-gradient(circle at 20% 15%, #e1effe 0%, #f4f7fc 38%, #faedf3 72%, #ecf4fd 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         padding: '32px 16px 80px 16px',
-        color: '#ffffff',
+        color: '#0f172a',
         fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
         overflowY: 'auto',
         overflowX: 'hidden',
@@ -162,35 +163,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         zIndex: 9999
       }}
     >
-      {/* Decorative ambient glowing background */}
+      {/* Decorative ambient glowing pastel orbs */}
       <div
         style={{
           position: 'fixed',
-          top: '-70px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '420px',
+          top: '-40px',
+          left: '20%',
+          width: '380px',
           height: '240px',
-          background: 'radial-gradient(ellipse, rgba(255, 69, 0, 0.28) 0%, rgba(245, 158, 11, 0.15) 45%, transparent 70%)',
+          background: 'radial-gradient(ellipse, rgba(56, 189, 248, 0.25) 0%, rgba(29, 114, 254, 0.12) 40%, transparent 70%)',
           filter: 'blur(50px)',
           pointerEvents: 'none',
           zIndex: 0
         }}
       />
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '10%',
+          right: '15%',
+          width: '320px',
+          height: '220px',
+          background: 'radial-gradient(ellipse, rgba(253, 164, 175, 0.22) 0%, rgba(254, 215, 170, 0.15) 50%, transparent 70%)',
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0
+        }}
+      />
 
-      {/* Main Container */}
+      {/* Main Glassmorphic Container (Image 2 Model) */}
       <div
         style={{
           width: '100%',
           maxWidth: '420px',
           margin: 'auto 0',
-          background: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '24px',
-          padding: '36px 24px',
-          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.75), 0 0 35px rgba(255, 69, 0, 0.15)',
+          background: 'rgba(255, 255, 255, 0.94)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255, 255, 255, 0.95)',
+          borderRadius: '28px',
+          padding: '38px 28px',
+          boxShadow: '0 20px 60px -10px rgba(29, 114, 254, 0.12), 0 10px 30px -5px rgba(15, 23, 42, 0.05)',
           position: 'relative',
           zIndex: 1,
           textAlign: 'center'
@@ -204,9 +217,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             gap: '8px',
             padding: '6px 14px',
             borderRadius: '999px',
-            background: 'rgba(255, 69, 0, 0.15)',
-            border: '1px solid rgba(255, 69, 0, 0.3)',
-            marginBottom: '16px'
+            background: '#fff7ed',
+            border: '1px solid #fed7aa',
+            marginBottom: '18px'
           }}
         >
           <div
@@ -215,14 +228,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               height: '8px',
               borderRadius: '50%',
               background: '#ff4500',
-              boxShadow: '0 0 8px #ff4500'
+              boxShadow: '0 0 8px rgba(255, 69, 0, 0.6)'
             }}
           />
           <span
             style={{
               fontSize: '11px',
               fontWeight: 800,
-              color: '#fb923c',
+              color: '#ff4500',
               letterSpacing: '0.08em',
               textTransform: 'uppercase'
             }}
@@ -238,7 +251,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             fontWeight: 800,
             margin: '0 0 8px 0',
             letterSpacing: '-0.02em',
-            color: '#ffffff'
+            color: '#0f172a'
           }}
         >
           Welcome to Spotlight
@@ -246,7 +259,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         <p
           style={{
             fontSize: '13px',
-            color: 'rgba(255, 255, 255, 0.65)',
+            color: '#64748b',
             margin: '0 0 28px 0',
             lineHeight: 1.5
           }}
@@ -263,9 +276,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               gap: '10px',
               padding: '12px 14px',
               borderRadius: '12px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#fca5a5',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
               fontSize: '12px',
               marginBottom: '20px',
               textAlign: 'left',
@@ -315,20 +328,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 padding: '12px 20px',
                 borderRadius: '999px',
                 background: '#ffffff',
-                color: '#1f2937',
+                color: '#1e293b',
                 fontSize: '14px',
                 fontWeight: 700,
-                border: 'none',
+                border: '1px solid #e2e8f0',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
+                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
                 transition: 'all 0.2s ease',
                 outline: 'none'
               }}
             >
               {isLoading ? (
                 <>
-                  <RefreshCw size={16} className="spin" />
-                  <span>Signing in...</span>
+                  <RefreshCw size={16} className="spin" color="#1d72fe" />
+                  <span style={{ color: '#1d72fe' }}>Signing in...</span>
                 </>
               ) : (
                 <>
@@ -357,47 +370,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
         </div>
 
-        {/* Feature Highlights */}
+        {/* Feature Highlights (Pastel Badge Cards from Image 2) */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '10px',
+            gap: '12px',
             paddingTop: '20px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            borderTop: '1px solid #f1f5f9',
             textAlign: 'left'
           }}
         >
           <div
             style={{
-              padding: '10px 12px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)'
+              padding: '12px 14px',
+              borderRadius: '16px',
+              background: '#fff7ed',
+              border: '1px solid #ffedd5'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-              <Flame size={14} color="#ff4500" />
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff' }}>Earn Rewards</span>
+              <Flame size={15} color="#ff6b00" />
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>Earn Rewards</span>
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', lineHeight: 1.3 }}>
+            <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>
               Direct cash bounties for verified citizen reports
             </div>
           </div>
 
           <div
             style={{
-              padding: '10px 12px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)'
+              padding: '12px 14px',
+              borderRadius: '16px',
+              background: '#ecfdf5',
+              border: '1px solid #d1fae5'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-              <ShieldCheck size={14} color="#10b981" />
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff' }}>Verified News</span>
+              <ShieldCheck size={15} color="#10b981" />
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>Verified News</span>
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', lineHeight: 1.3 }}>
+            <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>
               Authentic stories verified by local community
             </div>
           </div>
@@ -406,9 +419,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         {/* Footer info */}
         <div
           style={{
-            marginTop: '20px',
+            marginTop: '22px',
             fontSize: '11px',
-            color: 'rgba(255, 255, 255, 0.4)',
+            color: '#94a3b8',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

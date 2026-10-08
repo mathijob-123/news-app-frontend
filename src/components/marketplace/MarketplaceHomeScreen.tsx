@@ -170,14 +170,34 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
         })}
       </div>
 
-      {/* 3. Promotional Banner (Matching Reference Image) */}
+      {/* 3. Promotional Banner (Matching Image 2 Model) */}
       <div className="olx-promo-banner">
         <div className="olx-promo-text">
-          <span className="olx-promo-badge">BEST DEAL</span>
+          <span className="olx-promo-badge">Save 25% Today!</span>
           <h3>
-            New Deals<br />Better Prices
+            Exclusive discounts<br />on home service
           </h3>
-          <p>Buy • Sell • Save</p>
+          <button
+            type="button"
+            className="olx-promo-book-btn"
+            style={{
+              marginTop: '10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--lp-orange)',
+              color: '#ffffff',
+              border: 'none',
+              padding: '7px 16px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(255, 107, 0, 0.3)'
+            }}
+          >
+            Book Now
+          </button>
         </div>
 
         {/* Banner Decorative Cluster / Graphic */}

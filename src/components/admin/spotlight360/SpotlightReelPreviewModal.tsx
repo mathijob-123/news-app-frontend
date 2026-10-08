@@ -17,6 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import type { BulkUploadVideoItem, Spotlight360Video } from '../../../types';
+import { getCleanHeadline } from '../../../services/storageService';
 
 interface SpotlightReelPreviewModalProps {
   video: BulkUploadVideoItem | Spotlight360Video | null;
@@ -423,7 +424,7 @@ export const SpotlightReelPreviewModal: React.FC<SpotlightReelPreviewModalProps>
                   </span>
                 </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  {video.campaignName ? `Campaign: ${video.campaignName}` : 'Hyperlocal Broadcast'}
+                  {video.category ? video.category.toUpperCase() : 'Hyperlocal Broadcast'}
                 </div>
               </div>
             </div>
@@ -439,7 +440,7 @@ export const SpotlightReelPreviewModal: React.FC<SpotlightReelPreviewModalProps>
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)'
               }}
             >
-              {video.title || 'Untitled Spotlight360 Video'}
+              {getCleanHeadline(video.title, video.description, video.location?.area)}
             </h3>
 
             {/* Caption */}

@@ -583,8 +583,8 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                   width: '28px',
                   height: '28px',
                   borderRadius: '8px',
-                  background: '#fff7ed',
-                  color: '#ea580c',
+                  background: '#eff6ff',
+                  color: 'var(--brand-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -650,12 +650,12 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
+                background: 'var(--brand-gradient)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 10px rgba(255, 69, 0, 0.35)'
+                boxShadow: 'var(--brand-glow)'
               }}
             >
               <Camera size={16} />
@@ -870,7 +870,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {mediaType === 'video' ? (
                           <>
-                            <VideoIcon size={16} color="#ff4500" />
+                            <VideoIcon size={16} color="var(--brand-primary)" />
                             <span style={{ fontWeight: 700 }}>Real Video Clip</span>
                             <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>•</span>
                             <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{videoDuration}s</span>

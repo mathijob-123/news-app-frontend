@@ -17,7 +17,6 @@ import {
   Globe
 } from 'lucide-react';
 import type { SocialMediaPost, NewsCategory } from '../../types';
-import { formatINR } from '../../services/monetizationEngine';
 import { PlatformIcon } from './PlatformIcon';
 
 interface AiEditorialModalProps {
@@ -552,14 +551,14 @@ export const AiEditorialModal: React.FC<AiEditorialModalProps> = ({
                 <div style={{ background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Price Award (பரிசு)</div>
                   <div style={{ fontSize: '15px', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>
-                    {formatINR(priceAward)}
+                    {Math.round(priceAward)} Points
                   </div>
                 </div>
 
                 <div style={{ background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ fontSize: '10px', color: '#94a3b8' }}>Allocated RPM (1k views)</div>
                   <div style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
-                    ₹{rpmRate} / 1k
+                    {rpmRate} Points / 1k
                   </div>
                 </div>
               </div>

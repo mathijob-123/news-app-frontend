@@ -1,10 +1,14 @@
 /* ==========================================================================
-   LocalPlus Marketplace Design System
-   Matches Reference Image: Orange Primary, Dark Navy, Slate Blue, Clean White
+   LocalPlus Marketplace Design System — Image 2 Model
+   Palette: Electric Royal Blue Primary, Fiery Coral Orange Badges, Pure White Cards, Pastel Glow
    ========================================================================== */
 
 :root {
-  --lp-orange: #ea580c;
+  --lp-blue: #ea580c;             /* Primary Vibrant Orange (Image 3 Model) */
+  --lp-blue-hover: #c2410c;
+  --lp-blue-light: #fff7ed;
+  --lp-blue-glow: rgba(234, 88, 12, 0.32);
+  --lp-orange: #ea580c;           /* Warm Energetic Coral Orange */
   --lp-orange-hover: #c2410c;
   --lp-orange-light: #fff7ed;
   --lp-orange-glow: rgba(234, 88, 12, 0.25);
@@ -12,17 +16,17 @@
   --lp-slate-dark: #1e293b;
   --lp-slate-body: #475569;
   --lp-slate-light: #94a3b8;
-  --lp-bg-subtle: #f8fafc;
+  --lp-bg-subtle: #f8fafc;         /* Clean white/subtle layout */
   --lp-border: #e2e8f0;
   --lp-green: #10b981;
   --lp-green-light: #ecfdf5;
-  --lp-radius-sm: 8px;
-  --lp-radius-md: 12px;
-  --lp-radius-lg: 16px;
+  --lp-radius-sm: 10px;
+  --lp-radius-md: 14px;
+  --lp-radius-lg: 20px;
   --lp-radius-full: 9999px;
-  --lp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --lp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
-  --lp-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.09);
+  --lp-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
+  --lp-shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.06);
+  --lp-shadow-lg: 0 14px 34px -4px rgba(23, 42, 77, 0.08);
 }
 
 /* Master App Layout Container */
@@ -277,10 +281,10 @@
 }
 
 .m-tab-btn.active {
-  background: var(--lp-orange);
+  background: var(--lp-blue);
   color: #ffffff;
-  border-color: var(--lp-orange);
-  box-shadow: 0 3px 10px var(--lp-orange-glow);
+  border-color: var(--lp-blue);
+  box-shadow: 0 4px 14px var(--lp-blue-glow);
 }
 
 /* Header Right Actions (Location, Bell, Chat, Avatar, Post Ad) */
@@ -335,7 +339,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #0d9488;
+  background: var(--lp-blue);
   color: #ffffff;
   font-weight: 800;
   font-size: 14px;
@@ -351,20 +355,20 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  background: linear-gradient(135deg, #1d72fe 0%, #0062ff 100%);
   color: #ffffff;
   padding: 8px 18px;
   border-radius: 9999px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 3px 10px var(--lp-orange-glow);
+  box-shadow: 0 4px 14px var(--lp-blue-glow);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .m-post-ad-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 5px 14px var(--lp-orange-glow);
+  box-shadow: 0 6px 18px var(--lp-blue-glow);
 }
 
 /* Marketplace Split Stage Body (Center Content + Right Detail Panel) */
@@ -621,30 +625,30 @@
 
 /* Promotional Banner */
 .olx-promo-banner {
-  border-radius: 16px;
+  border-radius: var(--lp-radius-lg);
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 60%, #fdba74 100%);
+  background: linear-gradient(135deg, #e0edfb 0%, #edf5fc 45%, #fff1e5 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 24px 28px;
   margin-bottom: 24px;
   box-shadow: var(--lp-shadow-md);
-  border: 1px solid #fde68a;
+  border: 1px solid #bfdbfe;
   min-height: 140px;
 }
 
 .olx-promo-text {
-  max-width: 50%;
+  max-width: 55%;
   z-index: 2;
 }
 
 .olx-promo-badge {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 6px;
-  background: #ea580c;
+  border-radius: 9999px;
+  background: var(--lp-orange);
   color: #ffffff;
   font-size: 10px;
   font-weight: 800;
@@ -657,14 +661,14 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 22px;
   font-weight: 800;
-  color: #78350f;
+  color: var(--lp-navy);
   line-height: 1.15;
 }
 
 .olx-promo-text p {
   font-size: 13px;
   font-weight: 600;
-  color: #92400e;
+  color: var(--lp-slate-body);
   margin-top: 4px;
 }
 
@@ -702,13 +706,13 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(120, 53, 15, 0.3);
+  background: rgba(15, 23, 42, 0.2);
 }
 
 .olx-banner-dot.active {
   width: 18px;
   border-radius: 4px;
-  background: #ea580c;
+  background: var(--lp-blue);
 }
 
 /* Section Header (Popular Near You / Featured) */
@@ -865,7 +869,7 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 16px;
   font-weight: 800;
-  color: var(--lp-navy);
+  color: var(--lp-blue);
 }
 
 .olx-card-negotiable {
@@ -1212,10 +1216,15 @@
   font-weight: 700;
   color: var(--lp-orange);
   background: #fff7ed;
-  border: 1px solid #ffedd5;
-  padding: 5px 10px;
-  border-radius: 6px;
+  border: 1px solid #fed7aa;
+  padding: 5px 14px;
+  border-radius: 20px;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.p-view-profile-btn:hover {
+  background: #ffedd5;
 }
 
 /* Detail Action Buttons: [ Save ] [ WhatsApp ] */
@@ -1231,8 +1240,8 @@
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--lp-border);
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -1243,7 +1252,7 @@
 
 .p-btn-save:hover {
   background: #f8fafc;
-  border-color: #cbd5e1;
+  border-color: #94a3b8;
 }
 
 .p-btn-save.saved {
@@ -1258,13 +1267,14 @@
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 20px;
   border: none;
   background: #25d366;
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
   transition: all 0.2s;
 }
 
@@ -1390,9 +1400,10 @@
 }
 
 .job-pill.active {
-  background: var(--lp-orange);
+  background: var(--lp-blue);
   color: #ffffff;
-  border-color: var(--lp-orange);
+  border-color: var(--lp-blue);
+  box-shadow: 0 4px 14px var(--lp-blue-glow);
 }
 
 .jobs-list-grid {
@@ -1404,13 +1415,13 @@
 .job-card {
   background: #ffffff;
   border: 1px solid var(--lp-border);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: var(--lp-radius-lg);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: var(--lp-shadow-sm);
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 

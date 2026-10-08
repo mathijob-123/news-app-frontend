@@ -58,7 +58,9 @@ import {
   getStoredCreators,
   saveStoredCreator,
   DEFAULT_CREATORS,
-  CreatorItem
+  CreatorItem,
+  isCrypticHash,
+  getCleanHeadline
 } from '../../../services/storageService';
 
 // Sample demo videos for instant testing if admin doesn't have local MP4 files handy
@@ -468,11 +470,16 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
       const defaultPreset = SPOTLIGHT_PRESET_LOCATIONS[i % SPOTLIGHT_PRESET_LOCATIONS.length];
       const defaultCreator = (creators.length > 0 ? creators[i % creators.length] : null) || DEFAULT_CREATORS[i % DEFAULT_CREATORS.length];
 
-      // Clean title from filename
-      const cleanTitle = file.name
+      // Clean title from filename, or generate clean location title if filename is a cryptic hash
+      let cleanTitle = file.name
         .replace(/\.[^/.]+$/, '')
-        .replace(/[-_]/g, ' ')
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+        .replace(/[-_]/g, ' ');
+
+      if (isCrypticHash(file.name) || isCrypticHash(cleanTitle)) {
+        cleanTitle = `${defaultPreset.area} Local Spotlight Reel`;
+      } else {
+        cleanTitle = cleanTitle.replace(/\b\w/g, (l) => l.toUpperCase());
+      }
 
       const item: BulkUploadVideoItem = {
         id: `bulk_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
@@ -493,7 +500,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
         location: { ...defaultPreset, radiusKm: 5 as SpotlightRadiusKm },
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-        campaignName: 'Spotlight360 Launch Campaign',
+        campaignName: '',
         cta: {
           type: 'call_now',
           label: 'Call Now',
@@ -774,7 +781,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
 
         convertedVideos.push({
           id: it.id,
-          title: it.title,
+          title: getCleanHeadline(it.title, it.description, it.location?.area),
           description: it.description,
           category: it.category,
           mediaUrl: finalMediaUrl,
@@ -788,7 +795,7 @@ export const Spotlight360Manager: React.FC<Spotlight360ManagerProps> = ({
           location: it.location,
           startDate: it.startDate,
           endDate: it.endDate,
-          campaignName: it.campaignName,
+          campaignName: '',
           advertiserName: adminName,
           cta: it.cta,
           status: it.status,

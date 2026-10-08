@@ -18,25 +18,66 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasTrackedImpression = useRef(false);
 
-  // IntersectionObserver to track impressions when 50% visible
+  // IntersectionObserver to auto-play when 50% in view, pause when scrolled away, and track impressions
   useEffect(() => {
-    if (!cardRef.current || hasTrackedImpression.current) return;
+    if (!cardRef.current) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasTrackedImpression.current) {
-            hasTrackedImpression.current = true;
-            onAdImpression?.(ad);
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            if (!hasTrackedImpression.current) {
+              hasTrackedImpression.current = true;
+              onAdImpression?.(ad);
+            }
+
+            // Auto-play video ad when in view
+            if (ad.adType === 'video' && videoRef.current && videoRef.current.paused) {
+              videoRef.current
+                .play()
+                .then(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('lp:feed-video-playing', { detail: { id: ad.id } })
+                  );
+                })
+                .catch(() => {});
+            }
+          } else if (!entry.isIntersecting || entry.intersectionRatio < 0.25) {
+            // Auto-pause video ad when scrolled out of view
+            if (ad.adType === 'video' && videoRef.current && !videoRef.current.paused) {
+              videoRef.current.pause();
+            }
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: [0, 0.25, 0.5, 0.75] }
     );
 
     observer.observe(cardRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+      }
+    };
   }, [ad, onAdImpression]);
+
+  // Pause this ad if another video plays
+  useEffect(() => {
+    const handleOtherPlaying = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id !== ad.id && videoRef.current) {
+        if (!videoRef.current.paused) {
+          videoRef.current.pause();
+        }
+      }
+    };
+
+    window.addEventListener('lp:feed-video-playing', handleOtherPlaying);
+    return () => {
+      window.removeEventListener('lp:feed-video-playing', handleOtherPlaying);
+    };
+  }, [ad.id]);
 
   const handleClick = () => {
     onAdClick?.(ad);
@@ -121,14 +162,42 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
 
         {/* Banner Media */}
         {ad.mediaUrl && (
-          <div style={{ position: 'relative', width: '100%', maxHeight: '180px', overflow: 'hidden' }}>
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              background: '#090d16',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              maxHeight: '440px'
+            }}
+          >
+            {/* Ambient blurred backdrop for portrait/square images */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: '-15px',
+                backgroundImage: `url(${ad.mediaUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(24px) brightness(0.4)',
+                transform: 'scale(1.15)',
+                opacity: 0.65,
+                pointerEvents: 'none'
+              }}
+            />
             <img
               src={ad.mediaUrl}
               alt={ad.title}
               style={{
+                position: 'relative',
+                zIndex: 2,
                 width: '100%',
-                maxHeight: '180px',
-                objectFit: 'cover',
+                maxHeight: '440px',
+                height: 'auto',
+                objectFit: 'contain',
                 display: 'block'
               }}
               loading="lazy"
@@ -270,9 +339,12 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: ad.adType === 'video' ? '16/9' : '16/10',
+          maxHeight: '460px',
           background: '#090d16',
           overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           cursor: ad.targetUrl ? 'pointer' : 'default'
         }}
       >
@@ -284,12 +356,12 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
               poster={ad.thumbnailUrl || undefined}
               playsInline
               loop
-              autoPlay
               muted={isMuted}
               style={{
                 width: '100%',
-                height: '100%',
-                objectFit: 'cover'
+                maxHeight: '460px',
+                height: 'auto',
+                objectFit: 'contain'
               }}
             />
             {/* Audio Toggle Button */}
@@ -310,7 +382,7 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
                 justifyContent: 'center',
                 cursor: 'pointer',
                 backdropFilter: 'blur(8px)',
-                zIndex: 2
+                zIndex: 10
               }}
               title={isMuted ? 'Unmute' : 'Mute'}
             >
@@ -318,17 +390,36 @@ export const FeedAdCard: React.FC<FeedAdCardProps> = ({
             </button>
           </>
         ) : (
-          <img
-            src={ad.mediaUrl}
-            alt={ad.title}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block'
-            }}
-            loading="lazy"
-          />
+          <>
+            {/* Ambient blur for portrait/square images */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: '-15px',
+                backgroundImage: `url(${ad.mediaUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(24px) brightness(0.4)',
+                transform: 'scale(1.15)',
+                opacity: 0.6,
+                pointerEvents: 'none'
+              }}
+            />
+            <img
+              src={ad.mediaUrl}
+              alt={ad.title}
+              style={{
+                position: 'relative',
+                zIndex: 2,
+                width: '100%',
+                maxHeight: '460px',
+                height: 'auto',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+              loading="lazy"
+            />
+          </>
         )}
       </div>
 

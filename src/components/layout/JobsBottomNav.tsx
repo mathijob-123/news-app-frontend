@@ -64,7 +64,7 @@ export const JobsBottomNav: React.FC<JobsBottomNavProps> = ({
             width: '42px',
             height: '42px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
+            background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
             boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)',
             border: '2px solid #ffffff',
             display: 'flex',

@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   MapPin,
   DollarSign,
+  Coins,
   Grid,
   PlaySquare,
   Bookmark,
@@ -200,19 +201,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ position: 'relative' }}>
             <img
-              src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`}
+              src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`}
               alt={user.displayName}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`;
+                e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`;
               }}
               style={{
                 width: '74px',
                 height: '74px',
                 borderRadius: '50%',
                 objectFit: 'cover',
-                border: isAdmin ? '3px solid #10b981' : '3px solid #ff4500'
+                border: isAdmin ? '3px solid #10b981' : '3px solid #ea580c'
               }}
             />
 
@@ -463,10 +464,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <DollarSign size={18} />
+            <Coins size={18} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '12px' }}>Creator Monetization Hub</div>
-              <div style={{ fontSize: '10px', opacity: 0.9 }}>Check balance, formula RPM & payouts</div>
+              <div style={{ fontWeight: 700, fontSize: '12px' }}>Creator Points & Rewards Hub</div>
+              <div style={{ fontSize: '10px', opacity: 0.9 }}>Check points, view milestones & rewards</div>
             </div>
           </div>
           <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(255,255,255,0.2)', padding: '3px 8px', borderRadius: '12px' }}>
@@ -580,7 +581,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         })()}
       </div>
 
-      {/* Quick Marketplace Access Banner */}
+      {/* Quick Marketplace Access Banner (Image 3 Model) */}
       <div
         onClick={() => setActiveTab('marketplace')}
         style={{
@@ -637,7 +638,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             alignItems: 'center',
             gap: '4px',
             border: 'none',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)'
           }}
         >
           <Plus size={14} />
@@ -710,8 +712,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             gap: '4px',
             fontSize: '12px',
             fontWeight: 700,
-            color: activeTab === 'marketplace' ? 'var(--lp-orange)' : 'var(--text-tertiary)',
-            borderBottom: activeTab === 'marketplace' ? '2.5px solid var(--lp-orange)' : '2.5px solid transparent'
+            color: activeTab === 'marketplace' ? 'var(--brand-primary)' : 'var(--text-tertiary)',
+            borderBottom: activeTab === 'marketplace' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
           }}
         >
           <ShoppingBag size={15} />
@@ -890,14 +892,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <button
                       onClick={() => onOpenPostAd?.()}
                       style={{
-                        background: '#ea580c',
+                        background: 'var(--brand-primary)',
                         color: '#ffffff',
-                        padding: '9px 18px',
-                        borderRadius: '8px',
+                        padding: '9px 20px',
+                        borderRadius: '20px',
                         fontSize: '12.5px',
-                        fontWeight: 700,
+                        fontWeight: 800,
                         border: 'none',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(29, 114, 254, 0.28)'
                       }}
                     >
                       + Post New Listing
@@ -1277,27 +1280,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   >
                     <Clock size={10} />
                     <span>In Review</span>
-                  </div>
-                ) : (post.priceAward || post.adminPayoutAmount) ? (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '4px',
-                      left: '4px',
-                      background: 'rgba(16, 185, 129, 0.95)',
-                      color: '#ffffff',
-                      fontSize: '9.5px',
-                      fontWeight: 800,
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <CheckCircle2 size={10} />
-                    <span>₹{post.priceAward || post.adminPayoutAmount} Awarded</span>
                   </div>
                 ) : null}
                 <div

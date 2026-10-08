@@ -373,7 +373,7 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
               justifyContent: 'center',
               gap: '6px',
               padding: '10px 10px',
-              borderRadius: '10px',
+              borderRadius: '20px',
               background: '#0f172a',
               color: '#ffffff',
               fontSize: '12px',

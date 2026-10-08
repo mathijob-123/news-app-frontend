@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -12,10 +12,13 @@ import {
   ShieldCheck,
   Eye,
   Award,
-  Flag
+  Flag,
+  Play,
+  Pause
 } from 'lucide-react';
 import type { VideoPost } from '../../types';
 import { formatDistance } from '../../services/geoService';
+import { isCrypticHash, getCleanHeadline } from '../../services/storageService';
 
 interface NewsCardProps {
   post: VideoPost;
@@ -42,6 +45,9 @@ const formatPostDate = (dateStr?: string) => {
   }
 };
 
+// Global Instagram-style feed sound preference (shared across feed videos)
+let globalFeedMuted = true;
+
 export const NewsCard: React.FC<NewsCardProps> = ({
   post,
   onLike,
@@ -51,19 +57,159 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   onShare,
   onReportCopyright
 }) => {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(globalFeedMuted);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showSoundBadge, setShowSoundBadge] = useState(false);
+  const soundBadgeTimeoutRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Sync with global sound changes across feed videos (Instagram behavior)
+  useEffect(() => {
+    const handleSoundSync = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isMuted: boolean }>;
+      if (typeof customEvent.detail?.isMuted === 'boolean') {
+        setIsMuted(customEvent.detail.isMuted);
+        if (videoRef.current) {
+          videoRef.current.muted = customEvent.detail.isMuted;
+        }
+      }
+    };
+
+    window.addEventListener('lp:feed-sound-sync', handleSoundSync);
+    return () => {
+      window.removeEventListener('lp:feed-sound-sync', handleSoundSync);
+    };
+  }, []);
+
+  // 1. IntersectionObserver: Auto-play when entering view band (35%+ visible), PAUSE immediately when scrolled away
+  useEffect(() => {
+    const el = mediaContainerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const rect = entry.boundingClientRect;
+          const vh = window.innerHeight || document.documentElement.clientHeight;
+          const center = rect.top + rect.height / 2;
+          // Active reading/viewing band: card center is between 12% and 88% of screen height
+          const inViewingBand = center >= vh * 0.12 && center <= vh * 0.88;
+
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.35 && inViewingBand) {
+            // Video is in focus: auto-play immediately
+            if (videoRef.current && videoRef.current.paused) {
+              videoRef.current.muted = globalFeedMuted;
+              videoRef.current
+                .play()
+                .then(() => {
+                  setIsPlaying(true);
+                  // Notify other feed videos to immediately pause so only this active video plays
+                  window.dispatchEvent(
+                    new CustomEvent('lp:feed-video-playing', { detail: { id: post.id } })
+                  );
+                })
+                .catch(() => {
+                  // If browser restricts unmuted autoplay, mute and immediately play
+                  if (videoRef.current && !videoRef.current.muted) {
+                    videoRef.current.muted = true;
+                    videoRef.current
+                      .play()
+                      .then(() => {
+                        setIsPlaying(true);
+                        window.dispatchEvent(
+                          new CustomEvent('lp:feed-video-playing', { detail: { id: post.id } })
+                        );
+                      })
+                      .catch(() => {});
+                  }
+                });
+            }
+          } else if (!entry.isIntersecting || entry.intersectionRatio < 0.25 || !inViewingBand) {
+            // Video scrolled away: pause immediately
+            if (videoRef.current && !videoRef.current.paused) {
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
+          }
+        });
+      },
+      {
+        threshold: [0, 0.15, 0.25, 0.35, 0.5, 0.75]
+      }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      if (soundBadgeTimeoutRef.current) clearTimeout(soundBadgeTimeoutRef.current);
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+      }
+    };
+  }, [post.id]);
+
+  // 2. Single active video coordinator: Pause when another feed video starts
+  useEffect(() => {
+    const handleOtherPlaying = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id !== post.id && videoRef.current) {
+        if (!videoRef.current.paused) {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        }
+      }
+    };
+
+    window.addEventListener('lp:feed-video-playing', handleOtherPlaying);
+    return () => {
+      window.removeEventListener('lp:feed-video-playing', handleOtherPlaying);
+    };
+  }, [post.id]);
+
+  // Toggle audio like Instagram: click once -> play sound, click again -> mute
   const toggleSound = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
+    if (!videoRef.current) return;
+
+    const nextMuted = !isMuted;
+    globalFeedMuted = nextMuted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+
+    // Sync all feed cards so scrolling to next video honors current sound mode
+    window.dispatchEvent(
+      new CustomEvent('lp:feed-sound-sync', { detail: { isMuted: nextMuted } })
+    );
+
+    // Show Instagram center sound bubble
+    setShowSoundBadge(true);
+    if (soundBadgeTimeoutRef.current) clearTimeout(soundBadgeTimeoutRef.current);
+    soundBadgeTimeoutRef.current = setTimeout(() => {
+      setShowSoundBadge(false);
+    }, 750);
+
+    // If user unmuted and video was paused, start playing
+    if (!nextMuted && videoRef.current.paused) {
+      videoRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          window.dispatchEvent(
+            new CustomEvent('lp:feed-video-playing', { detail: { id: post.id } })
+          );
+        })
+        .catch(() => {});
     }
   };
 
-  const handleVideoClick = () => {
+  const handleOpenReel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
     onOpenSpots(post);
   };
 
@@ -80,7 +226,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             referrerPolicy="no-referrer"
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.creatorName || 'Reporter')}`;
+              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.creatorName || 'Reporter')}&backgroundColor=ea580c&textColor=ffffff`;
             }}
           />
           <div className="reporter-meta">
@@ -113,59 +259,108 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       </div>
 
       {/* 2. Media Section */}
-      {post.type === 'video' && post.mediaUrl && (
-        <div
-          className="feed-media-container"
-          onClick={handleVideoClick}
-          style={{ cursor: 'pointer' }}
-        >
-          <video
-            ref={videoRef}
-            src={post.mediaUrl}
-            poster={post.thumbnailUrl}
-            preload="metadata"
-            muted={isMuted}
-            loop
-            playsInline
-            autoPlay
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            className="feed-media-video"
-          />
-          <div className="media-control-overlay">
-            <button className="media-btn-pill" onClick={toggleSound}>
-              {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-              <span>{isMuted ? 'Muted' : 'Audio'}</span>
-            </button>
-            <button className="media-btn-pill" onClick={handleVideoClick}>
-              <Maximize2 size={13} />
-              <span>Spots Reel</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {(() => {
+        const isPhoto =
+          post.type === 'image' ||
+          (Boolean(post.mediaUrl) &&
+            !post.mediaUrl.match(/\.(mp4|webm|mov|m4v|ogg)/i) &&
+            Boolean(post.mediaUrl.match(/\.(jpe?g|png|gif|webp|avif|bmp|svg)/i)));
 
-      {post.type === 'image' && post.mediaUrl && (
-        <div className="feed-media-container" style={{ cursor: 'pointer' }} onClick={() => onOpenSpots(post)}>
-          <img
-            src={post.mediaUrl}
-            alt={post.headline}
-            className="feed-media-image"
-            loading="lazy"
-          />
-        </div>
-      )}
+        if (isPhoto && post.mediaUrl) {
+          return (
+            <div
+              className="feed-photo-container"
+              style={{ cursor: 'pointer' }}
+              onClick={() => onOpenSpots(post)}
+            >
+              <img
+                src={post.mediaUrl}
+                alt={post.headline}
+                className="feed-photo-image"
+                loading="lazy"
+              />
+            </div>
+          );
+        }
+
+        if (post.mediaUrl) {
+          return (
+            <div
+              ref={mediaContainerRef}
+              className="feed-media-container"
+              onClick={toggleSound}
+              style={{ cursor: 'pointer' }}
+            >
+              {(post.thumbnailUrl || post.mediaUrl) && (
+                <div
+                  className="feed-media-ambient-blur"
+                  style={{
+                    backgroundImage: `url(${post.thumbnailUrl || post.mediaUrl})`
+                  }}
+                />
+              )}
+              <video
+                ref={videoRef}
+                src={post.mediaUrl}
+                poster={post.thumbnailUrl}
+                preload="metadata"
+                muted={isMuted}
+                loop
+                playsInline
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                className="feed-media-video"
+              />
+
+              {/* Instagram-style central tap sound badge */}
+              {showSoundBadge && (
+                <div className="insta-sound-badge">
+                  {isMuted ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                </div>
+              )}
+
+              {/* Instagram-style sound toggle icon button + Spots Reel */}
+              <div className="media-control-overlay">
+                <button
+                  type="button"
+                  className="insta-sound-btn"
+                  onClick={toggleSound}
+                  title={isMuted ? 'Play sound' : 'Mute sound'}
+                  aria-label={isMuted ? 'Play sound' : 'Mute sound'}
+                >
+                  {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                </button>
+                <button
+                  type="button"
+                  className="media-btn-pill"
+                  onClick={handleOpenReel}
+                  title="Open full-screen Spots Reel"
+                >
+                  <Maximize2 size={13} />
+                  <span>Spots Reel</span>
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {/* 3. Body: Headline, Caption, Source Citation */}
       <div className="feed-card-body">
         <h2 className="feed-headline" onClick={() => onOpenSpots(post)} style={{ cursor: 'pointer' }}>
-          {post.headline}
+          {getCleanHeadline(post.headline, post.caption, post.location.neighborhood || post.location.placeName)}
         </h2>
-        {post.caption && post.caption.trim() !== post.headline.trim() && (
+        {post.caption &&
+          !isCrypticHash(post.caption) &&
+          post.caption.trim() !== getCleanHeadline(post.headline, post.caption, post.location.neighborhood || post.location.placeName).trim() && (
           <p className="feed-caption">{post.caption}</p>
         )}
 
-        {post.sourceCitation && (
+        {post.sourceCitation &&
+          !post.sourceCitation.toLowerCase().includes('campaign') &&
+          !post.sourceCitation.toLowerCase().includes('spotlight360') && (
           <div className="source-citation-bar">
             <ShieldCheck size={14} color="var(--color-success)" style={{ flexShrink: 0 }} />
             <span style={{ fontSize: '11px' }}>

@@ -133,12 +133,12 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
         inset: 0,
         width: '100%',
         height: '100%',
-        background: 'radial-gradient(circle at 50% 10%, #1e1b4b 0%, #090d16 50%, #030712 100%)',
+        background: 'radial-gradient(circle at 20% 15%, #e1effe 0%, #f4f7fc 38%, #faedf3 72%, #ecf4fd 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         padding: '32px 16px 80px 16px',
-        color: '#ffffff',
+        color: '#0f172a',
         fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
         overflowY: 'auto',
         overflowX: 'hidden',
@@ -151,30 +151,29 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
         style={{
           position: 'fixed',
           top: '-60px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '450px',
+          left: '20%',
+          width: '420px',
           height: '240px',
-          background: 'radial-gradient(ellipse, rgba(255, 69, 0, 0.22) 0%, rgba(245, 158, 11, 0.12) 40%, transparent 70%)',
+          background: 'radial-gradient(ellipse, rgba(56, 189, 248, 0.22) 0%, rgba(29, 114, 254, 0.1) 40%, transparent 70%)',
           filter: 'blur(50px)',
           pointerEvents: 'none',
           zIndex: 0
         }}
       />
 
-      {/* Main Glassmorphic Container */}
+      {/* Main Glassmorphic Container (Image 2 Model) */}
       <div
         style={{
           width: '100%',
           maxWidth: '480px',
           margin: 'auto 0',
-          background: 'rgba(15, 23, 42, 0.88)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '24px',
-          padding: '28px 24px',
-          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 69, 0, 0.12)',
+          background: 'rgba(255, 255, 255, 0.94)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255, 255, 255, 0.95)',
+          borderRadius: '28px',
+          padding: '32px 26px',
+          boxShadow: '0 20px 60px -10px rgba(29, 114, 254, 0.12), 0 10px 30px -5px rgba(15, 23, 42, 0.05)',
           position: 'relative',
           zIndex: 1
         }}
@@ -186,23 +185,23 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '5px 12px',
+              padding: '6px 14px',
               borderRadius: '999px',
-              background: 'rgba(255, 69, 0, 0.15)',
-              border: '1px solid rgba(255, 69, 0, 0.3)',
-              marginBottom: '10px'
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              marginBottom: '12px'
             }}
           >
-            <Sparkles size={14} color="#ff4500" />
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#fb923c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <Sparkles size={14} color="#1d72fe" />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#1d72fe', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Welcome to Spotlight
             </span>
           </div>
 
-          <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
             Set Up Your Reporter Profile
           </h1>
-          <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)', margin: 0, lineHeight: 1.4 }}>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
             Tailor your identity and news hub to start publishing and watching hyperlocal spots.
           </p>
         </div>
@@ -237,9 +236,9 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               alignItems: 'center',
               gap: '14px',
               padding: '12px 14px',
-              borderRadius: '14px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)'
+              borderRadius: '16px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0'
             }}
           >
             <div style={{ position: 'relative' }}>
@@ -254,9 +253,9 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                 style={{
                   width: '56px',
                   height: '56px',
-                  borderRadius: '50%',
+                  borderRadius: '16px',
                   objectFit: 'cover',
-                  border: '2px solid #ff4500'
+                  border: '2px solid #1d72fe'
                 }}
               />
               <div
@@ -271,7 +270,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)'
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
                 }}
                 title="Verified with Google"
               >
@@ -298,15 +297,16 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
                   Google Profile Picture
                 </span>
                 <span
                   style={{
                     fontSize: '10px',
                     fontWeight: 700,
-                    color: '#34d399',
-                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#059669',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
                     padding: '1px 6px',
                     borderRadius: '4px'
                   }}
@@ -317,7 +317,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               <div
                 style={{
                   fontSize: '11px',
-                  color: 'rgba(255, 255, 255, 0.55)',
+                  color: '#64748b',
                   marginTop: '2px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -331,17 +331,18 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
 
           {/* Role Selection */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
               Choose How You Want to Use Spotlight
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div
                 onClick={() => setRole('creator')}
                 style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  background: role === 'creator' ? 'rgba(255, 69, 0, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                  border: role === 'creator' ? '1.5px solid #ff4500' : '1px solid rgba(255, 255, 255, 0.1)',
+                  padding: '14px',
+                  borderRadius: '16px',
+                  background: role === 'creator' ? '#fff7ed' : '#ffffff',
+                  border: role === 'creator' ? '2px solid #ff4500' : '1px solid #e2e8f0',
+                  boxShadow: role === 'creator' ? '0 4px 14px rgba(255, 69, 0, 0.15)' : 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -351,11 +352,11 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Flame size={15} color="#ff4500" />
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: role === 'creator' ? '#ff4500' : '#ffffff' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: role === 'creator' ? '#ff4500' : '#0f172a' }}>
                     Citizen Creator
                   </span>
                 </div>
-                <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)', lineHeight: 1.3 }}>
+                <span style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>
                   Record breaking spots & earn cash rewards from verified news
                 </span>
               </div>
@@ -363,10 +364,11 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               <div
                 onClick={() => setRole('user')}
                 style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  background: role === 'user' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                  border: role === 'user' ? '1.5px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
+                  padding: '14px',
+                  borderRadius: '16px',
+                  background: role === 'user' ? '#fff7ed' : '#ffffff',
+                  border: role === 'user' ? '2px solid #ff4500' : '1px solid #e2e8f0',
+                  boxShadow: role === 'user' ? '0 4px 14px rgba(255, 69, 0, 0.15)' : 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -375,12 +377,12 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Zap size={15} color="#3b82f6" />
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: role === 'user' ? '#3b82f6' : '#ffffff' }}>
+                  <Zap size={15} color="#ff4500" />
+                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: role === 'user' ? '#ff4500' : '#0f172a' }}>
                     Community Reader
                   </span>
                 </div>
-                <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)', lineHeight: 1.3 }}>
+                <span style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.35 }}>
                   Watch live hyperlocal video feed, explore maps & follow reporters
                 </span>
               </div>
@@ -390,11 +392,11 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
           {/* Full Name & Handle */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '5px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '5px' }}>
                 Full Name
               </label>
               <div style={{ position: 'relative' }}>
-                <UserIcon size={14} color="rgba(255, 255, 255, 0.4)" style={{ position: 'absolute', left: '10px', top: '11px' }} />
+                <UserIcon size={14} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '11px' }} />
                 <input
                   type="text"
                   required
@@ -409,10 +411,10 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                   style={{
                     width: '100%',
                     padding: '9px 10px 9px 32px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '12px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    color: '#0f172a',
                     fontSize: '13px',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -422,11 +424,11 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '5px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '5px' }}>
                 Handle (@username)
               </label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#ff4500', fontWeight: 800, fontSize: '13px' }}>@</span>
+                <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#1d72fe', fontWeight: 800, fontSize: '13px' }}>@</span>
                 <input
                   type="text"
                   required
@@ -436,10 +438,10 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                   style={{
                     width: '100%',
                     padding: '9px 10px 9px 28px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
+                    borderRadius: '12px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    color: '#0f172a',
                     fontSize: '13px',
                     outline: 'none',
                     boxSizing: 'border-box'
@@ -451,7 +453,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
 
           {/* Primary News District - CUSTOM DROPDOWN */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '5px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '5px' }}>
               Primary News District / Hub
             </label>
 
@@ -462,27 +464,27 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: '12px',
-                background: isDropdownOpen ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.06)',
-                border: isDropdownOpen ? '1.5px solid #ff4500' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: '#f8fafc',
+                border: isDropdownOpen ? '1.5px solid #1d72fe' : '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 boxSizing: 'border-box',
-                boxShadow: isDropdownOpen ? '0 0 16px rgba(255, 69, 0, 0.2)' : 'none'
+                boxShadow: isDropdownOpen ? '0 0 16px rgba(29, 114, 254, 0.15)' : 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MapPin size={15} color="#ff4500" />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                <MapPin size={15} color="#1d72fe" />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
                   {currentDistrictOption.name}
                 </span>
                 <span
                   style={{
                     fontSize: '11px',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: '#475569',
+                    background: '#e2e8f0',
                     padding: '2px 8px',
                     borderRadius: '6px'
                   }}
@@ -493,7 +495,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
 
               <ChevronDown
                 size={16}
-                color="rgba(255, 255, 255, 0.6)"
+                color="#64748b"
                 style={{
                   transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   transition: 'transform 0.2s ease'
@@ -511,10 +513,10 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                   width: '100%',
                   maxHeight: '230px',
                   overflowY: 'auto',
-                  background: '#0f172a',
-                  border: '1px solid rgba(255, 255, 255, 0.18)',
-                  borderRadius: '14px',
-                  boxShadow: '0 16px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(255, 69, 0, 0.1)',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  boxShadow: '0 16px 36px rgba(15, 23, 42, 0.12)',
                   zIndex: 50,
                   padding: '6px',
                   boxSizing: 'border-box'
@@ -531,8 +533,8 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                       }}
                       style={{
                         padding: '9px 12px',
-                        borderRadius: '8px',
-                        background: isSelected ? 'rgba(255, 69, 0, 0.15)' : 'transparent',
+                        borderRadius: '10px',
+                        background: isSelected ? '#eff6ff' : 'transparent',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -541,19 +543,19 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                         marginBottom: '2px'
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                        if (!isSelected) e.currentTarget.style.background = '#f8fafc';
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <MapPin size={13} color={isSelected ? '#ff4500' : 'rgba(255, 255, 255, 0.4)'} />
+                        <MapPin size={13} color={isSelected ? '#1d72fe' : '#94a3b8'} />
                         <span
                           style={{
                             fontSize: '13px',
                             fontWeight: isSelected ? 700 : 500,
-                            color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.85)'
+                            color: isSelected ? '#1d72fe' : '#0f172a'
                           }}
                         >
                           {item.name}
@@ -561,8 +563,8 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                         <span
                           style={{
                             fontSize: '10px',
-                            color: isSelected ? '#fb923c' : 'rgba(255, 255, 255, 0.45)',
-                            background: isSelected ? 'rgba(255, 69, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                            color: isSelected ? '#1d72fe' : '#64748b',
+                            background: isSelected ? '#dbeafe' : '#f1f5f9',
                             padding: '1px 6px',
                             borderRadius: '4px'
                           }}
@@ -571,7 +573,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
                         </span>
                       </div>
 
-                      {isSelected && <Check size={14} color="#ff4500" strokeWidth={2.5} />}
+                      {isSelected && <Check size={14} color="#1d72fe" strokeWidth={2.5} />}
                     </div>
                   );
                 })}
@@ -581,7 +583,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
 
           {/* Reporter Bio */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '5px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '5px' }}>
               Short Bio
             </label>
             <input
@@ -593,10 +595,10 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               style={{
                 width: '100%',
                 padding: '9px 12px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#ffffff',
+                borderRadius: '12px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                color: '#0f172a',
                 fontSize: '13px',
                 outline: 'none',
                 boxSizing: 'border-box'
@@ -610,8 +612,8 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
             disabled={isSubmitting}
             style={{
               marginTop: '6px',
-              padding: '12px 16px',
-              borderRadius: '12px',
+              padding: '13px 18px',
+              borderRadius: '9999px',
               background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
               color: '#ffffff',
               fontSize: '14px',
@@ -622,7 +624,7 @@ export const ProfileOnboarding: React.FC<ProfileOnboardingProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: '0 4px 20px rgba(255, 69, 0, 0.4)',
+              boxShadow: '0 6px 20px rgba(255, 69, 0, 0.35)',
               transition: 'all 0.2s'
             }}
           >

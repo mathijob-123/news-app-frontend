@@ -91,7 +91,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Creator Earnings
+            Creator Points
           </h2>
           <span
             style={{
@@ -109,11 +109,11 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
             }}
           >
             <ShieldCheck size={11} />
-            <span>Treasury Active</span>
+            <span>Rewards Active</span>
           </span>
         </div>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-          Admin grants and view royalties across North Tamil Nadu
+          Points earned from verified video reports and community views across North Tamil Nadu
         </p>
       </div>
 
@@ -132,7 +132,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
             boxShadow: activeTab === 'dashboard' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
           }}
         >
-          Wallet & Views
+          Points & Views
         </button>
         <button
           onClick={() => setActiveTab('simulator')}
@@ -147,7 +147,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
             boxShadow: activeTab === 'simulator' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
           }}
         >
-          Rate Simulator
+          Points Simulator
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -162,7 +162,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
             boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
           }}
         >
-          UPI Receipts
+          Redemptions
         </button>
       </div>
 
@@ -174,10 +174,11 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
               <div>
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9, fontWeight: 700 }}>
-                  Available Balance (INR)
+                  Available Points
                 </span>
                 <div style={{ fontSize: '30px', fontWeight: 800, margin: '2px 0 4px', letterSpacing: '-0.02em' }}>
-                  {formatINR(wallet.balance)}
+                  {Math.round(wallet.balance).toLocaleString('en-IN')}{' '}
+                  <span style={{ fontSize: '18px', fontWeight: 600 }}>Points</span>
                 </div>
               </div>
               <button
@@ -196,7 +197,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
                   flexShrink: 0
                 }}
               >
-                <span>Withdraw UPI</span>
+                <span>Redeem (UPI)</span>
                 <ArrowUpRight size={13} />
               </button>
             </div>
@@ -212,19 +213,19 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
               }}
             >
               <div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Lifetime Grants</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{formatINR(wallet.lifetimeEarnings)}</div>
+                <div style={{ fontSize: '10px', opacity: 0.85 }}>Lifetime Points</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{Math.round(wallet.lifetimeEarnings).toLocaleString('en-IN')} Pts</div>
               </div>
               <div>
                 <div style={{ fontSize: '10px', opacity: 0.85 }}>This Month</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>{formatINR(wallet.thisMonthEarnings)}</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{Math.round(wallet.thisMonthEarnings).toLocaleString('en-IN')} Pts</div>
               </div>
               <div>
                 <div style={{ fontSize: '10px', opacity: 0.85 }}>Qualified Views</div>
                 <div style={{ fontSize: '13px', fontWeight: 700 }}>{wallet.qualifiedViewsTotal.toLocaleString('en-IN')}</div>
               </div>
               <div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Next Payout</div>
+                <div style={{ fontSize: '10px', opacity: 0.85 }}>Next Redemption</div>
                 <div style={{ fontSize: '11px', fontWeight: 700 }}>{wallet.nextPayoutDate}</div>
               </div>
             </div>
@@ -255,7 +256,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
-                Your News Reels & Admin Payouts
+                Your News Reels & Points
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                 {userPosts.length} video reports
@@ -441,7 +442,7 @@ export const MonetizationScreen: React.FC<MonetizationScreenProps> = ({
                       </div>
 
                       <div style={{ fontWeight: 800, fontSize: '13px', color: 'var(--brand-primary)', flexShrink: 0 }}>
-                        {formatINR(totalPaid)}
+                        {Math.round(totalPaid)} Points
                       </div>
                     </div>
                   </div>

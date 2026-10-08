@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Film,
   CreditCard,
+  Coins,
   BarChart3,
   CheckCircle2,
   XCircle,
@@ -66,7 +67,6 @@ import {
 } from '../../services/storageService';
 import { PRESET_LOCATIONS } from '../../services/geoService';
 import { apiClient } from '../../services/apiClient';
-import { formatINR } from '../../services/monetizationEngine';
 import { AdvertisementManager } from './AdvertisementManager';
 import { AppSettingsManager } from './AppSettingsManager';
 import { CopyrightManager } from './CopyrightManager';
@@ -914,8 +914,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 borderBottom: activeTab === 'payouts' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
               }}
             >
-              <CreditCard size={16} />
-              <span>Payment Approval</span>
+              <Coins size={16} />
+              <span>Points Approval</span>
             </button>
           )}
 
@@ -1908,7 +1908,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 600 }}>
-                    Admin Treasury UPI Disbursements
+                    Admin Treasury Points Allocation
                   </span>
                   <span
                     style={{
@@ -1920,31 +1920,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       borderRadius: '10px'
                     }}
                   >
-                    Direct UPI Rails Active
+                    Points System Active
                   </span>
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                  {formatINR(stats.totalDisbursedINR)}
+                  {Math.round(stats.totalDisbursedINR).toLocaleString('en-IN')} Points
                 </div>
                 <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
-                  Disbursed to citizen journalists across Chennai & Tiruvallur Districts
+                  Points allocated to citizen journalists across Chennai & Tiruvallur Districts
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 16px' }}>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Pending Disbursement</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Pending Allocation</div>
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>{payoutQueue.length} reports</div>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 16px' }}>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Settlement Rails</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#34d399' }}>Instant NPCI / UPI</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Allocation Rails</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#34d399' }}>Instant Points Credit</div>
                 </div>
               </div>
             </div>
 
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Approved Video Reports Ready For Grant Disbursement ({payoutQueue.length})
+              Approved Video Reports Ready For Points Allocation ({payoutQueue.length})
             </div>
 
             {payoutQueue.length === 0 ? (
@@ -1975,15 +1975,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     border: posts.length === 0 ? '1px solid var(--border-subtle)' : '1px solid #a7f3d0'
                   }}
                 >
-                  {posts.length === 0 ? <CreditCard size={28} /> : <CheckCircle2 size={28} />}
+                  {posts.length === 0 ? <Coins size={28} /> : <CheckCircle2 size={28} />}
                 </div>
                 <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {posts.length === 0 ? 'No Video Reports Awaiting Payment' : 'All Video Grants Settled'}
+                  {posts.length === 0 ? 'No Video Reports Awaiting Points' : 'All Video Points Awarded'}
                 </h4>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: '340px', margin: '0 auto' }}>
                   {posts.length === 0
-                    ? 'No citizen video dispatches have been submitted yet. Once citizen news videos are approved by the editorial desk, they will appear here for 1-click UPI grant disbursement.'
-                    : 'All eligible citizen video dispatches have received their approved UPI treasury payouts.'}
+                    ? 'No citizen video dispatches have been submitted yet. Once citizen news videos are approved by the editorial desk, they will appear here for 1-click points allocation.'
+                    : 'All eligible citizen video dispatches have received their approved points.'}
                 </p>
               </div>
             ) : (
@@ -2034,9 +2034,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         }}
                       >
                         <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total Disbursed:</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total Points:</span>
                           <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brand-primary)', marginLeft: '4px' }}>
-                            {formatINR(totalPaidSoFar)}
+                            {Math.round(totalPaidSoFar).toLocaleString('en-IN')} Points
                           </span>
                         </div>
 
@@ -2073,8 +2073,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               gap: '6px'
                             }}
                           >
-                            <CreditCard size={13} />
-                            <span>Disburse Payout</span>
+                            <Coins size={13} />
+                            <span>Award Points</span>
                           </button>
                         </div>
                       </div>
@@ -2103,14 +2103,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand-primary)', marginBottom: '6px' }}>
-                  <DollarSign size={16} />
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Total Disbursed</span>
+                  <Coins size={16} />
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Total Points Awarded</span>
                 </div>
                 <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatINR(stats.totalDisbursedINR)}
+                  {Math.round(stats.totalDisbursedINR).toLocaleString('en-IN')} Points
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--color-success)', fontWeight: 600, marginTop: '4px' }}>
-                  Admin UPI Treasury
+                  Platform Points Treasury
                 </div>
               </div>
 
@@ -2329,9 +2329,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Disbursement Gateway</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Points Allocation Gateway</div>
                     <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                      Admin UPI Treasury Active
+                      Admin Points Treasury Active
                     </div>
                   </div>
                 </div>
@@ -2671,16 +2671,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* ============================================================ */}
-      {/* MODAL: Payout Grant Disbursement                             */}
+      {/* MODAL: Points Grant Award                                    */}
       {/* ============================================================ */}
       {payoutTargetPost && (
         <div className="admin-modal-overlay" onClick={() => setPayoutTargetPost(null)}>
           <div className="admin-modal-box" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Disburse Video Grant (₹)</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Award Video Points</h3>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                  Platform Admin Treasury to @{payoutTargetPost.creatorHandle}
+                  Platform Points Treasury to @{payoutTargetPost.creatorHandle}
                 </div>
               </div>
               <button onClick={() => setPayoutTargetPost(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
@@ -2691,7 +2691,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {payoutFeedback ? (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
                 <CheckCircle2 size={44} color="var(--color-success)" style={{ margin: '0 auto 10px' }} />
-                <h4 style={{ fontSize: '16px', fontWeight: 700 }}>Grant Disbursed Successfully!</h4>
+                <h4 style={{ fontSize: '16px', fontWeight: 700 }}>Points Awarded Successfully!</h4>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                   {payoutFeedback.message}
                 </p>
@@ -2700,7 +2700,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Select Video Grant Tier
+                    Select Video Points Tier
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                     {[100, 250, 500].map((amt) => (
@@ -2719,7 +2719,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           cursor: 'pointer'
                         }}
                       >
-                        ₹{amt}
+                        {amt} Points
                       </button>
                     ))}
                   </div>
@@ -2727,7 +2727,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Add Breaking News Bounty Bonus (Optional)
+                    Add Breaking News Bounty Points (Optional)
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                     {[0, 150, 300].map((b) => (
@@ -2746,7 +2746,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           cursor: 'pointer'
                         }}
                       >
-                        {b === 0 ? 'No Bounty' : `+₹${b}`}
+                        {b === 0 ? 'No Bounty' : `+${b} Pts`}
                       </button>
                     ))}
                   </div>
@@ -2763,9 +2763,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     alignItems: 'center'
                   }}
                 >
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total Disbursement:</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total Points:</span>
                   <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                    {formatINR(customGrantAmount + bountyBonus)}
+                    {Math.round(customGrantAmount + bountyBonus).toLocaleString('en-IN')} Points
                   </span>
                 </div>
 
@@ -2784,7 +2784,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }}
                 >
                   <Send size={15} />
-                  <span>Execute UPI Transfer ({formatINR(customGrantAmount + bountyBonus)})</span>
+                  <span>Award Points ({Math.round(customGrantAmount + bountyBonus).toLocaleString('en-IN')} Points)</span>
                 </button>
               </div>
             )}
@@ -3006,11 +3006,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       gap: '6px'
                     }}
                   >
-                    <DollarSign size={16} color="#16a34a" />
-                    <span>1. Price Award Allocation (Instant Cash Grant)</span>
+                    <Coins size={16} color="#16a34a" />
+                    <span>1. Price Award Points (Instant Points Grant)</span>
                   </label>
                   <span style={{ fontSize: '15px', fontWeight: 800, color: '#15803d' }}>
-                    {formatINR(editorialPriceAward)}
+                    {editorialPriceAward} Points
                   </span>
                 </div>
                 <div style={{ fontSize: '11px', color: '#166534', marginBottom: '10px' }}>
@@ -3019,10 +3019,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '8px' }}>
                   {[
-                    { amt: 50, label: 'Tip (₹50)' },
-                    { amt: 100, label: 'Standard (₹100)' },
-                    { amt: 250, label: 'Bounty (₹250)' },
-                    { amt: 500, label: 'Exclusive (₹500)' }
+                    { amt: 50, label: 'Tip (50 Pts)' },
+                    { amt: 100, label: 'Standard (100 Pts)' },
+                    { amt: 250, label: 'Bounty (250 Pts)' },
+                    { amt: 500, label: 'Exclusive (500 Pts)' }
                   ].map((t) => (
                     <button
                       key={t.amt}
@@ -3047,7 +3047,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, color: '#166534' }}>Custom Price Award:</span>
                   <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>₹</span>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: 700, color: '#16a34a' }}>Pts</span>
                     <input
                       type="number"
                       min="0"
@@ -3056,7 +3056,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       onChange={(e) => setEditorialPriceAward(Math.max(0, Number(e.target.value)))}
                       style={{
                         width: '100%',
-                        padding: '6px 8px 6px 22px',
+                        padding: '6px 8px 6px 30px',
                         fontSize: '12px',
                         fontWeight: 700,
                         borderRadius: '6px',
@@ -3091,22 +3091,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     }}
                   >
                     <TrendingUp size={16} color="#2563eb" />
-                    <span>2. RPM Allocation (Revenue Per 1,000 Views)</span>
+                    <span>2. RPM Allocation (Points Per 1,000 Views)</span>
                   </label>
                   <span style={{ fontSize: '15px', fontWeight: 800, color: '#1d4ed8' }}>
-                    ₹{editorialRpm} / 1k views
+                    {editorialRpm} Points / 1k views
                   </span>
                 </div>
                 <div style={{ fontSize: '11px', color: '#1e40af', marginBottom: '10px' }}>
-                  Citizen creator earns this rate for every 1,000 verified qualified views on this story.
+                  Citizen creator earns these points for every 1,000 verified qualified views on this story.
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '8px' }}>
                   {[
-                    { rpm: 150, label: 'Community (₹150)' },
-                    { rpm: 250, label: 'Standard (₹250)' },
-                    { rpm: 350, label: 'Verified (₹350)' },
-                    { rpm: 500, label: 'High Viral (₹500)' }
+                    { rpm: 150, label: 'Community (150 Pts)' },
+                    { rpm: 250, label: 'Standard (250 Pts)' },
+                    { rpm: 350, label: 'Verified (350 Pts)' },
+                    { rpm: 500, label: 'High Viral (500 Pts)' }
                   ].map((r) => (
                     <button
                       key={r.rpm}
@@ -3131,7 +3131,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, color: '#1e40af' }}>Custom RPM Rate:</span>
                   <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>₹</span>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: 700, color: '#2563eb' }}>Pts</span>
                     <input
                       type="number"
                       min="50"
@@ -3140,7 +3140,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       onChange={(e) => setEditorialRpm(Math.max(10, Number(e.target.value)))}
                       style={{
                         width: '100%',
-                        padding: '6px 8px 6px 22px',
+                        padding: '6px 8px 6px 30px',
                         fontSize: '12px',
                         fontWeight: 700,
                         borderRadius: '6px',
@@ -3477,12 +3477,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {isSubmittingApproval ? (
                   <>
                     <RefreshCw size={15} className="spin" />
-                    <span>Publishing & Disbursing...</span>
+                    <span>Publishing & Awarding Points...</span>
                   </>
                 ) : (
                   <>
                     <Check size={16} />
-                    <span>Approve & Publish Public (₹{editorialPriceAward} • ₹{editorialRpm} RPM)</span>
+                    <span>Approve & Publish Public ({editorialPriceAward} Points • {editorialRpm} Pts RPM)</span>
                   </>
                 )}
               </button>
@@ -3597,7 +3597,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     }}
                   >
                     <Award size={12} />
-                    <span>Bounty Awarded (₹{inspectingPost.priceAward || 0})</span>
+                    <span>Bounty Awarded ({inspectingPost.priceAward || 0} Points)</span>
                   </span>
                 ) : inspectingPost.adminReviewStatus === 'verified_approved' ? (
                   <span
@@ -3685,7 +3685,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {[
                 { id: 'story' as const, label: 'Story & Dispatch Media', icon: Film },
                 { id: 'geotag' as const, label: 'Hyperlocal Geotag & Radar', icon: MapPin },
-                { id: 'economics' as const, label: 'Economics & Monetization', icon: TrendingUp }
+                { id: 'economics' as const, label: 'Economics & Points', icon: Coins }
               ].map((tab) => {
                 const IconComponent = tab.icon;
                 const isActive = inspectTab === tab.id;
@@ -4166,10 +4166,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       }}
                     >
                       <div style={{ fontSize: '11px', fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <DollarSign size={14} color="#16a34a" /> Instant Price Award
+                        <Coins size={14} color="#16a34a" /> Instant Price Award
                       </div>
                       <div style={{ fontSize: '22px', fontWeight: 800, color: '#15803d', marginTop: '4px' }}>
-                        {formatINR(inspectingPost.priceAward || inspectingPost.adminPayoutAmount || 0)}
+                        {Math.round(inspectingPost.priceAward || inspectingPost.adminPayoutAmount || 0).toLocaleString('en-IN')} Points
                       </div>
                       <div style={{ fontSize: '10px', color: '#166534', marginTop: '2px' }}>
                         {inspectingPost.adminReviewStatus === 'verified_approved' || inspectingPost.adminReviewStatus === 'bounty_awarded'
@@ -4191,10 +4191,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <TrendingUp size={14} color="#2563eb" /> Allocated RPM
                       </div>
                       <div style={{ fontSize: '22px', fontWeight: 800, color: '#1d4ed8', marginTop: '4px' }}>
-                        ₹{inspectingPost.rpmRate || 350} <span style={{ fontSize: '11px', fontWeight: 600 }}>/ 1k views</span>
+                        {inspectingPost.rpmRate || 350} <span style={{ fontSize: '11px', fontWeight: 600 }}>Points / 1k views</span>
                       </div>
                       <div style={{ fontSize: '10px', color: '#1e40af', marginTop: '2px' }}>
-                        Qualified Organic View Monetization
+                        Qualified Organic View Points
                       </div>
                     </div>
 
@@ -4208,13 +4208,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       }}
                     >
                       <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b21a8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CreditCard size={14} color="#9333ea" /> Total Disbursed
+                        <Coins size={14} color="#9333ea" /> Total Points Awarded
                       </div>
                       <div style={{ fontSize: '22px', fontWeight: 800, color: '#7e22ce', marginTop: '4px' }}>
-                        {formatINR((inspectingPost.adminPayoutAmount || 0) + (inspectingPost.adminBountyAwarded || 0))}
+                        {Math.round((inspectingPost.adminPayoutAmount || 0) + (inspectingPost.adminBountyAwarded || 0)).toLocaleString('en-IN')} Points
                       </div>
                       <div style={{ fontSize: '10px', color: '#6b21a8', marginTop: '2px' }}>
-                        Direct UPI Treasury Rails
+                        Platform Points Treasury
                       </div>
                     </div>
 
@@ -4230,7 +4230,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     }}
                   >
                     <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '10px' }}>
-                      Audience Revenue Projections (Based on ₹{inspectingPost.rpmRate || 350} RPM)
+                      Audience Points Projections (Based on {inspectingPost.rpmRate || 350} Points RPM)
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                       {[
@@ -4251,7 +4251,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         >
                           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{tier.views} Views</div>
                           <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                            {formatINR(tier.rev)}
+                            {Math.round(tier.rev).toLocaleString('en-IN')} Points
                           </div>
                         </div>
                       ))}
@@ -4448,8 +4448,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         cursor: 'pointer'
                       }}
                     >
-                      <CreditCard size={15} />
-                      <span>Disburse Extra Grant</span>
+                      <Coins size={15} />
+                      <span>Award Extra Points</span>
                     </button>
 
                     <button

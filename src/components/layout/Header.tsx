@@ -69,8 +69,12 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
           <div className="app-logo">
-            <div className="pulse-beacon" />
-            <span style={{ letterSpacing: '-0.03em' }}>LocalPlus</span>
+            <div className="header-logo-icon">
+              <MapPin size={15} fill="#ffffff" color="#ffffff" />
+            </div>
+            <span className="header-logo-text">
+              Local<span className="header-logo-accent">Plus</span>
+            </span>
           </div>
         </div>
 
@@ -111,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
                   position: 'absolute',
                   top: '-3px',
                   right: '-3px',
-                  background: '#ef4444',
+                  background: '#ea580c',
                   color: '#ffffff',
                   fontSize: '9px',
                   fontWeight: 800,
@@ -166,12 +170,12 @@ export const Header: React.FC<HeaderProps> = ({
                 title={user.displayName}
               >
                 <img
-                  src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`}
+                  src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`}
                   alt={user.displayName}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
-                    e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`;
+                    e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`;
                   }}
                   style={{
                     width: '24px',

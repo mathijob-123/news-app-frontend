@@ -112,12 +112,12 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
         inset: 0,
         width: '100%',
         height: '100%',
-        background: 'radial-gradient(circle at 50% 15%, #064e3b 0%, #090d16 55%, #020617 100%)',
+        background: 'radial-gradient(circle at 20% 15%, #e1effe 0%, #f4f7fc 38%, #faedf3 72%, #ecf4fd 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         padding: '60px 16px 80px 16px',
-        color: '#ffffff',
+        color: '#0f172a',
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -135,15 +135,15 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          background: 'rgba(255, 255, 255, 0.08)',
-          color: 'rgba(255, 255, 255, 0.85)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          padding: '8px 14px',
-          borderRadius: '10px',
+          background: '#ffffff',
+          color: '#475569',
+          border: '1px solid #e2e8f0',
+          padding: '8px 16px',
+          borderRadius: '999px',
           fontSize: '12px',
           fontWeight: 700,
           cursor: 'pointer',
-          backdropFilter: 'blur(10px)',
+          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
           zIndex: 10000
         }}
       >
@@ -157,13 +157,13 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
           width: '100%',
           maxWidth: '430px',
           margin: 'auto 0',
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(25px)',
-          WebkitBackdropFilter: 'blur(25px)',
-          border: '1px solid rgba(16, 185, 129, 0.35)',
-          borderRadius: '24px',
-          padding: '36px 26px',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 45px rgba(16, 185, 129, 0.18)',
+          background: 'rgba(255, 255, 255, 0.94)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255, 255, 255, 0.95)',
+          borderRadius: '28px',
+          padding: '38px 28px',
+          boxShadow: '0 20px 60px -10px rgba(29, 114, 254, 0.12), 0 10px 30px -5px rgba(15, 23, 42, 0.05)',
           position: 'relative',
           textAlign: 'center'
         }}
@@ -178,20 +178,20 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
               width: '56px',
               height: '56px',
               borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.3) 100%)',
-              border: '1px solid #10b981',
-              color: '#34d399',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#ff4500',
               marginBottom: '14px',
-              boxShadow: '0 0 25px rgba(16, 185, 129, 0.35)'
+              boxShadow: '0 4px 14px rgba(255, 69, 0, 0.2)'
             }}
           >
-            <ShieldCheck size={32} />
+            <ShieldCheck size={30} />
           </div>
 
-          <h2 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em', color: '#0f172a' }}>
             Bureau Editorial Desk
           </h2>
-          <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)', margin: 0, lineHeight: 1.4 }}>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
             Spotlight SuperAdmin Terminal & Payout Clearance Desk
           </p>
         </div>
@@ -204,10 +204,10 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
               alignItems: 'flex-start',
               gap: '10px',
               padding: '12px 14px',
-              borderRadius: '10px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#fca5a5',
+              borderRadius: '12px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
               fontSize: '12px',
               marginBottom: '18px',
               lineHeight: 1.4,
@@ -235,15 +235,15 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                padding: '12px 16px',
+                padding: '12px 18px',
                 borderRadius: '999px',
-                background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
+                background: 'linear-gradient(135deg, #1d72fe 0%, #0062ff 100%)',
                 color: '#ffffff',
-                fontSize: '13px',
+                fontSize: '13.5px',
                 fontWeight: 700,
-                border: '1px solid rgba(52, 211, 153, 0.3)',
+                border: 'none',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 15px rgba(5, 150, 105, 0.3)',
+                boxShadow: '0 4px 16px rgba(29, 114, 254, 0.35)',
                 transition: 'all 0.2s'
               }}
             >
@@ -266,18 +266,18 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
         <div
           style={{
             padding: '12px 14px',
-            borderRadius: '12px',
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: '14px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
             fontSize: '11px',
-            color: '#6ee7b7'
+            color: '#64748b'
           }}
         >
-          <Server size={14} />
+          <Server size={14} color="#1d72fe" />
           <span>Restricted Editorial Bureau Gateway</span>
         </div>
       </div>

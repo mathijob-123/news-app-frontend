@@ -59,6 +59,38 @@ const VERIFIED_R2_FALLBACKS = [
   'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789995126975_l0csk7.mp4'
 ];
 
+// Detect cryptic filename hashes like Instagram CDN IDs (e.g. AQPI2ClckX...) or random alphanumeric strings
+export function isCrypticHash(text?: string | null): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  // Instagram / Facebook / CDN hash prefix (e.g. AQPI...)
+  if (/^AQ[A-Za-z0-9_-]{8,}/i.test(trimmed)) return true;
+  // Long alphanumeric token with 16+ continuous characters containing mixed case or digits
+  const tokens = trimmed.split(/[\s_-]+/);
+  for (const t of tokens) {
+    if (t.length >= 16 && /[0-9]/.test(t) && /[a-z]/i.test(t)) return true;
+    if (t.length >= 22) return true; // Any single word >= 22 characters is a hash/UUID/slug
+  }
+  // Check if string contains hex/alphanumeric hash patterns of 20+ chars
+  if (/^[A-Za-z0-9]{20,}$/.test(trimmed)) return true;
+  return false;
+}
+
+// Return a clean, human-readable headline, falling back to caption or location
+export function getCleanHeadline(headline?: string | null, caption?: string | null, fallbackLocation?: string): string {
+  if (headline && !isCrypticHash(headline)) {
+    return headline.trim();
+  }
+  if (caption && !isCrypticHash(caption)) {
+    const cleanCap = caption.trim();
+    if (cleanCap.length >= 4 && cleanCap.length <= 100) {
+      return cleanCap;
+    }
+  }
+  return fallbackLocation ? `${fallbackLocation} Spotlight Reel` : 'Local Spotlight Reel';
+}
+
 export function getStoredPosts(): VideoPost[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
@@ -69,15 +101,31 @@ export function getStoredPosts(): VideoPost[] {
     const parsed: VideoPost[] = JSON.parse(raw);
     let changed = false;
     const sanitized = parsed.map((p, idx) => {
-      const isDeadMedia = !p.mediaUrl || p.mediaUrl.startsWith('blob:') || p.mediaUrl.includes('commondatastorage.googleapis.com');
-      if (isDeadMedia && p.type === 'video') {
+      let item = { ...p };
+
+      // 1. Remove cryptic hash headlines (like AQPI2ClckX...)
+      if (isCrypticHash(item.headline)) {
         changed = true;
-        return {
-          ...p,
-          mediaUrl: VERIFIED_R2_FALLBACKS[idx % VERIFIED_R2_FALLBACKS.length]
-        };
+        item.headline = getCleanHeadline(item.headline, item.caption, item.location?.neighborhood || item.location?.placeName);
       }
-      return p;
+
+      // 2. Remove all Spotlight360 Campaign citations
+      if (item.sourceCitation && (
+        item.sourceCitation.toLowerCase().includes('campaign') ||
+        item.sourceCitation.toLowerCase().includes('spotlight360')
+      )) {
+        changed = true;
+        item.sourceCitation = null;
+      }
+
+      // 3. Fallback for dead video links
+      const isDeadMedia = !item.mediaUrl || item.mediaUrl.startsWith('blob:') || item.mediaUrl.includes('commondatastorage.googleapis.com');
+      if (isDeadMedia && item.type === 'video') {
+        changed = true;
+        item.mediaUrl = VERIFIED_R2_FALLBACKS[idx % VERIFIED_R2_FALLBACKS.length];
+      }
+
+      return item;
     });
 
     if (changed) {
@@ -92,7 +140,20 @@ export function getStoredPosts(): VideoPost[] {
 
 export function savePosts(posts: VideoPost[]): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    const sanitized = posts.map((p) => {
+      let item = { ...p };
+      if (isCrypticHash(item.headline)) {
+        item.headline = getCleanHeadline(item.headline, item.caption, item.location?.neighborhood || item.location?.placeName);
+      }
+      if (item.sourceCitation && (
+        item.sourceCitation.toLowerCase().includes('campaign') ||
+        item.sourceCitation.toLowerCase().includes('spotlight360')
+      )) {
+        item.sourceCitation = null;
+      }
+      return item;
+    });
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(sanitized));
   } catch (err) {
     console.error('Error saving posts:', err);
   }
@@ -502,7 +563,7 @@ export function approveAdminPayout(
   if (bountyAmount > 0) {
     post.adminBountyAwarded = (post.adminBountyAwarded || 0) + bountyAmount;
   }
-  post.adminDisbursedDate = 'Just now (Instant UPI Disbursed)';
+  post.adminDisbursedDate = 'Just now (Instant Points Awarded)';
   post.adminReviewerDesk = adminDesk;
   savePosts(posts);
 
@@ -521,10 +582,10 @@ export function approveAdminPayout(
     type: bountyAmount > 0 ? 'bounty' : 'admin_payout',
     amount: totalDisbursed,
     relatedPostId: post.id,
-    relatedPostTitle: `Admin Video Grant: ${post.headline}`,
+    relatedPostTitle: `Admin Points Grant: ${post.headline}`,
     status: 'completed',
     createdAt: new Date().toISOString(),
-    method: 'LocalPulse Admin Treasury (Direct UPI)',
+    method: 'LocalPulse Admin Points Treasury',
     adminDesk
   });
   saveTransactions(txs);
@@ -532,7 +593,7 @@ export function approveAdminPayout(
   return {
     success: true,
     totalDisbursed,
-    message: `Disbursed ₹${totalDisbursed.toLocaleString('en-IN')} via Admin Treasury UPI to @${post.creatorHandle}. UTR #${Math.floor(1000000000 + Math.random() * 9000000000)}.`
+    message: `Awarded ${totalDisbursed.toLocaleString('en-IN')} Points via Admin Treasury to @${post.creatorHandle}. Reference #${Math.floor(1000000000 + Math.random() * 9000000000)}.`
   };
 }
 
@@ -1031,7 +1092,27 @@ export function getStoredSpotlight360Videos(): Spotlight360Video[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed: Spotlight360Video[] = JSON.parse(raw);
+    let changed = false;
+    const sanitized = parsed.map((v) => {
+      let item = { ...v };
+      if (isCrypticHash(item.title)) {
+        changed = true;
+        item.title = getCleanHeadline(item.title, item.description, item.location?.area);
+      }
+      if (item.campaignName && (
+        item.campaignName.toLowerCase().includes('campaign') ||
+        item.campaignName.toLowerCase().includes('spotlight360')
+      )) {
+        changed = true;
+        item.campaignName = '';
+      }
+      return item;
+    });
+    if (changed) {
+      localStorage.setItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS, JSON.stringify(sanitized));
+    }
+    return sanitized;
   } catch (err) {
     console.error('Error reading spotlight360 videos:', err);
     return [];
@@ -1040,7 +1121,20 @@ export function getStoredSpotlight360Videos(): Spotlight360Video[] {
 
 export function saveStoredSpotlight360Videos(videos: Spotlight360Video[]): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS, JSON.stringify(videos));
+    const sanitized = videos.map((v) => {
+      let item = { ...v };
+      if (isCrypticHash(item.title)) {
+        item.title = getCleanHeadline(item.title, item.description, item.location?.area);
+      }
+      if (item.campaignName && (
+        item.campaignName.toLowerCase().includes('campaign') ||
+        item.campaignName.toLowerCase().includes('spotlight360')
+      )) {
+        item.campaignName = '';
+      }
+      return item;
+    });
+    localStorage.setItem(STORAGE_KEYS.SPOTLIGHT360_VIDEOS, JSON.stringify(sanitized));
   } catch (err) {
     console.error('Error saving spotlight360 videos:', err);
   }

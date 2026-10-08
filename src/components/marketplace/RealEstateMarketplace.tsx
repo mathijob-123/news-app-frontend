@@ -584,11 +584,11 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                   <button
                     className="btn-primary"
                     style={{
-                      background: 'none',
-                      border: '1px solid var(--lp-orange)',
-                      color: 'var(--lp-orange)',
-                      padding: '5px 12px',
-                      borderRadius: '8px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      color: 'var(--lp-slate-dark)',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -598,7 +598,7 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                       handleOpenProperty(prop);
                     }}
                   >
-                    View Property
+                    View Details
                   </button>
                 </div>
               </div>
@@ -798,14 +798,15 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                     background: 'var(--lp-orange)',
                     color: '#ffffff',
                     border: 'none',
-                    padding: '9px 18px',
-                    borderRadius: '10px',
+                    padding: '9px 20px',
+                    borderRadius: '20px',
                     fontSize: '13px',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)'
                   }}
                   onClick={() => setShowScheduleModal(true)}
                 >
@@ -913,13 +914,14 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                   disabled={visitSuccess}
                   style={{
                     padding: '9px 24px',
-                    borderRadius: '8px',
+                    borderRadius: '20px',
                     border: 'none',
                     background: visitSuccess ? '#10b981' : 'var(--lp-orange)',
                     color: '#ffffff',
                     fontSize: '13px',
                     fontWeight: 800,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)'
                   }}
                 >
                   {visitSuccess ? 'Confirmed!' : 'Confirm Visit'}

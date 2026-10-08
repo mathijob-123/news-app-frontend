@@ -1,5 +1,5 @@
 import React from 'react';
-import { Newspaper, PlaySquare, Plus, DollarSign, User } from 'lucide-react';
+import { Newspaper, PlaySquare, Plus, Coins, User } from 'lucide-react';
 import type { TabType } from '../../types';
 
 export type { TabType };
@@ -48,14 +48,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         </button>
       </div>
 
-      {/* 4. Monetization / Creator Earnings */}
+      {/* 4. Creator Points & Rewards */}
       <button
         className={`nav-tab-item ${activeTab === 'monetization' ? 'active' : ''}`}
         onClick={() => onChangeTab('monetization')}
-        title="Creator Earnings & Payouts (INR ₹)"
+        title="Creator Points & Rewards"
       >
-        <DollarSign size={19} />
-        <span>Earnings</span>
+        <Coins size={19} />
+        <span>Points</span>
       </button>
 
       {/* 5. Profile */}
