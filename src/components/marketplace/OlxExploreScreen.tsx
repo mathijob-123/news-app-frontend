@@ -13,7 +13,8 @@ import {
   Wrench,
   ArrowLeft,
   X,
-  Tag
+  Tag,
+  RotateCw
 } from 'lucide-react';
 import type { MarketplaceProduct, MarketplaceCategory } from '../../types/marketplace';
 import { ProductCard } from './ProductCard';
@@ -24,6 +25,8 @@ interface OlxExploreScreenProps {
   onSelectProduct: (product: MarketplaceProduct) => void;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
   onBackToMain?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const OlxExploreScreen: React.FC<OlxExploreScreenProps> = ({
@@ -31,7 +34,9 @@ export const OlxExploreScreen: React.FC<OlxExploreScreenProps> = ({
   selectedProduct,
   onSelectProduct,
   onToggleFavorite,
-  onBackToMain
+  onBackToMain,
+  onRefresh,
+  isRefreshing
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory | 'all'>('all');
@@ -156,6 +161,25 @@ export const OlxExploreScreen: React.FC<OlxExploreScreenProps> = ({
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             <X size={14} color="#94a3b8" />
+          </button>
+        )}
+
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              padding: '0 4px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#ea580c'
+            }}
+            title="Refresh Products"
+          >
+            <RotateCw size={15} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         )}
       </div>

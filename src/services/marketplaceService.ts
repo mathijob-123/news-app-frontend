@@ -9,47 +9,103 @@ import {
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
 
 /**
+ * Compresses an uploaded image file into a permanent, high-quality base64 Data URL.
+ * Works 100% offline and stays valid across page reloads (unlike temporary blob: URLs).
+ */
+export async function compressImageToBase64(
+  file: File | Blob,
+  maxWidth = 1200,
+  maxHeight = 1200,
+  quality = 0.82
+): Promise<string> {
+  // If video, read as standard data URL
+  if (file.type && file.type.includes('video')) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(width, 1);
+        canvas.height = Math.max(height, 1);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(e.target?.result as string);
+        }
+      };
+      img.onerror = () => {
+        resolve(e.target?.result as string);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      resolve('https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Upload an image or video directly to Cloudflare R2 bucket via server endpoint
- * Returns the permanent Cloudflare CDN public URL
+ * If R2 is not configured or fails, falls back to a permanent compressed base64 data URL
+ * so images NEVER break on page reload.
  */
 export async function uploadMarketplaceMediaToR2(
   file: File | Blob,
   filename?: string,
   folder: 'marketplace' | 'realestate' | 'jobs' = 'marketplace'
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const fileBase64 = reader.result as string;
-        const name = filename || (file instanceof File ? file.name : `media_${Date.now()}.${file.type.includes('video') ? 'mp4' : 'jpg'}`);
-        const res = await fetch(`${API_BASE}/upload/direct`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: name,
-            contentType: file.type || (file.type.includes('video') ? 'video/mp4' : 'image/jpeg'),
-            fileBase64,
-            folder
-          })
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to upload media to Cloudflare R2');
-        }
-        resolve(data.publicUrl);
-      } catch (err: any) {
-        console.warn('[Cloudflare R2 direct upload failed, fallback to local URL]:', err.message);
-        if (file instanceof File || file instanceof Blob) {
-          resolve(URL.createObjectURL(file));
-        } else {
-          reject(err);
-        }
+  try {
+    const fileBase64 = await compressImageToBase64(file);
+    const name = filename || (file instanceof File ? file.name : `media_${Date.now()}.${file.type?.includes('video') ? 'mp4' : 'jpg'}`);
+
+    const res = await fetch(`${API_BASE}/upload/direct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: name,
+        contentType: file.type || (file.type?.includes('video') ? 'video/mp4' : 'image/jpeg'),
+        fileBase64,
+        folder
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.publicUrl) {
+        return data.publicUrl;
       }
-    };
-    reader.onerror = () => reject(new Error('Failed reading file'));
-    reader.readAsDataURL(file);
-  });
+    }
+    // If backend direct upload fails, fallback to permanent base64 URL
+    return fileBase64;
+  } catch (err: any) {
+    console.warn('[Cloudflare R2 direct upload failed, fallback to persistent base64]:', err.message);
+    return compressImageToBase64(file);
+  }
 }
 
 const STORAGE_KEYS = {
@@ -683,7 +739,15 @@ export function getStoredProducts(): MarketplaceProduct[] {
       saveStoredProducts(INITIAL_PRODUCTS);
       return INITIAL_PRODUCTS;
     }
-    return JSON.parse(raw);
+    const parsed: MarketplaceProduct[] = JSON.parse(raw);
+    return parsed.map((p) => ({
+      ...p,
+      images: (p.images || []).map((img) =>
+        img && img.startsWith('blob:')
+          ? 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'
+          : img
+      )
+    }));
   } catch (err) {
     console.error('Error loading marketplace products:', err);
     return INITIAL_PRODUCTS;
@@ -752,16 +816,34 @@ export function addStoredProduct(formData: PostAdFormData, currentUserId = 'usr_
   return newProduct;
 }
 
-export function updateStoredProduct(updatedProduct: MarketplaceProduct): void {
+export function updateStoredProduct(updatedProduct: MarketplaceProduct): MarketplaceProduct {
   const products = getStoredProducts();
   const next = products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
   saveStoredProducts(next);
+
+  // Sync update to backend
+  fetch(`${API_BASE}/marketplace/products/${updatedProduct.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updatedProduct)
+  }).catch((err) => {
+    console.warn('[Backend Product PATCH Warning]:', err.message);
+  });
+
+  return updatedProduct;
 }
 
 export function deleteStoredProduct(id: string): void {
   const products = getStoredProducts();
   const next = products.filter((p) => p.id !== id);
   saveStoredProducts(next);
+
+  // Sync delete to backend
+  fetch(`${API_BASE}/marketplace/products/${id}`, {
+    method: 'DELETE'
+  }).catch((err) => {
+    console.warn('[Backend Product DELETE Warning]:', err.message);
+  });
 }
 
 export function toggleStoredProductFavorite(id: string): boolean {
@@ -863,7 +945,15 @@ export function getStoredProperties(): MarketplaceProperty[] {
       saveStoredProperties(INITIAL_PROPERTIES);
       return INITIAL_PROPERTIES;
     }
-    return JSON.parse(raw);
+    const parsed: MarketplaceProperty[] = JSON.parse(raw);
+    return parsed.map((prop) => ({
+      ...prop,
+      images: (prop.images || []).map((img) =>
+        img && img.startsWith('blob:')
+          ? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'
+          : img
+      )
+    }));
   } catch (err) {
     console.error('Error loading properties:', err);
     return INITIAL_PROPERTIES;
@@ -893,6 +983,32 @@ export function addStoredProperty(property: MarketplaceProperty): MarketplacePro
   });
 
   return property;
+}
+
+export function updateStoredProperty(updatedProperty: MarketplaceProperty): void {
+  const properties = getStoredProperties();
+  const next = properties.map((p) => (p.id === updatedProperty.id ? updatedProperty : p));
+  saveStoredProperties(next);
+
+  fetch(`${API_BASE}/marketplace/properties/${updatedProperty.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updatedProperty)
+  }).catch((err) => {
+    console.warn('[Backend Property PATCH Warning]:', err.message);
+  });
+}
+
+export function deleteStoredProperty(id: string): void {
+  const properties = getStoredProperties();
+  const next = properties.filter((p) => p.id !== id);
+  saveStoredProperties(next);
+
+  fetch(`${API_BASE}/marketplace/properties/${id}`, {
+    method: 'DELETE'
+  }).catch((err) => {
+    console.warn('[Backend Property DELETE Warning]:', err.message);
+  });
 }
 
 export function toggleStoredPropertySaved(id: string): boolean {

@@ -15,27 +15,41 @@ import {
   MessageCircle,
   Phone,
   Star,
-  X
+  X,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import type { MarketplaceProperty, SellerChatMessage } from '../../types/marketplace';
 import {
   getStoredChatMessages,
-  addStoredChatMessage
+  addStoredChatMessage,
+  deleteStoredProperty
 } from '../../services/marketplaceService';
+import { useAuth } from '../../context/AuthContext';
 
 interface PropertyDetailsPanelProps {
   property: MarketplaceProperty;
   onClose: () => void;
   onToggleSave: (id: string) => void;
   isSaved?: boolean;
+  onEditProperty?: (property: MarketplaceProperty) => void;
+  onDeleteProperty?: (id: string) => void;
 }
 
 export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
   property,
   onClose,
   onToggleSave,
-  isSaved = false
+  isSaved = false,
+  onEditProperty,
+  onDeleteProperty
 }) => {
+  const { user: authUser, isAdmin } = useAuth();
+  const isOwner = Boolean(
+    property.isMine ||
+    isAdmin ||
+    (authUser && (property.owner?.id === authUser.id || property.owner?.email === authUser.email))
+  );
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<SellerChatMessage[]>(() =>
     getStoredChatMessages(property.id)
@@ -44,6 +58,31 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteProperty = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${property.title}"? This cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteStoredProperty(property.id);
+      onDeleteProperty?.(property.id);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete property.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const PROPERTY_QUICK_INQUIRIES = [
+    '👋 Is this property still available?',
+    '💰 What is the expected final rent/price?',
+    '📍 When can I visit and inspect?',
+    '🤝 Is the deposit amount negotiable?'
+  ];
 
   const images = property.images && property.images.length > 0
     ? property.images
@@ -172,6 +211,10 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
             src={images[activeMediaIndex]}
             alt={property.title}
             className="p-carousel-main-img"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80';
+            }}
           />
 
           <span className="p-carousel-badge">
@@ -207,7 +250,14 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
                 className={`p-thumb-item ${activeMediaIndex === idx ? 'active' : ''}`}
                 onClick={() => setActiveMediaIndex(idx)}
               >
-                <img src={img} alt={`thumb-${idx}`} />
+                <img
+                  src={img}
+                  alt={`thumb-${idx}`}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=200&q=80';
+                  }}
+                />
               </div>
             ))}
           </div>
@@ -342,52 +392,161 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact ] - Contained INSIDE app view */}
-        <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
-          <button
-            className={`p-btn-save ${isSaved ? 'saved' : ''}`}
-            onClick={() => onToggleSave(property.id)}
-          >
-            <Heart
-              size={15}
-              fill={isSaved ? '#ef4444' : 'none'}
-              color={isSaved ? '#ef4444' : 'currentColor'}
-            />
-            <span>{isSaved ? 'Saved' : 'Save'}</span>
-          </button>
-
-          <button
-            className="p-btn-whatsapp"
-            onClick={handleWhatsAppClick}
-            title="Chat directly on WhatsApp"
-          >
-            <MessageCircle size={15} />
-            <span>WhatsApp</span>
-          </button>
-
-          <button
-            onClick={() => setShowCallModal(true)}
+        {/* Owner Controls VS Buyer / Tenant Interaction */}
+        {isOwner ? (
+          <div
             style={{
+              padding: '14px',
+              background: '#f8fafc',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '10px 10px',
-              borderRadius: '20px',
-              background: '#0f172a',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: 'none',
-              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.2)'
+              flexDirection: 'column',
+              gap: '10px'
             }}
-            title="Call contact directly"
           >
-            <Phone size={14} />
-            <span>Contact</span>
-          </button>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} color="#0284c7" />
+                Your Property Listing
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '12px' }}>
+                Poster / Owner
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
+              Only you have permission to manage this real estate listing. You can update pricing, photos, or remove it anytime.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => onEditProperty?.(property)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
+                }}
+              >
+                <Edit3 size={14} />
+                <span>Edit Property</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteProperty}
+                disabled={isDeleting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1,
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)'
+                }}
+              >
+                <Trash2 size={14} />
+                <span>{isDeleting ? 'Deleting...' : 'Delete Listing'}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact ] */}
+            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
+              <button
+                className={`p-btn-save ${isSaved ? 'saved' : ''}`}
+                onClick={() => onToggleSave(property.id)}
+              >
+                <Heart
+                  size={15}
+                  fill={isSaved ? '#ef4444' : 'none'}
+                  color={isSaved ? '#ef4444' : 'currentColor'}
+                />
+                <span>{isSaved ? 'Saved' : 'Save'}</span>
+              </button>
+
+              <button
+                className="p-btn-whatsapp"
+                onClick={handleWhatsAppClick}
+                title="Chat directly on WhatsApp"
+              >
+                <MessageCircle size={15} />
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => setShowCallModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px 10px',
+                  borderRadius: '20px',
+                  background: '#0f172a',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  boxShadow: '0 2px 6px rgba(15, 23, 42, 0.2)'
+                }}
+                title="Call contact directly"
+              >
+                <Phone size={14} />
+                <span>Contact</span>
+              </button>
+            </div>
+
+            {/* 4 Quick Property Questions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Quick Inquiries / Offers
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                {PROPERTY_QUICK_INQUIRIES.map((opt, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setMessageInput(opt)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: messageInput === opt ? '#eff6ff' : '#f8fafc',
+                      border: messageInput === opt ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                      color: messageInput === opt ? '#0369a1' : '#334155',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      lineHeight: '1.25'
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Chat with Owner / Agent */}
         <div className="p-chat-box">

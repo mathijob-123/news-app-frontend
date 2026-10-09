@@ -19,7 +19,8 @@ import {
   Bath,
   Maximize2,
   SlidersHorizontal,
-  Check
+  Check,
+  RotateCw
 } from 'lucide-react';
 import type {
   MarketplaceProperty,
@@ -43,6 +44,7 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
   onToggleSave
 }) => {
   const [properties, setProperties] = useState<MarketplaceProperty[]>(getStoredProperties());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedListingType, setSelectedListingType] = useState<string>('All');
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>('All');
@@ -257,6 +259,33 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
             <MapPin size={14} color="var(--lp-orange)" />
             <span>{currentLocationName}</span>
           </div>
+
+          <button
+            onClick={() => {
+              setIsRefreshing(true);
+              setProperties(getStoredProperties());
+              setTimeout(() => setIsRefreshing(false), 500);
+            }}
+            disabled={isRefreshing}
+            style={{
+              height: '40px',
+              padding: '0 14px',
+              borderRadius: '9999px',
+              border: '1px solid var(--lp-border)',
+              background: '#ffffff',
+              color: 'var(--lp-navy)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Refresh Real Estate Properties"
+          >
+            <RotateCw size={13} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
 
           <button
             type="button"
@@ -477,6 +506,10 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                   src={prop.images[0] || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'}
                   alt={prop.title}
                   loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80';
+                  }}
                 />
 
                 {/* Badges: For Rent / For Sale and Verified */}

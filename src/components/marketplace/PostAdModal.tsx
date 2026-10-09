@@ -32,7 +32,7 @@ import type {
   PostAdFormData,
   MarketplaceProduct
 } from '../../types/marketplace';
-import { addStoredProduct, uploadMarketplaceMediaToR2 } from '../../services/marketplaceService';
+import { addStoredProduct, updateStoredProduct, uploadMarketplaceMediaToR2 } from '../../services/marketplaceService';
 
 export type PostAdType =
   | 'sell_something'
@@ -46,16 +46,20 @@ interface PostAdModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdPublished: (newProduct: MarketplaceProduct) => void;
+  onProductUpdated?: (updatedProduct: MarketplaceProduct) => void;
   currentUserDefaultLocation?: string;
   initialType?: PostAdType;
+  editingProduct?: MarketplaceProduct | null;
 }
 
 export const PostAdModal: React.FC<PostAdModalProps> = ({
   isOpen,
   onClose,
   onAdPublished,
+  onProductUpdated,
   currentUserDefaultLocation = 'Avadi / Ambattur, Chennai',
-  initialType
+  initialType,
+  editingProduct
 }) => {
   const [selectedType, setSelectedType] = useState<PostAdType | null>(initialType || null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
@@ -64,12 +68,43 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedType(initialType || null);
-      setCurrentStep(1);
-      setIsPublishedSuccess(false);
-      setErrorMsg('');
+      if (editingProduct) {
+        setSelectedType('sell_something');
+        setCurrentStep(2);
+        setIsPublishedSuccess(false);
+        setErrorMsg('');
+        setFormData({
+          category: editingProduct.category,
+          subcategory: editingProduct.subcategory || 'Smartphones',
+          title: editingProduct.title,
+          price: editingProduct.price,
+          priceNegotiable: editingProduct.priceNegotiable,
+          condition: editingProduct.condition,
+          description: editingProduct.description,
+          location: editingProduct.location,
+          brand: editingProduct.specs?.brand || '',
+          model: editingProduct.specs?.model || '',
+          storage: editingProduct.specs?.storage || '',
+          ram: editingProduct.specs?.ram || '',
+          year: editingProduct.specs?.year || '',
+          kmDriven: editingProduct.specs?.kmDriven || '',
+          sellerName: editingProduct.seller.name,
+          sellerPhone: editingProduct.seller.phone || '',
+          sellerEmail: editingProduct.seller.email || '',
+          sellerWhatsApp: editingProduct.seller.whatsapp || '',
+          showWhatsAppToBuyers: true,
+          images: editingProduct.images || [],
+          videoUrl: editingProduct.videoUrl || ''
+        });
+        setVideoUrlInput(editingProduct.videoUrl || '');
+      } else {
+        setSelectedType(initialType || null);
+        setCurrentStep(1);
+        setIsPublishedSuccess(false);
+        setErrorMsg('');
+      }
     }
-  }, [isOpen, initialType]);
+  }, [isOpen, initialType, editingProduct]);
 
   const [formData, setFormData] = useState<PostAdFormData & { subcategory?: string; showWhatsAppToBuyers?: boolean }>({
     category: 'mobiles',
@@ -192,9 +227,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       if (!validateStep2()) return;
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      if (formData.images.length === 0) {
-        handleAddSampleImage('phone');
-      }
+      // Do NOT auto-inject sample images. User's uploaded photos or empty is preserved!
       setCurrentStep(4);
     } else if (currentStep === 4) {
       if (!validateStep4()) return;
@@ -212,15 +245,50 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   };
 
   const handlePublish = () => {
-    const newProduct = addStoredProduct({
-      ...formData,
-      images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'],
-      videoUrl: videoUrlInput || formData.videoUrl
-    });
-    setPublishedProduct(newProduct);
-    setIsPublishedSuccess(true);
-    setCurrentStep(6);
-    onAdPublished(newProduct);
+    if (editingProduct) {
+      const updated = updateStoredProduct({
+        ...editingProduct,
+        title: formData.title,
+        price: Number(formData.price),
+        priceNegotiable: formData.priceNegotiable,
+        category: formData.category,
+        subcategory: formData.subcategory,
+        condition: formData.condition,
+        description: formData.description,
+        location: formData.location,
+        images: formData.images.length > 0 ? formData.images : editingProduct.images,
+        videoUrl: videoUrlInput || formData.videoUrl,
+        specs: {
+          ...editingProduct.specs,
+          brand: formData.brand,
+          model: formData.model,
+          storage: formData.storage,
+          ram: formData.ram,
+          year: formData.year,
+          kmDriven: formData.kmDriven,
+        },
+        seller: {
+          ...editingProduct.seller,
+          name: formData.sellerName,
+          phone: formData.sellerPhone,
+          whatsapp: formData.sellerWhatsApp || formData.sellerPhone,
+        }
+      });
+      setPublishedProduct(updated);
+      setIsPublishedSuccess(true);
+      setCurrentStep(6);
+      onProductUpdated?.(updated);
+    } else {
+      const newProduct = addStoredProduct({
+        ...formData,
+        images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'],
+        videoUrl: videoUrlInput || formData.videoUrl
+      });
+      setPublishedProduct(newProduct);
+      setIsPublishedSuccess(true);
+      setCurrentStep(6);
+      onAdPublished(newProduct);
+    }
   };
 
   const activeCategoryObj = categoriesList.find((c) => c.id === formData.category) || categoriesList[0];
@@ -232,10 +300,14 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         <div className="m-modal-header">
           <div>
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--lp-navy)' }}>
-              {isPublishedSuccess ? 'Listing Live!' : 'Post an Ad on LocalPlus'}
+              {isPublishedSuccess
+                ? (editingProduct ? 'Listing Updated!' : 'Listing Live!')
+                : (editingProduct ? 'Edit Product Listing' : 'Post an Ad on LocalPlus')}
             </h3>
             <span style={{ fontSize: '12px', color: 'var(--lp-slate-light)' }}>
-              {isPublishedSuccess ? 'Your listing is now visible to nearby buyers' : 'Reach local buyers in your neighbourhood'}
+              {isPublishedSuccess
+                ? 'Your changes are now live and visible to buyers'
+                : (editingProduct ? 'Update product info, pricing, or photos' : 'Reach local buyers in your neighbourhood')}
             </span>
           </div>
           <button
@@ -713,7 +785,15 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                               border: '1px solid var(--lp-border)'
                             }}
                           >
-                            <img src={img} alt={`thumb-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img
+                              src={img}
+                              alt={`thumb-${idx}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
+                              }}
+                            />
                             <button
                               type="button"
                               onClick={() => handleRemoveImage(idx)}

@@ -29,10 +29,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Media with Favorite button */}
       <div className="olx-card-media-wrapper">
         <img
-          src={product.images[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'}
+          src={product.images && product.images.length > 0 && product.images[0] ? product.images[0] : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'}
           alt={product.title}
           className="olx-card-img"
           loading="lazy"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
+          }}
         />
 
         {/* Favorite Heart Button */}

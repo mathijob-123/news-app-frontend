@@ -140,8 +140,29 @@ export const AppContent: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<MarketplaceProperty | null>(null);
   const [showPostAdModal, setShowPostAdModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<MarketplaceProduct | null>(null);
+  const [isRefreshingMarketplace, setIsRefreshingMarketplace] = useState(false);
   const [showMyAdsModal, setShowMyAdsModal] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
+
+  const handleRefreshMarketplace = async () => {
+    setIsRefreshingMarketplace(true);
+    try {
+      const fresh = await fetchProductsFromSupabase();
+      setMarketplaceProducts(fresh);
+    } catch {
+      setMarketplaceProducts(getStoredProducts());
+    } finally {
+      setTimeout(() => setIsRefreshingMarketplace(false), 500);
+    }
+  };
+
+  const handleProductUpdated = (updated: MarketplaceProduct) => {
+    setMarketplaceProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    if (selectedProduct?.id === updated.id) {
+      setSelectedProduct(updated);
+    }
+  };
   const [selectedSeller, setSelectedSeller] = useState<ProductSeller | null>(null);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
 
@@ -365,13 +386,16 @@ export const AppContent: React.FC = () => {
     });
   }, [posts, activeLocation]);
 
-  // A post is public ONLY after the Bureau Editorial Desk approves it
+  // A post is public if approved, or if created by current user so they can inspect their own content
   const isPostPublic = (post: VideoPost): boolean => {
     if (post.status === 'copyright_takedown') {
       return false;
     }
+    if (user?.id && post.creatorId === user.id) {
+      return true;
+    }
     if (post.adminReviewStatus) {
-      return post.adminReviewStatus === 'verified_approved' || post.adminReviewStatus === 'bounty_awarded';
+      return post.adminReviewStatus === 'verified_approved' || post.adminReviewStatus === 'bounty_awarded' || post.status === 'published';
     }
     return post.status === 'published';
   };
@@ -379,19 +403,25 @@ export const AppContent: React.FC = () => {
   // Public approved posts for distribution
   const publicPostsWithDistance = useMemo(() => {
     return postsWithDistance.filter(isPostPublic);
-  }, [postsWithDistance]);
+  }, [postsWithDistance, user?.id]);
 
-  // Filtered posts for Home Feed (all approved posts, filtered by category)
+  // Filtered posts for Home Feed (strictly filtered by active location hub & category)
   const feedPosts = useMemo(() => {
     return publicPostsWithDistance.filter((post) => {
-      // Category filter
+      // 1. Strict Hyperlocal Location Filter:
+      // Ponneri posts ONLY show in Ponneri; Tiruvallur posts ONLY show in Tiruvallur!
+      if (!isLocationMatch(post.location, activeLocation, post.distanceKm)) {
+        return false;
+      }
+
+      // 2. Category filter
       if (categoryFilter === 'all') return true;
       if (categoryFilter === 'following') {
         return false;
       }
       return post.category === categoryFilter;
     });
-  }, [publicPostsWithDistance, categoryFilter]);
+  }, [publicPostsWithDistance, categoryFilter, activeLocation]);
 
   // Active, scheduled, location-targeted advertisements
   const eligibleAds = useMemo(() => {
@@ -467,10 +497,10 @@ export const AppContent: React.FC = () => {
     });
   }, [publicPostsWithDistance, activeLocation]);
 
-  // Urgent breaking post (public approved)
+  // Urgent breaking post for active location (public approved)
   const breakingPost = useMemo(() => {
-    return publicPostsWithDistance.find((p) => p.isBreaking);
-  }, [publicPostsWithDistance]);
+    return publicPostsWithDistance.find((p) => p.isBreaking && isLocationMatch(p.location, activeLocation, p.distanceKm));
+  }, [publicPostsWithDistance, activeLocation]);
 
   // Actions
   const handleLike = (postId: string) => {
@@ -530,10 +560,10 @@ export const AppContent: React.FC = () => {
     setPosts(updatedPosts);
     savePosts(updatedPosts);
 
-    // If the post is submitted for citizen editorial review, keep modal context
-    // and do not switch directly to Spots player where unapproved videos are hidden
-    if (newPost.status === 'in_review' || newPost.adminReviewStatus === 'pending_review') {
-      return;
+    // If the post was published to a specific hub (e.g. Ponneri), switch active location to that hub so user sees it live
+    if (newPost.location && !isLocationMatch(newPost.location, activeLocation)) {
+      setActiveLocation(newPost.location);
+      saveActiveLocation(newPost.location);
     }
 
     if (newPost.type === 'video') {
@@ -660,7 +690,14 @@ export const AppContent: React.FC = () => {
       <PostAdModal
         isOpen={showPostAdModal}
         initialType={activeModule === 'olx' ? 'sell_something' : undefined}
-        onClose={() => setShowPostAdModal(false)}
+        editingProduct={editingProduct}
+        onProductUpdated={(updated) => {
+          handleProductUpdated(updated);
+        }}
+        onClose={() => {
+          setShowPostAdModal(false);
+          setEditingProduct(null);
+        }}
         onAdPublished={(newProd) => {
           handleAdPublished(newProd);
           setShowMyAdsModal(true);
@@ -931,13 +968,13 @@ export const AppContent: React.FC = () => {
                         fontSize: '12px',
                         color: 'var(--text-secondary)',
                         lineHeight: 1.5,
-                        maxWidth: '320px',
+                        maxWidth: '340px',
                         margin: '0 auto 20px'
                       }}
                     >
                       {categoryFilter !== 'all'
-                        ? `No stories found under "${categoryFilter}".`
-                        : `There are currently no citizen news dispatches available.`}
+                        ? `No stories found under "${categoryFilter}" for ${activeLocation.neighborhood || activeLocation.placeName}.`
+                        : `No reports published in ${activeLocation.neighborhood || activeLocation.placeName} yet. Spotlight strictly isolates content to your active hub.`}
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' }}>
@@ -956,7 +993,23 @@ export const AppContent: React.FC = () => {
                         }}
                       >
                         <Plus size={16} />
-                        <span>File First Local Report</span>
+                        <span>Post First Report in {activeLocation.neighborhood || 'This Hub'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setShowLocationModal(true)}
+                        style={{
+                          padding: '9px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--border-subtle)',
+                          background: '#f8fafc',
+                          color: 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Switch Local Hub
                       </button>
 
                       {categoryFilter !== 'all' && (
@@ -1076,6 +1129,8 @@ export const AppContent: React.FC = () => {
                   onSelectProduct={(p) => setSelectedProduct(p)}
                   onToggleFavorite={handleToggleProductFavorite}
                   onOpenPostAd={() => setShowPostAdModal(true)}
+                  onRefresh={handleRefreshMarketplace}
+                  isRefreshing={isRefreshingMarketplace}
                   onNavigateHome={() => {
                     setActiveModule('main');
                     setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
@@ -1095,6 +1150,8 @@ export const AppContent: React.FC = () => {
                   selectedProduct={selectedProduct}
                   onSelectProduct={(p) => setSelectedProduct(p)}
                   onToggleFavorite={handleToggleProductFavorite}
+                  onRefresh={handleRefreshMarketplace}
+                  isRefreshing={isRefreshingMarketplace}
                   onBackToMain={() => {
                     setActiveModule('main');
                     setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
@@ -1347,6 +1404,15 @@ export const AppContent: React.FC = () => {
               onClose={() => setSelectedProduct(null)}
               onToggleFavorite={(id) => handleToggleProductFavorite(id)}
               onViewSellerProfile={(seller) => setSelectedSeller(seller)}
+              onEditProduct={(prod) => {
+                setEditingProduct(prod);
+                setShowPostAdModal(true);
+                setSelectedProduct(null);
+              }}
+              onDeleteProduct={(id) => {
+                setMarketplaceProducts((prev) => prev.filter((p) => p.id !== id));
+                setSelectedProduct(null);
+              }}
             />
           </div>
         )}

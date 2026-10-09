@@ -8,10 +8,11 @@ import {
   MapPin,
   DollarSign,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  UploadCloud
 } from 'lucide-react';
 import type { MarketplaceJob, JobType, JobCategory } from '../../types/marketplace';
-import { getStoredJobs, saveStoredJobs } from '../../services/marketplaceService';
+import { getStoredJobs, saveStoredJobs, uploadMarketplaceMediaToR2 } from '../../services/marketplaceService';
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({
   // Job form state
   const [jobTitle, setJobTitle] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState('');
   const [location, setLocation] = useState('Avadi / Ambattur, Chennai');
   const [salary, setSalary] = useState('₹4 LPA – ₹7 LPA');
   const [jobType, setJobType] = useState<JobType>('Full Time');
@@ -48,6 +50,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({
       id: `job_${Date.now()}`,
       title: jobTitle,
       company: companyName,
+      companyLogo: companyLogo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80',
       location: location,
       salary: salary,
       jobType: jobType,
@@ -264,6 +267,67 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({
                   <option value="Healthcare">Healthcare</option>
                   <option value="Engineering">Engineering</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Company Logo Upload / URL */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                Company Logo / Branding Photo
+              </label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {companyLogo && (
+                  <img
+                    src={companyLogo}
+                    alt="Logo preview"
+                    style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #cbd5e1' }}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80';
+                    }}
+                  />
+                )}
+                <input
+                  type="url"
+                  placeholder="Paste Logo Image URL or upload below..."
+                  value={companyLogo}
+                  onChange={(e) => setCompanyLogo(e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12.5px', outline: 'none' }}
+                />
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '8px 12px',
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#334155',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <UploadCloud size={14} />
+                  <span>Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          const url = await uploadMarketplaceMediaToR2(file, file.name, 'jobs');
+                          setCompanyLogo(url);
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }
+                    }}
+                  />
+                </label>
               </div>
             </div>
 

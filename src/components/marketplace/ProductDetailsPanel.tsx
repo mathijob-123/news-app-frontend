@@ -16,27 +16,44 @@ import {
   Phone,
   Star,
   X,
-  Video
+  Video,
+  Edit3,
+  Trash2,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import type { MarketplaceProduct, SellerChatMessage } from '../../types/marketplace';
 import {
   getStoredChatMessages,
-  addStoredChatMessage
+  addStoredChatMessage,
+  deleteStoredProduct
 } from '../../services/marketplaceService';
+import { useAuth } from '../../context/AuthContext';
 
 interface ProductDetailsPanelProps {
   product: MarketplaceProduct;
   onClose: () => void;
   onToggleFavorite: (id: string) => void;
   onViewSellerProfile: (seller: MarketplaceProduct['seller']) => void;
+  onEditProduct?: (product: MarketplaceProduct) => void;
+  onDeleteProduct?: (id: string) => void;
 }
 
 export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
   product,
   onClose,
   onToggleFavorite,
-  onViewSellerProfile
+  onViewSellerProfile,
+  onEditProduct,
+  onDeleteProduct
 }) => {
+  const { user: authUser, isAdmin } = useAuth();
+  const isOwner = Boolean(
+    product.isMine ||
+    isAdmin ||
+    (authUser && (product.seller.id === authUser.id || product.seller.email === authUser.email))
+  );
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<SellerChatMessage[]>(() =>
     getStoredChatMessages(product.id)
@@ -127,6 +144,44 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
     setShowWhatsAppModal(false);
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteListing = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${product.title}"? This cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteStoredProduct(product.id);
+      onDeleteProduct?.(product.id);
+      onClose();
+    } catch (err) {
+      console.error('Failed to delete product', err);
+      alert('Failed to delete listing. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const QUICK_INQUIRIES = [
+    '👋 Is this still available?',
+    '💰 What is the best price?',
+    '📍 Can I inspect in person?',
+    '🤝 Would you accept an offer?'
+  ];
+
+  const handleSelectQuickInquiry = (text: string) => {
+    setMessageInput(text);
+  };
+
+  const handleSendCustomViaWhatsApp = (customText?: string) => {
+    const textToSend = (customText || messageInput || `Hi, I am interested in your ${product.title} listed on LocalPlus.`).trim();
+    const rawPhone = product.seller.whatsapp || '919840123456';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const encoded = encodeURIComponent(textToSend);
+    window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
+  };
+
   return (
     <aside className="product-detail-panel">
       {/* Top Navigation */}
@@ -189,6 +244,10 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
             src={images[activeImageIndex]}
             alt={product.title}
             className="p-carousel-main-img"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
+            }}
           />
 
           <span className="p-carousel-badge">
@@ -224,7 +283,14 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
                 className={`p-thumb-item ${activeImageIndex === idx ? 'active' : ''}`}
                 onClick={() => setActiveImageIndex(idx)}
               >
-                <img src={img} alt={`thumb-${idx}`} />
+                <img
+                  src={img}
+                  alt={`thumb-${idx}`}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
+                  }}
+                />
               </div>
             ))}
           </div>
@@ -361,102 +427,239 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact Seller ] */}
-        <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
-          <button
-            className={`p-btn-save ${product.isFavorite ? 'saved' : ''}`}
-            onClick={() => onToggleFavorite(product.id)}
-          >
-            <Heart
-              size={15}
-              fill={product.isFavorite ? '#ef4444' : 'none'}
-              color={product.isFavorite ? '#ef4444' : 'currentColor'}
-            />
-            <span>{product.isFavorite ? 'Saved' : 'Save'}</span>
-          </button>
-
-          <button
-            className="p-btn-whatsapp"
-            onClick={handleOpenWhatsAppModal}
-            title="Chat directly on WhatsApp with pre-filled message"
-          >
-            <MessageCircle size={15} />
-            <span>WhatsApp</span>
-          </button>
-
-          <button
-            onClick={() => setShowCallSellerModal(true)}
+        {/* Owner Controls VS Buyer Interaction */}
+        {isOwner ? (
+          <div
             style={{
+              padding: '14px',
+              background: '#f8fafc',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '10px 10px',
-              borderRadius: '10px',
-              background: '#0f172a',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: 'none',
-              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.2)'
+              flexDirection: 'column',
+              gap: '10px'
             }}
-            title="Call or contact seller directly"
           >
-            <Phone size={14} />
-            <span>Contact</span>
-          </button>
-        </div>
-
-        {/* Chat with Seller */}
-        <div className="p-chat-box">
-          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--lp-navy)' }}>
-            Chat with Seller
-          </span>
-
-          <div className="p-chat-messages">
-            {chatMessages.length === 0 ? (
-              <span style={{ fontSize: '11px', color: 'var(--lp-slate-light)', textAlign: 'center', padding: '10px 0' }}>
-                Start a private chat with {product.seller.name}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} color="#0284c7" />
+                Your Product Listing
               </span>
-            ) : (
-              chatMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-chat-bubble ${msg.isMe ? 'me' : 'seller'}`}
-                >
-                  <p>{msg.text}</p>
-                  <span style={{ fontSize: '9px', opacity: 0.7, marginTop: '2px', display: 'block', textAlign: msg.isMe ? 'right' : 'left' }}>
-                    {msg.timestamp}
-                  </span>
-                </div>
-              ))
-            )}
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '12px' }}>
+                Creator / Owner
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
+              Only you have permission to edit or remove this product. You can update title, price, photos, and specifications anytime.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
+              <button
+                type="button"
+                onClick={() => onEditProduct?.(product)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
+                }}
+              >
+                <Edit3 size={14} />
+                <span>Edit Listing</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteListing}
+                disabled={isDeleting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1,
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)'
+                }}
+              >
+                <Trash2 size={14} />
+                <span>{isDeleting ? 'Deleting...' : 'Delete Listing'}</span>
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact Seller ] */}
+            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
+              <button
+                className={`p-btn-save ${product.isFavorite ? 'saved' : ''}`}
+                onClick={() => onToggleFavorite(product.id)}
+              >
+                <Heart
+                  size={15}
+                  fill={product.isFavorite ? '#ef4444' : 'none'}
+                  color={product.isFavorite ? '#ef4444' : 'currentColor'}
+                />
+                <span>{product.isFavorite ? 'Saved' : 'Save'}</span>
+              </button>
 
-          <form onSubmit={handleSendMessage} className="p-chat-input-row">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-            />
-            <button
-              type="button"
-              style={{ background: 'none', border: 'none', color: 'var(--lp-slate-light)', cursor: 'pointer', padding: '4px' }}
-              title="Attach File"
-            >
-              <Paperclip size={14} />
-            </button>
-            <button
-              type="submit"
-              className="p-chat-send-btn"
-              title="Send Message"
-            >
-              <Send size={13} />
-            </button>
-          </form>
-        </div>
+              <button
+                className="p-btn-whatsapp"
+                onClick={handleOpenWhatsAppModal}
+                title="Chat directly on WhatsApp with pre-filled message"
+              >
+                <MessageCircle size={15} />
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => setShowCallSellerModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px 10px',
+                  borderRadius: '10px',
+                  background: '#0f172a',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: 'none',
+                  boxShadow: '0 2px 6px rgba(15, 23, 42, 0.2)'
+                }}
+                title="Call or contact seller directly"
+              >
+                <Phone size={14} />
+                <span>Contact</span>
+              </button>
+            </div>
+
+            {/* 4 Quick Inquiry Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Quick Questions / Inquiries
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>Tap or type below</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                {QUICK_INQUIRIES.map((opt, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectQuickInquiry(opt)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: messageInput === opt ? '#eff6ff' : '#f8fafc',
+                      border: messageInput === opt ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                      color: messageInput === opt ? '#0369a1' : '#334155',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      lineHeight: '1.25'
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat & Custom Typing with Seller */}
+            <div className="p-chat-box">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--lp-navy)' }}>
+                  Chat with Seller
+                </span>
+                {messageInput && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendCustomViaWhatsApp()}
+                    style={{
+                      background: '#ecfdf5',
+                      color: '#059669',
+                      border: '1px solid #a7f3d0',
+                      borderRadius: '6px',
+                      padding: '2px 8px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Send your typed message to seller on WhatsApp"
+                  >
+                    <MessageCircle size={11} />
+                    <span>Send on WA</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="p-chat-messages">
+                {chatMessages.length === 0 ? (
+                  <span style={{ fontSize: '11px', color: 'var(--lp-slate-light)', textAlign: 'center', padding: '10px 0' }}>
+                    Start a private chat or send an offer to {product.seller.name}
+                  </span>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`p-chat-bubble ${msg.isMe ? 'me' : 'seller'}`}
+                    >
+                      <p>{msg.text}</p>
+                      <span style={{ fontSize: '9px', opacity: 0.7, marginTop: '2px', display: 'block', textAlign: msg.isMe ? 'right' : 'left' }}>
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <form onSubmit={handleSendMessage} className="p-chat-input-row">
+                <input
+                  type="text"
+                  placeholder="Type a message or offer (e.g. ₹5,000)..."
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  style={{ background: 'none', border: 'none', color: 'var(--lp-slate-light)', cursor: 'pointer', padding: '4px' }}
+                  title="Attach File"
+                >
+                  <Paperclip size={14} />
+                </button>
+                <button
+                  type="submit"
+                  className="p-chat-send-btn"
+                  title="Send Message"
+                >
+                  <Send size={13} />
+                </button>
+              </form>
+            </div>
+          </>
+        )}
       </div>
 
       {/* WhatsApp Modal with Editable Pre-Filled Message */}

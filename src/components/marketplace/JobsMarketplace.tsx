@@ -11,7 +11,8 @@ import {
   X,
   FileText,
   Send,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 import type { MarketplaceJob, JobCategory } from '../../types/marketplace';
 import { getStoredJobs, toggleStoredJobSaved } from '../../services/marketplaceService';
@@ -24,10 +25,17 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
   currentLocationName = 'Chennai'
 }) => {
   const [jobs, setJobs] = useState<MarketplaceJob[]>(getStoredJobs());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<JobCategory | 'All'>('All');
   const [selectedJob, setSelectedJob] = useState<MarketplaceJob | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
+
+  const handleRefreshJobs = () => {
+    setIsRefreshing(true);
+    setJobs(getStoredJobs());
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   // Application form state
   const [applicantName, setApplicantName] = useState('');
@@ -152,6 +160,29 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
             <MapPin size={14} color="var(--lp-orange)" />
             <span>{currentLocationName}</span>
           </div>
+
+          <button
+            onClick={handleRefreshJobs}
+            disabled={isRefreshing}
+            style={{
+              height: '40px',
+              padding: '0 14px',
+              borderRadius: '10px',
+              border: '1px solid var(--lp-border)',
+              background: '#ffffff',
+              color: 'var(--lp-navy)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Refresh Job Openings"
+          >
+            <RotateCw size={14} className={isRefreshing ? 'spin-anim' : ''} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
 
         {/* Categories Horizontal Scroll */}
@@ -202,6 +233,10 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                     src={job.companyLogo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80'}
                     alt={job.company}
                     className="job-company-logo"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80';
+                    }}
                   />
                   <div style={{ flex: 1 }}>
                     <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--lp-navy)', lineHeight: 1.2 }}>
@@ -328,6 +363,10 @@ export const JobsMarketplace: React.FC<JobsMarketplaceProps> = ({
                   src={selectedJob.companyLogo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80'}
                   alt={selectedJob.company}
                   style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=120&q=80';
+                  }}
                 />
                 <div>
                   <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--lp-navy)' }}>

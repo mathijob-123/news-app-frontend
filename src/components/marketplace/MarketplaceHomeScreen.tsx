@@ -16,7 +16,8 @@ import {
   Flame,
   ArrowRight,
   ArrowLeft,
-  X
+  X,
+  RotateCw
 } from 'lucide-react';
 import type {
   MarketplaceProduct,
@@ -34,6 +35,8 @@ interface MarketplaceHomeScreenProps {
   onNavigateHome?: () => void;
   onOpenNotifications?: () => void;
   onNavigateProfile?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
@@ -45,7 +48,9 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
   onCategoryFilterChange,
   onNavigateHome,
   onOpenNotifications,
-  onNavigateProfile
+  onNavigateProfile,
+  onRefresh,
+  isRefreshing
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory | 'all'>('all');
@@ -148,6 +153,18 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
           >
             <SlidersHorizontal size={18} />
           </button>
+
+          {onRefresh && (
+            <button
+              className="olx-filter-btn"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              title="Refresh Products"
+              style={{ cursor: isRefreshing ? 'not-allowed' : 'pointer' }}
+            >
+              <RotateCw size={17} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+          )}
         </div>
       </div>
 

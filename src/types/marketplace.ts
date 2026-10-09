@@ -29,6 +29,7 @@ export interface MarketplaceProduct {
   price: number;
   priceNegotiable: boolean;
   category: MarketplaceCategory;
+  subcategory?: string;
   condition: ProductCondition;
   description: string;
   location: string;
@@ -36,6 +37,7 @@ export interface MarketplaceProduct {
   postedAt: string;
   viewsCount: number;
   images: string[];
+  videoUrl?: string;
   specs: {
     brand?: string;
     model?: string;
@@ -156,6 +158,8 @@ export interface MarketplaceProperty {
     availableFrom?: string;
   };
   owner: {
+    id?: string;
+    email?: string;
     name: string;
     role: 'Owner' | 'Agent' | 'Builder';
     phone: string;
@@ -165,6 +169,7 @@ export interface MarketplaceProperty {
     agencyName?: string;
   };
   isSaved?: boolean;
+  isMine?: boolean;
 }
 
 export interface SellerChatMessage {
@@ -188,6 +193,9 @@ export interface PostAdFormData {
   brand?: string;
   model?: string;
   storage?: string;
+  ram?: string;
+  year?: string;
+  kmDriven?: string;
   warranty?: string;
   images: string[];
   videoUrl?: string;

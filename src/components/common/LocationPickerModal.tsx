@@ -47,13 +47,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         </div>
 
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            Spotlight reels are strictly filtered by your active location. Switch hubs below to view reels published in other local areas.
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.4 }}>
+            News feed, photos, and video reels are strictly filtered by your selected hub. For example, reports posted in <strong>Ponneri</strong> will only appear when Ponneri is active, and reports in <strong>Tiruvallur</strong> will only appear in Tiruvallur.
           </p>
 
           {PRESET_LOCATIONS.map((loc) => {
             const isSelected =
-              loc.lat === activeLocation.lat && loc.lng === activeLocation.lng;
+              (loc.neighborhood && activeLocation.neighborhood === loc.neighborhood) ||
+              (loc.lat === activeLocation.lat && loc.lng === activeLocation.lng) ||
+              loc.placeName === activeLocation.placeName;
             return (
               <button
                 key={loc.placeName}
