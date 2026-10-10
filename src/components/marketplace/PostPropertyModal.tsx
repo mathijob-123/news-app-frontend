@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Building,
@@ -59,20 +59,14 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
   const [description, setDescription] = useState('');
   const [ownerRole, setOwnerRole] = useState<'Owner' | 'Agent' | 'Builder'>('Owner');
 
-  // Step 2: Photos & Videos
   const sampleRealEstatePhotos = [
     'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80'
   ];
-  const [photos, setPhotos] = useState<string[]>([
-    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'
-  ]);
-  const [videos, setVideos] = useState<string[]>([
-    'https://assets.mixkit.co/videos/preview/mixkit-modern-interior-of-a-living-room-41525-large.mp4'
-  ]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
   const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
@@ -87,6 +81,19 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
   const [showContactButton, setShowContactButton] = useState(true);
   const [allowChat, setAllowChat] = useState(true);
 
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(1);
+      setIsSuccess(false);
+      setCreatedProperty(null);
+      setPhotos([]);
+      setVideos([]);
+      setCoverPhotoIndex(0);
+      setNewPhotoUrl('');
+      setNewVideoUrl('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const propertyTypesByCategory = {
@@ -98,54 +105,64 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
 
   const handleAddPhoto = (url: string) => {
     if (!url.trim()) return;
-    if (photos.length >= 20) {
-      alert('Maximum 20 photos allowed.');
-      return;
-    }
-    setPhotos([...photos, url.trim()]);
+    setPhotos((prev) => {
+      if (prev.length >= 20) {
+        alert('Maximum 20 photos allowed.');
+        return prev;
+      }
+      return [...prev, url.trim()];
+    });
     setNewPhotoUrl('');
   };
 
   const handleDeletePhoto = (index: number) => {
-    const updated = photos.filter((_, i) => i !== index);
-    setPhotos(updated);
-    if (coverPhotoIndex >= updated.length) {
-      setCoverPhotoIndex(Math.max(0, updated.length - 1));
-    }
+    setPhotos((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (coverPhotoIndex >= updated.length) {
+        setCoverPhotoIndex(Math.max(0, updated.length - 1));
+      }
+      return updated;
+    });
   };
 
   const handleMovePhoto = (index: number, direction: 'left' | 'right') => {
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= photos.length) return;
-    const updated = [...photos];
-    const temp = updated[index];
-    updated[index] = updated[targetIndex];
-    updated[targetIndex] = temp;
-    setPhotos(updated);
+    setPhotos((prev) => {
+      const updated = [...prev];
+      const temp = updated[index];
+      updated[index] = updated[targetIndex];
+      updated[targetIndex] = temp;
+      return updated;
+    });
     if (coverPhotoIndex === index) setCoverPhotoIndex(targetIndex);
     else if (coverPhotoIndex === targetIndex) setCoverPhotoIndex(index);
   };
 
   const handleAddVideo = (url: string) => {
     if (!url.trim()) return;
-    if (videos.length >= 3) {
-      alert('Maximum 3 videos allowed.');
-      return;
-    }
-    setVideos([...videos, url.trim()]);
+    setVideos((prev) => {
+      if (prev.length >= 3) {
+        alert('Maximum 3 videos allowed.');
+        return prev;
+      }
+      return [...prev, url.trim()];
+    });
     setNewVideoUrl('');
   };
 
   const handleDeleteVideo = (index: number) => {
-    setVideos(videos.filter((_, i) => i !== index));
+    setVideos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handlePublish = () => {
-    const primaryCover = photos[coverPhotoIndex] || photos[0] || sampleRealEstatePhotos[0];
-    const orderedPhotos = [
-      primaryCover,
-      ...photos.filter((_, i) => i !== coverPhotoIndex)
-    ];
+    const primaryCover = photos.length > 0 ? (photos[coverPhotoIndex] || photos[0]) : '';
+    const orderedPhotos = photos.length > 0
+      ? [
+          primaryCover,
+          ...photos.filter((_, i) => i !== coverPhotoIndex)
+        ]
+      : [];
 
     const newProperty: MarketplaceProperty = {
       id: `prop_${Date.now()}`,
@@ -177,7 +194,7 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
       photos: orderedPhotos,
       videos,
       coverImage: primaryCover,
-      images: orderedPhotos.length > 0 ? orderedPhotos : sampleRealEstatePhotos,
+      images: orderedPhotos,
       isVerified: true,
       status: 'active',
       createdAt: new Date().toISOString(),
@@ -679,7 +696,7 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
                       style={{ display: 'none' }}
                       onChange={async (e) => {
                         const files = e.target.files;
-                        if (files) {
+                        if (files && files.length > 0) {
                           for (const file of Array.from(files)) {
                             try {
                               const r2Url = await uploadMarketplaceMediaToR2(file, file.name, 'realestate');
@@ -692,6 +709,7 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
                               reader.readAsDataURL(file);
                             }
                           }
+                          e.target.value = '';
                         }
                       }}
                     />
@@ -732,6 +750,7 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
                             };
                             reader.readAsDataURL(file);
                           }
+                          e.target.value = '';
                         }
                       }}
                     />
@@ -760,26 +779,26 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
                       accept="image/*"
                       capture="environment"
                       style={{ display: 'none' }}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            if (ev.target?.result) handleAddPhoto(ev.target.result as string);
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const r2Url = await uploadMarketplaceMediaToR2(file, file.name, 'realestate');
+                            handleAddPhoto(r2Url);
+                          } catch {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              if (ev.target?.result) handleAddPhoto(ev.target.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                          e.target.value = '';
                         }
                       }}
                     />
                   </label>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sampleRealEstatePhotos.forEach((url) => {
-                        if (!photos.includes(url)) handleAddPhoto(url);
-                      });
-                    }}
+                  <label
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -797,7 +816,31 @@ export const PostPropertyModal: React.FC<PostPropertyModalProps> = ({
                   >
                     <Layers size={18} />
                     <span style={{ fontSize: '11px', fontWeight: 700 }}>Gallery</span>
-                  </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          for (const file of Array.from(files)) {
+                            try {
+                              const r2Url = await uploadMarketplaceMediaToR2(file, file.name, 'realestate');
+                              handleAddPhoto(r2Url);
+                            } catch {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                if (ev.target?.result) handleAddPhoto(ev.target.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
 
                 {/* Upload Action Bar */}

@@ -44,6 +44,7 @@ import {
   getStoredJobs,
   getStoredProperties,
   markStoredProductSold,
+  markStoredProductActive,
   renewStoredProduct,
   deleteStoredProduct,
   toggleStoredProductPause
@@ -155,7 +156,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const handleMarkSold = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    markStoredProductSold(id);
+    const item = myMarketplaceAds.find((p) => p.id === id);
+    if (item?.status === 'sold') {
+      markStoredProductActive(id);
+    } else {
+      markStoredProductSold(id);
+    }
     refreshMarketplace();
   };
 
@@ -923,8 +929,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         }}
                       >
                         <div
-                          style={{ display: 'flex', gap: '12px', cursor: 'pointer' }}
-                          onClick={() => onOpenProduct?.(ad)}
+                          style={{
+                            display: 'flex',
+                            gap: '12px',
+                            cursor: ad.status === 'sold' ? 'not-allowed' : 'pointer',
+                            opacity: ad.status === 'sold' ? 0.8 : 1
+                          }}
+                          onClick={() => {
+                            if (ad.status === 'sold') return;
+                            onOpenProduct?.(ad);
+                          }}
                         >
                           <img
                             src={ad.images[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=300&q=80'}

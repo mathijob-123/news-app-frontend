@@ -25,6 +25,7 @@ import type { MarketplaceProduct } from '../../types/marketplace';
 import {
   deleteStoredProduct,
   markStoredProductSold,
+  markStoredProductActive,
   renewStoredProduct
 } from '../../services/marketplaceService';
 
@@ -81,6 +82,13 @@ export const OlxProfileScreen: React.FC<OlxProfileScreenProps> = ({
   const handleMarkAsSold = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     markStoredProductSold(id);
+    onRefreshProducts();
+    setOpenManageId(null);
+  };
+
+  const handleMarkAsActive = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    markStoredProductActive(id);
     onRefreshProducts();
     setOpenManageId(null);
   };
@@ -544,7 +552,10 @@ export const OlxProfileScreen: React.FC<OlxProfileScreenProps> = ({
             return (
               <div
                 key={prod.id}
-                onClick={() => onSelectProduct(prod)}
+                onClick={() => {
+                  if (prod.status === 'sold') return;
+                  onSelectProduct(prod);
+                }}
                 style={{
                   background: '#ffffff',
                   borderRadius: '14px',
@@ -553,7 +564,8 @@ export const OlxProfileScreen: React.FC<OlxProfileScreenProps> = ({
                   display: 'flex',
                   gap: '12px',
                   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                  cursor: 'pointer',
+                  cursor: prod.status === 'sold' ? 'not-allowed' : 'pointer',
+                  opacity: prod.status === 'sold' ? 0.82 : 1,
                   position: 'relative'
                 }}
               >
@@ -643,7 +655,29 @@ export const OlxProfileScreen: React.FC<OlxProfileScreenProps> = ({
                               padding: '4px'
                             }}
                           >
-                            {prod.status !== 'sold' && (
+                            {prod.status === 'sold' ? (
+                              <button
+                                onClick={(e) => handleMarkAsActive(prod.id, e)}
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  color: '#059669',
+                                  background: '#ecfdf5',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <CheckCircle2 size={13} />
+                                <span>Mark Active</span>
+                              </button>
+                            ) : (
                               <button
                                 onClick={(e) => handleMarkAsSold(prod.id, e)}
                                 style={{

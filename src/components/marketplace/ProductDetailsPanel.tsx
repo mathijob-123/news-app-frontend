@@ -20,7 +20,8 @@ import {
   Edit3,
   Trash2,
   Sparkles,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import type { MarketplaceProduct, SellerChatMessage } from '../../types/marketplace';
 import {
@@ -233,6 +234,27 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
           }}
         >
           Link copied to clipboard!
+        </div>
+      )}
+
+      {product.status === 'sold' && (
+        <div
+          style={{
+            background: '#fef2f2',
+            color: '#dc2626',
+            fontSize: '12px',
+            fontWeight: 800,
+            padding: '8px 16px',
+            textAlign: 'center',
+            borderBottom: '1px solid #fecaca',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <AlertCircle size={14} />
+          <span>THIS PRODUCT HAS BEEN SOLD AND IS NO LONGER AVAILABLE</span>
         </div>
       )}
 

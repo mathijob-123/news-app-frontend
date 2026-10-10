@@ -14,6 +14,7 @@ import type { MarketplaceProduct } from '../../types/marketplace';
 import {
   deleteStoredProduct,
   markStoredProductSold,
+  markStoredProductActive,
   renewStoredProduct
 } from '../../services/marketplaceService';
 
@@ -55,6 +56,12 @@ export const MyAdsModal: React.FC<MyAdsModalProps> = ({
 
   const handleMarkAsSold = (id: string) => {
     markStoredProductSold(id);
+    onRefreshProducts();
+    setOpenDropdownId(null);
+  };
+
+  const handleMarkAsActive = (id: string) => {
+    markStoredProductActive(id);
     onRefreshProducts();
     setOpenDropdownId(null);
   };
@@ -147,7 +154,21 @@ export const MyAdsModal: React.FC<MyAdsModalProps> = ({
                     position: 'relative'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    onClick={() => {
+                      if (prod.status === 'sold') return;
+                      onViewProduct(prod);
+                      onClose();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flex: 1,
+                      cursor: prod.status === 'sold' ? 'not-allowed' : 'pointer',
+                      opacity: prod.status === 'sold' ? 0.82 : 1
+                    }}
+                  >
                     <img
                       src={
                         prod.images[0] ||
@@ -169,11 +190,35 @@ export const MyAdsModal: React.FC<MyAdsModalProps> = ({
                         ₹{prod.price.toLocaleString('en-IN')}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--lp-slate-light)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                        <span style={{ textTransform: 'uppercase', fontWeight: 700, color: prod.status === 'active' ? '#10b981' : '#64748b' }}>
+                        <span style={{ textTransform: 'uppercase', fontWeight: 700, color: prod.status === 'active' ? '#10b981' : '#dc2626' }}>
                           ● {prod.status}
                         </span>
                         <span>• Posted {prod.postedAt}</span>
                       </div>
+                      {prod.status === 'sold' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsActive(prod.id);
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: '#ecfdf5',
+                            color: '#059669',
+                            border: '1px solid #a7f3d0',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <CheckCircle size={12} /> Mark as Active
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -206,28 +251,51 @@ export const MyAdsModal: React.FC<MyAdsModalProps> = ({
                           overflow: 'hidden'
                         }}
                       >
-                        <button
-                          onClick={() => {
-                            onViewProduct(prod);
-                            onClose();
-                          }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '8px 14px',
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <ExternalLink size={14} />
-                          <span>View Listing</span>
-                        </button>
+                        {prod.status !== 'sold' ? (
+                          <button
+                            onClick={() => {
+                              onViewProduct(prod);
+                              onClose();
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 14px',
+                              fontSize: '12.5px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              border: 'none',
+                              background: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <ExternalLink size={14} />
+                            <span>View Listing</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleMarkAsActive(prod.id)}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 14px',
+                              fontSize: '12.5px',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              border: 'none',
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <CheckCircle size={14} />
+                            <span>Mark Active</span>
+                          </button>
+                        )}
 
                         {prod.status === 'active' && (
                           <button

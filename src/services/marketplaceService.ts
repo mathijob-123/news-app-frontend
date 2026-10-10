@@ -864,6 +864,32 @@ export function markStoredProductSold(id: string): void {
   const products = getStoredProducts();
   const next = products.map((p) => (p.id === id ? { ...p, status: 'sold' as const } : p));
   saveStoredProducts(next);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_products_updated', { detail: next }));
+  }
+  try {
+    fetch(`${API_BASE}/marketplace/products/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'sold' })
+    }).catch(() => {});
+  } catch {}
+}
+
+export function markStoredProductActive(id: string): void {
+  const products = getStoredProducts();
+  const next = products.map((p) => (p.id === id ? { ...p, status: 'active' as const } : p));
+  saveStoredProducts(next);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_products_updated', { detail: next }));
+  }
+  try {
+    fetch(`${API_BASE}/marketplace/products/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' })
+    }).catch(() => {});
+  } catch {}
 }
 
 export function renewStoredProduct(id: string): void {

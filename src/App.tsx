@@ -157,10 +157,25 @@ export const AppContent: React.FC = () => {
     }
   };
 
+  const handleSelectProduct = (product: MarketplaceProduct | null) => {
+    if (!product) {
+      setSelectedProduct(null);
+      return;
+    }
+    if (product.status === 'sold') {
+      return;
+    }
+    setSelectedProduct(product);
+  };
+
   const handleProductUpdated = (updated: MarketplaceProduct) => {
     setMarketplaceProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     if (selectedProduct?.id === updated.id) {
-      setSelectedProduct(updated);
+      if (updated.status === 'sold') {
+        setSelectedProduct(null);
+      } else {
+        setSelectedProduct(updated);
+      }
     }
   };
   const [selectedSeller, setSelectedSeller] = useState<ProductSeller | null>(null);
@@ -372,6 +387,51 @@ export const AppContent: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Real-time synchronization for Marketplace products across tabs, users and windows
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'spotlight_marketplace_products') {
+        setMarketplaceProducts(getStoredProducts());
+      }
+    };
+    const handleCustomUpdate = (e: Event) => {
+      const custom = e as CustomEvent<MarketplaceProduct[]>;
+      if (custom.detail) {
+        setMarketplaceProducts(custom.detail);
+      } else {
+        setMarketplaceProducts(getStoredProducts());
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('marketplace_products_updated', handleCustomUpdate);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('marketplace_products_updated', handleCustomUpdate);
+    };
+  }, []);
+
+  // Auto-fetch fresh products from database when viewing OLX marketplace so all users see live statuses
+  useEffect(() => {
+    if (activeView === 'olx' || activeModule === 'olx') {
+      fetchProductsFromSupabase().then((serverProducts) => {
+        if (serverProducts && serverProducts.length > 0) {
+          setMarketplaceProducts(serverProducts);
+        }
+      }).catch(() => {});
+
+      const pollTimer = setInterval(() => {
+        fetchProductsFromSupabase().then((serverProducts) => {
+          if (serverProducts && serverProducts.length > 0) {
+            setMarketplaceProducts(serverProducts);
+          }
+        }).catch(() => {});
+      }, 10000);
+
+      return () => clearInterval(pollTimer);
+    }
+  }, [activeView, activeModule, olxTab]);
 
   // Recalculate distances relative to active location
   const postsWithDistance = useMemo(() => {
@@ -712,8 +772,8 @@ export const AppContent: React.FC = () => {
         products={marketplaceProducts}
         onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
         onViewProduct={(p) => {
-          setSelectedProduct(p);
-          setActiveView('olx');
+          handleSelectProduct(p);
+          if (p.status !== 'sold') setActiveView('olx');
         }}
       />
 
@@ -725,8 +785,8 @@ export const AppContent: React.FC = () => {
         savedJobs={getStoredJobs().filter((j) => j.isSaved)}
         savedProperties={getStoredProperties().filter((prop) => prop.isSaved)}
         onSelectProduct={(p) => {
-          setSelectedProduct(p);
-          setActiveView('olx');
+          handleSelectProduct(p);
+          if (p.status !== 'sold') setActiveView('olx');
         }}
         onSelectProperty={(prop) => {
           setSelectedProperty(prop);
@@ -762,8 +822,8 @@ export const AppContent: React.FC = () => {
           onClose={() => setSelectedSeller(null)}
           sellerProducts={marketplaceProducts.filter((p) => p.seller.id === selectedSeller.id)}
           onSelectProduct={(p) => {
-            setSelectedProduct(p);
-            setActiveView('olx');
+            handleSelectProduct(p);
+            if (p.status !== 'sold') setActiveView('olx');
           }}
         />
       )}
@@ -1101,9 +1161,10 @@ export const AppContent: React.FC = () => {
                 }}
                 onOpenPostAd={() => setShowPostAdModal(true)}
                 onOpenProduct={(p) => {
+                  if (p.status === 'sold') return;
                   setPreviousView('profile');
                   setPreviousTab('profile');
-                  setSelectedProduct(p);
+                  handleSelectProduct(p);
                   setActiveModule('olx');
                   setActiveView('olx');
                 }}
@@ -1126,7 +1187,7 @@ export const AppContent: React.FC = () => {
                 <MarketplaceHomeScreen
                   products={marketplaceProducts}
                   selectedProduct={selectedProduct}
-                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onSelectProduct={(p) => handleSelectProduct(p)}
                   onToggleFavorite={handleToggleProductFavorite}
                   onOpenPostAd={() => setShowPostAdModal(true)}
                   onRefresh={handleRefreshMarketplace}
@@ -1148,7 +1209,7 @@ export const AppContent: React.FC = () => {
                 <OlxExploreScreen
                   products={marketplaceProducts}
                   selectedProduct={selectedProduct}
-                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onSelectProduct={(p) => handleSelectProduct(p)}
                   onToggleFavorite={handleToggleProductFavorite}
                   onRefresh={handleRefreshMarketplace}
                   isRefreshing={isRefreshingMarketplace}
@@ -1164,7 +1225,7 @@ export const AppContent: React.FC = () => {
               {olxTab === 'alerts' && (
                 <OlxAlertsScreen
                   products={marketplaceProducts}
-                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onSelectProduct={(p) => handleSelectProduct(p)}
                   onBackToMain={() => {
                     setActiveModule('main');
                     setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
@@ -1178,7 +1239,7 @@ export const AppContent: React.FC = () => {
                 <OlxProfileScreen
                   user={user}
                   products={marketplaceProducts}
-                  onSelectProduct={(p) => setSelectedProduct(p)}
+                  onSelectProduct={(p) => handleSelectProduct(p)}
                   onOpenPostAd={() => setShowPostAdModal(true)}
                   onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
                   onBackToMain={() => {

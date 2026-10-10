@@ -75,7 +75,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         setErrorMsg('');
         setFormData({
           category: editingProduct.category,
-          subcategory: editingProduct.subcategory || 'Smartphones',
+          subcategory: editingProduct.subcategory || '',
           title: editingProduct.title,
           price: editingProduct.price,
           priceNegotiable: editingProduct.priceNegotiable,
@@ -102,13 +102,37 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         setCurrentStep(1);
         setIsPublishedSuccess(false);
         setErrorMsg('');
+        setFormData({
+          category: 'mobiles',
+          subcategory: '',
+          title: '',
+          price: 0,
+          priceNegotiable: true,
+          condition: 'Like New',
+          description: '',
+          location: currentUserDefaultLocation,
+          brand: '',
+          model: '',
+          storage: '',
+          warranty: '',
+          images: [],
+          videoUrl: '',
+          sellerName: 'Veda Spark',
+          sellerPhone: '+91 98401 23456',
+          sellerWhatsApp: '919840123456',
+          sellerEmail: 'user@localplus.in',
+          hideExactLocation: false,
+          showWhatsAppToBuyers: true
+        });
+        setImageUrlInput('');
+        setVideoUrlInput('');
       }
     }
   }, [isOpen, initialType, editingProduct]);
 
   const [formData, setFormData] = useState<PostAdFormData & { subcategory?: string; showWhatsAppToBuyers?: boolean }>({
     category: 'mobiles',
-    subcategory: 'Smartphones',
+    subcategory: '',
     title: '',
     price: 0,
     priceNegotiable: true,
@@ -144,32 +168,35 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
     }
   ];
 
-  const categoriesList: Array<{ id: MarketplaceCategory; label: string; icon: React.ReactNode; subcategories: string[] }> = [
-    { id: 'mobiles', label: 'Mobiles & Tablets', icon: <Smartphone size={16} />, subcategories: ['Smartphones', 'Tablets', 'Accessories', 'Wearables'] },
-    { id: 'electronics', label: 'Electronics', icon: <Laptop size={16} />, subcategories: ['Laptops', 'Desktops', 'TVs', 'Audio & Speakers', 'Cameras'] },
-    { id: 'furniture', label: 'Furniture', icon: <Armchair size={16} />, subcategories: ['Beds & Wardrobes', 'Sofas & Dining', 'Home Decor', 'Office Furniture'] },
-    { id: 'fashion', label: 'Fashion', icon: <Shirt size={16} />, subcategories: ["Men's Clothing", "Women's Wear", 'Watches', 'Footwear'] },
-    { id: 'home_kitchen', label: 'Home & Kitchen', icon: <Home size={16} />, subcategories: ['Kitchen Appliances', 'Cookware', 'Utensils', 'Cleaning Tools'] },
-    { id: 'services', label: 'Other Products', icon: <ShoppingBag size={16} />, subcategories: ['Books & Hobbies', 'Fitness & Sports', 'Baby & Toys', 'Miscellaneous'] }
+  const categoriesList: Array<{ id: MarketplaceCategory; label: string; icon: React.ReactNode }> = [
+    { id: 'mobiles', label: 'Mobiles & Tablets', icon: <Smartphone size={16} /> },
+    { id: 'electronics', label: 'Electronics', icon: <Laptop size={16} /> },
+    { id: 'furniture', label: 'Furniture', icon: <Armchair size={16} /> },
+    { id: 'fashion', label: 'Fashion', icon: <Shirt size={16} /> },
+    { id: 'home_kitchen', label: 'Home & Kitchen', icon: <Home size={16} /> },
+    { id: 'services', label: 'Other Products', icon: <ShoppingBag size={16} /> }
   ];
 
   const handleSelectType = (type: PostAdType) => {
     setSelectedType(type);
     if (type === 'sell_vehicle') {
-      setFormData((prev) => ({ ...prev, category: 'vehicles', subcategory: 'Cars' }));
+      setFormData((prev) => ({ ...prev, category: 'vehicles' }));
     } else if (type === 'post_property') {
-      setFormData((prev) => ({ ...prev, category: 'property', subcategory: 'For Rent' }));
+      setFormData((prev) => ({ ...prev, category: 'property' }));
     } else if (type === 'offer_service') {
-      setFormData((prev) => ({ ...prev, category: 'services', subcategory: 'Home Services' }));
+      setFormData((prev) => ({ ...prev, category: 'services' }));
     }
   };
 
   const handleAddImage = (url: string) => {
     if (!url.trim()) return;
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, url.trim()]
-    }));
+    setFormData((prev) => {
+      if (prev.images.includes(url.trim())) return prev;
+      return {
+        ...prev,
+        images: [...prev.images, url.trim()]
+      };
+    });
     setImageUrlInput('');
   };
 
@@ -281,7 +308,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
     } else {
       const newProduct = addStoredProduct({
         ...formData,
-        images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'],
+        images: formData.images,
         videoUrl: videoUrlInput || formData.videoUrl
       });
       setPublishedProduct(newProduct);
@@ -290,8 +317,6 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       onAdPublished(newProduct);
     }
   };
-
-  const activeCategoryObj = categoriesList.find((c) => c.id === formData.category) || categoriesList[0];
 
   return (
     <div className="modal-overlay-backdrop" onClick={onClose}>
@@ -438,14 +463,14 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
             )}
 
             <div className="m-modal-body">
-              {/* STEP 1: Choose Category & Subcategory */}
+              {/* STEP 1: Choose Category */}
               {currentStep === 1 && (
                 <div>
                   <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--lp-navy)', display: 'block', marginBottom: '10px' }}>
                     Step 1: Choose Category
                   </span>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
                     {categoriesList.map((cat) => (
                       <button
                         type="button"
@@ -453,8 +478,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                         onClick={() =>
                           setFormData({
                             ...formData,
-                            category: cat.id,
-                            subcategory: cat.subcategories[0]
+                            category: cat.id
                           })
                         }
                         style={{
@@ -475,21 +499,6 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                         <span>{cat.label}</span>
                       </button>
                     ))}
-                  </div>
-
-                  <div className="form-group-block">
-                    <label>Subcategory</label>
-                    <select
-                      className="form-select-field"
-                      value={formData.subcategory}
-                      onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-                    >
-                      {activeCategoryObj.subcategories.map((sub, idx) => (
-                        <option key={idx} value={sub}>
-                          {sub}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               )}
@@ -651,7 +660,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                         style={{ display: 'none' }}
                         onChange={async (e) => {
                           const files = e.target.files;
-                          if (files) {
+                          if (files && files.length > 0) {
                             for (const file of Array.from(files)) {
                               try {
                                 const r2Url = await uploadMarketplaceMediaToR2(file, file.name, 'marketplace');
@@ -664,6 +673,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                                 reader.readAsDataURL(file);
                               }
                             }
+                            e.target.value = '';
                           }
                         }}
                       />
