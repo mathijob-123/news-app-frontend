@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MapPin, Clock } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import type { MarketplaceProduct } from '../../types/marketplace';
 
 interface ProductCardProps {
@@ -16,11 +16,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleFavorite
 }) => {
   const isSold = product.status === 'sold';
-  const formattedPrice = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  const formattedPrice = `₹ ${new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0
-  }).format(product.price);
+  }).format(product.price)}`;
+
+  const mainImage =
+    product.images && product.images.length > 0 && product.images[0]
+      ? product.images[0]
+      : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
 
   return (
     <div
@@ -39,10 +42,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       }}
       title={isSold ? 'This product is Sold and cannot be viewed' : product.title}
     >
-      {/* Media with Favorite button */}
-      <div className="olx-card-media-wrapper" style={{ position: 'relative' }}>
+      {/* Photo with 16:10 OLX aspect ratio */}
+      <div className="olx-card-media-wrapper">
         <img
-          src={product.images && product.images.length > 0 && product.images[0] ? product.images[0] : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'}
+          src={mainImage}
           alt={product.title}
           className="olx-card-img"
           loading="lazy"
@@ -61,9 +64,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             title={product.isFavorite ? 'Remove from Saved' : 'Save Item'}
           >
             <Heart
-              size={16}
+              size={18}
+              strokeWidth={1.8}
               fill={product.isFavorite ? '#ef4444' : 'none'}
-              color={product.isFavorite ? '#ef4444' : 'currentColor'}
+              color={product.isFavorite ? '#ef4444' : '#002f34'}
             />
           </button>
         )}
@@ -89,12 +93,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      {/* Details Content */}
+      {/* Details Content - OLX style with price first and yellow accent */}
       <div className="olx-card-content">
-        <h4 className="olx-card-title" title={product.title}>
-          {product.title}
-        </h4>
-
         <div className="olx-card-price-row">
           <span className="olx-card-price">{formattedPrice}</span>
           {product.priceNegotiable && (
@@ -102,18 +102,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        <div className="olx-card-footer">
-          <div className="olx-card-location">
-            <MapPin size={11} color="var(--lp-orange)" style={{ flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {product.location}
-            </span>
-          </div>
+        <h4 className="olx-card-title" title={product.title}>
+          {product.title}
+        </h4>
 
-          <div className="olx-card-time">
-            <Clock size={11} color="var(--lp-slate-light)" style={{ flexShrink: 0 }} />
-            <span>{product.postedAt}</span>
-          </div>
+        <div className="olx-card-footer">
+          <span className="olx-card-location-text" title={product.location}>
+            {product.location}
+          </span>
+
+          <span className="olx-card-date-text">
+            {product.postedAt}
+          </span>
         </div>
       </div>
     </div>
