@@ -31,6 +31,7 @@ import {
   getStoredProperties,
   toggleStoredPropertySaved
 } from '../../services/marketplaceService';
+import { PromoBannerCarousel } from './PromoBannerCarousel';
 
 interface RealEstateMarketplaceProps {
   currentLocationName?: string;
@@ -473,6 +474,11 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
         </div>
       </div>
 
+      {/* Promotional Banner Carousel (Top Position) */}
+      <div style={{ margin: '14px 0 20px 0' }}>
+        <PromoBannerCarousel screen="real_estate" position="top" />
+      </div>
+
       {/* Properties Grid */}
       <div className="re-grid">
         {filteredProperties.length === 0 ? (
@@ -495,12 +501,12 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
             </p>
           </div>
         ) : (
-          filteredProperties.map((prop) => (
-            <div
-              key={prop.id}
-              className="re-card"
-              onClick={() => handleOpenProperty(prop)}
-            >
+          filteredProperties.map((prop, index) => (
+            <React.Fragment key={prop.id}>
+              <div
+                className="re-card"
+                onClick={() => handleOpenProperty(prop)}
+              >
               <div className="re-card-img-wrap">
                 <img
                   src={prop.images[0] || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'}
@@ -636,7 +642,13 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                 </div>
               </div>
             </div>
-          ))
+
+            {/* In-Between Properties Ad Banner (inserted after 6 items to complete full rows) */}
+            {index === 5 && filteredProperties.length >= 6 && (
+              <PromoBannerCarousel screen="real_estate" position="between" />
+            )}
+          </React.Fragment>
+        ))
         )}
       </div>
 

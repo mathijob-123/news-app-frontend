@@ -3,7 +3,8 @@ import {
   MarketplaceJob,
   MarketplaceProperty,
   SellerChatMessage,
-  PostAdFormData
+  PostAdFormData,
+  MarketplacePromoBanner
 } from '../types/marketplace';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
@@ -1087,3 +1088,108 @@ export function addStoredChatMessage(productId: string, message: Omit<SellerChat
     };
   }
 }
+
+export const DEFAULT_PROMO_BANNERS: MarketplacePromoBanner[] = [
+  {
+    id: 'banner-home-service-1',
+    badge: 'SAVE 25% TODAY!',
+    title: 'Exclusive discounts on home service',
+    subtitle: 'VIBRANT GADGETS & ELECTRONICS MARKETPLACE\nYOUR ULTIMATE TECH DESTINATION!',
+    buttonText: 'Book Now',
+    buttonLink: '',
+    actionType: 'category',
+    actionPayload: 'services',
+    imageUrl: '/images/marketplace_banner.jpg',
+    bgGradient: 'linear-gradient(135deg, #e0edfb 0%, #edf5fc 45%, #fff1e5 100%)',
+    badgeBg: '#ff5722',
+    btnBg: '#ff6b00',
+    isActive: true,
+    orderIndex: 0
+  },
+  {
+    id: 'banner-tech-deals-2',
+    badge: 'HOT TECH DEALS',
+    title: 'Top Verified Gadgets & Laptops',
+    subtitle: 'Direct peer-to-peer verified sellers • Zero middleman fees',
+    buttonText: 'Shop Gadgets',
+    buttonLink: '',
+    actionType: 'category',
+    actionPayload: 'electronics',
+    imageUrl: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80',
+    bgGradient: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #fef3c7 100%)',
+    badgeBg: '#059669',
+    btnBg: '#0284c7',
+    isActive: true,
+    orderIndex: 1
+  },
+  {
+    id: 'banner-sell-fast-3',
+    badge: 'ZERO COMMISSION',
+    title: 'Sell Anything Locally in 2 Mins',
+    subtitle: 'Instant WhatsApp chat • Reach 50,000+ neighbors nearby',
+    buttonText: 'Post Free Ad',
+    buttonLink: '',
+    actionType: 'post_ad',
+    actionPayload: '',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0a67e5572263?auto=format&fit=crop&w=800&q=80',
+    bgGradient: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 45%, #ffedd5 100%)',
+    badgeBg: '#e11d48',
+    btnBg: '#ea580c',
+    isActive: true,
+    orderIndex: 2
+  }
+];
+
+export async function getPromoBanners(
+  screen?: 'olx' | 'real_estate' | 'all'
+): Promise<MarketplacePromoBanner[]> {
+  try {
+    const url =
+      screen && screen !== 'all'
+        ? `${API_BASE}/marketplace/banners?screen=${screen}`
+        : `${API_BASE}/marketplace/banners`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      // If admin turned off the entire promotional banners section
+      if (data.isSectionEnabled === false) {
+        return [];
+      }
+      if (data.success && Array.isArray(data.banners)) {
+        return data.banners;
+      }
+    }
+    return DEFAULT_PROMO_BANNERS;
+  } catch (err) {
+    console.warn('[marketplaceService] Failed to fetch banners, using default:', err);
+    return DEFAULT_PROMO_BANNERS;
+  }
+}
+
+export async function getPromoBannersMeta(
+  screen?: 'olx' | 'real_estate' | 'all'
+): Promise<{
+  banners: MarketplacePromoBanner[];
+  isSectionEnabled: boolean;
+  bannerPlacement: 'top' | 'between' | 'both';
+}> {
+  try {
+    const url =
+      screen && screen !== 'all'
+        ? `${API_BASE}/marketplace/banners?screen=${screen}`
+        : `${API_BASE}/marketplace/banners`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      const isSectionEnabled = data.isSectionEnabled !== false;
+      const bannerPlacement = (data.bannerPlacement as 'top' | 'between' | 'both') || 'both';
+      if (data.success && Array.isArray(data.banners)) {
+        return { banners: data.banners, isSectionEnabled, bannerPlacement };
+      }
+    }
+    return { banners: DEFAULT_PROMO_BANNERS, isSectionEnabled: true, bannerPlacement: 'both' };
+  } catch {
+    return { banners: DEFAULT_PROMO_BANNERS, isSectionEnabled: true, bannerPlacement: 'both' };
+  }
+}
+

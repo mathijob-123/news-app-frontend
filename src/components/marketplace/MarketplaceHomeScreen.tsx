@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ShoppingBag,
   Search,
@@ -12,6 +12,8 @@ import {
   Building,
   Wrench,
   ChevronRight,
+  ChevronLeft,
+  ExternalLink,
   Plus,
   Flame,
   ArrowRight,
@@ -21,8 +23,10 @@ import {
 } from 'lucide-react';
 import type {
   MarketplaceProduct,
-  MarketplaceCategory
+  MarketplaceCategory,
+  MarketplacePromoBanner
 } from '../../types/marketplace';
+import { PromoBannerCarousel } from './PromoBannerCarousel';
 import { ProductCard } from './ProductCard';
 
 interface MarketplaceHomeScreenProps {
@@ -54,7 +58,6 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory | 'all'>('all');
-  const [activeBannerDot, setActiveBannerDot] = useState(0);
 
   const categories: Array<{
     id: MarketplaceCategory;
@@ -187,55 +190,13 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
         })}
       </div>
 
-      {/* 3. Promotional Banner (Matching Image 2 Model) */}
-      <div className="olx-promo-banner">
-        <div className="olx-promo-text">
-          <span className="olx-promo-badge">Save 25% Today!</span>
-          <h3>
-            Exclusive discounts<br />on home service
-          </h3>
-          <button
-            type="button"
-            className="olx-promo-book-btn"
-            style={{
-              marginTop: '10px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'var(--lp-orange)',
-              color: '#ffffff',
-              border: 'none',
-              padding: '7px 16px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(255, 107, 0, 0.3)'
-            }}
-          >
-            Book Now
-          </button>
-        </div>
-
-        {/* Banner Decorative Cluster / Graphic */}
-        <div
-          className="olx-promo-bg-decor"
-          style={{
-            backgroundImage: 'url(/images/marketplace_banner.jpg)'
-          }}
-        />
-
-        {/* Carousel indicator dots */}
-        <div className="olx-banner-dots">
-          {[0, 1, 2, 3].map((dot) => (
-            <div
-              key={dot}
-              className={`olx-banner-dot ${activeBannerDot === dot ? 'active' : ''}`}
-              onClick={() => setActiveBannerDot(dot)}
-            />
-          ))}
-        </div>
-      </div>
+      {/* 3. Promotional Banner Carousel (Top Position) */}
+      <PromoBannerCarousel
+        screen="olx"
+        position="top"
+        onOpenPostAd={onOpenPostAd}
+        onSelectCategory={handleSelectCategory}
+      />
 
       {/* 4. "Popular Near You" Section */}
       <div className="olx-section-header">
@@ -253,7 +214,7 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
         </span>
       </div>
 
-      {/* Product Cards Grid */}
+      {/* Product Cards Grid with In-Between Feed Ad Banner */}
       <div className="olx-products-grid">
         {filteredProducts.length === 0 ? (
           <div
@@ -296,14 +257,25 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
             </button>
           </div>
         ) : (
-          filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              isSelected={selectedProduct?.id === product.id}
-              onSelect={onSelectProduct}
-              onToggleFavorite={onToggleFavorite}
-            />
+          filteredProducts.map((product, index) => (
+            <React.Fragment key={product.id}>
+              <ProductCard
+                product={product}
+                isSelected={selectedProduct?.id === product.id}
+                onSelect={onSelectProduct}
+                onToggleFavorite={onToggleFavorite}
+              />
+
+              {/* In-Between Products Ad Banner (inserted after 6 items to complete 2 full 3-column rows) */}
+              {index === 5 && filteredProducts.length >= 6 && (
+                <PromoBannerCarousel
+                  screen="olx"
+                  position="between"
+                  onOpenPostAd={onOpenPostAd}
+                  onSelectCategory={handleSelectCategory}
+                />
+              )}
+            </React.Fragment>
           ))
         )}
       </div>

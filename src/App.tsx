@@ -518,6 +518,10 @@ export const AppContent: React.FC = () => {
     }
 
     let adCursor = 0;
+    const patternMode = localStorage.getItem('spotlight_ad_feed_pattern') || 'standard';
+    const firstSlot = patternMode === 'frequent' ? 2 : patternMode === 'relaxed' ? 4 : 3;
+    const secondSlot = patternMode === 'frequent' ? 4 : patternMode === 'relaxed' ? 8 : 5;
+
     feedPosts.forEach((post, index) => {
       items.push({ type: 'post', data: post });
       const newsNumber = index + 1;
@@ -532,11 +536,11 @@ export const AppContent: React.FC = () => {
 
       if (matchingAd) {
         items.push({ type: 'ad', data: matchingAd });
-      } else if (newsNumber === 3 && eligibleAds.length > 0) {
+      } else if (newsNumber === firstSlot && eligibleAds.length > 0) {
         const ad = eligibleAds[adCursor % eligibleAds.length];
         items.push({ type: 'ad', data: ad });
         adCursor++;
-      } else if (newsNumber === 5 && eligibleAds.length > 1) {
+      } else if (newsNumber === secondSlot && eligibleAds.length > 1) {
         const ad = eligibleAds[adCursor % eligibleAds.length];
         items.push({ type: 'ad', data: ad });
         adCursor++;

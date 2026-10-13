@@ -7,7 +7,8 @@ import {
   ShieldAlert,
   BarChart3,
   RefreshCw,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles
 } from 'lucide-react';
 import type { AdminRoleType } from '../../../types';
 import {
@@ -20,6 +21,7 @@ import {
   MarketplaceStats
 } from '../../../services/marketplaceAdminService';
 import { OlxAdminManager } from './OlxAdminManager';
+import { MarketplaceBannersManager } from './MarketplaceBannersManager';
 import { JobsAdminManager } from './JobsAdminManager';
 import { RealEstateAdminManager } from './RealEstateAdminManager';
 import { UserSellerAdminManager } from './UserSellerAdminManager';
@@ -31,7 +33,7 @@ interface LocalPlusMarketplaceManagerProps {
   onRefreshParentData?: () => void;
 }
 
-type MarketplaceSubTab = 'olx' | 'jobs' | 'real_estate' | 'users' | 'reports' | 'analytics';
+type MarketplaceSubTab = 'olx' | 'banners' | 'jobs' | 'real_estate' | 'users' | 'reports' | 'analytics';
 
 export const LocalPlusMarketplaceManager: React.FC<LocalPlusMarketplaceManagerProps> = ({
   currentSimulatedRole,
@@ -87,10 +89,10 @@ export const LocalPlusMarketplaceManager: React.FC<LocalPlusMarketplaceManagerPr
   const isSubTabAllowed = (tab: MarketplaceSubTab): boolean => {
     if (currentSimulatedRole === 'super_admin') return true;
     if (currentSimulatedRole === 'editor') {
-      return tab === 'olx' || tab === 'jobs' || tab === 'real_estate' || tab === 'analytics';
+      return tab === 'olx' || tab === 'banners' || tab === 'jobs' || tab === 'real_estate' || tab === 'analytics';
     }
     if (currentSimulatedRole === 'moderator') {
-      return tab === 'reports' || tab === 'olx' || tab === 'jobs' || tab === 'real_estate' || tab === 'users';
+      return tab === 'reports' || tab === 'olx' || tab === 'banners' || tab === 'jobs' || tab === 'real_estate' || tab === 'users';
     }
     return false;
   };
@@ -287,6 +289,29 @@ export const LocalPlusMarketplaceManager: React.FC<LocalPlusMarketplaceManagerPr
             </button>
           )}
 
+          {isSubTabAllowed('banners') && (
+            <button
+              onClick={() => setActiveSubTab('banners')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 18px',
+                border: 'none',
+                background: 'none',
+                fontSize: '13px',
+                fontWeight: activeSubTab === 'banners' ? 800 : 600,
+                color: activeSubTab === 'banners' ? '#ff4500' : '#475569',
+                borderBottom: activeSubTab === 'banners' ? '2.5px solid #ff4500' : '2.5px solid transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Sparkles size={16} />
+              <span>Promo Banners</span>
+            </button>
+          )}
+
           {isSubTabAllowed('jobs') && (
             <button
               onClick={() => setActiveSubTab('jobs')}
@@ -435,6 +460,10 @@ export const LocalPlusMarketplaceManager: React.FC<LocalPlusMarketplaceManagerPr
           canModerate={canModerate}
           canDelete={canDelete}
         />
+      )}
+
+      {activeSubTab === 'banners' && (
+        <MarketplaceBannersManager canModerate={canModerate} />
       )}
 
       {activeSubTab === 'jobs' && (

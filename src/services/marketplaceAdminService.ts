@@ -1,3 +1,6 @@
+import type { MarketplacePromoBanner } from '../types/marketplace';
+export type { MarketplacePromoBanner };
+
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
 
 export interface AdminProduct {
@@ -360,5 +363,103 @@ export const marketplaceAdminService = {
     const res = await fetch(`${API_BASE}/marketplace/admin/stats`);
     const data = await res.json();
     return data.stats;
+  },
+
+  // PROMOTIONAL BANNERS
+  async getBanners(): Promise<MarketplacePromoBanner[]> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners`);
+    const data = await res.json();
+    return data.banners || [];
+  },
+
+  async createBanner(banner: Partial<MarketplacePromoBanner>): Promise<MarketplacePromoBanner> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(banner)
+    });
+    const data = await res.json();
+    return data.banner;
+  },
+
+  async updateBanner(id: string, updates: Partial<MarketplacePromoBanner>): Promise<MarketplacePromoBanner> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    return data.banner;
+  },
+
+  async deleteBanner(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async reorderBanners(bannerIds: string[]): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners/reorder`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bannerIds })
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async resetBanners(): Promise<MarketplacePromoBanner[]> {
+    const res = await fetch(`${API_BASE}/marketplace/admin/banners/reset`, { method: 'POST' });
+    const data = await res.json();
+    return data.banners || [];
+  },
+
+  async getSectionStatus(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/marketplace/admin/banners/section-status`);
+      const data = await res.json();
+      return data.isSectionEnabled !== false;
+    } catch {
+      return true;
+    }
+  },
+
+  async toggleSection(enabled: boolean): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/marketplace/admin/banners/section-toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      const data = await res.json();
+      return data.isSectionEnabled !== false;
+    } catch {
+      return enabled;
+    }
+  },
+
+  async getPlacementStatus(): Promise<'top' | 'between' | 'both'> {
+    try {
+      const res = await fetch(`${API_BASE}/marketplace/admin/banners/placement-status`);
+      const data = await res.json();
+      return data.placement || 'both';
+    } catch {
+      return 'both';
+    }
+  },
+
+  async updatePlacement(placement: 'top' | 'between' | 'both'): Promise<'top' | 'between' | 'both'> {
+    try {
+      const res = await fetch(`${API_BASE}/marketplace/admin/banners/placement-toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placement })
+      });
+      const data = await res.json();
+      return data.placement || placement;
+    } catch {
+      return placement;
+    }
   }
 };
+

@@ -623,7 +623,68 @@
 .cat-property { background: #fef2f2; color: #dc2626; }
 .cat-services { background: #f1f5f9; color: #0284c7; }
 
-/* Promotional Banner */
+/* Promotional Banner Carousel Wrapper */
+.olx-promo-carousel-wrapper {
+  border-radius: var(--lp-radius-lg);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: var(--lp-shadow-md);
+  border: 1px solid #bfdbfe;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+  cursor: grab;
+  background: #f8fafc;
+}
+
+.olx-promo-carousel-wrapper.is-dragging {
+  cursor: grabbing;
+}
+
+/* Sliding Track */
+.olx-promo-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* Individual Slide (takes full width) */
+.olx-promo-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  min-height: 145px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.olx-promo-slide.is-full-poster {
+  padding: 0 !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justifyContent: center;
+  min-height: unset;
+  height: auto;
+}
+
+.olx-promo-full-media {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+/* Legacy single-banner compatibility */
 .olx-promo-banner {
   border-radius: var(--lp-radius-lg);
   position: relative;
@@ -636,12 +697,15 @@
   margin-bottom: 24px;
   box-shadow: var(--lp-shadow-md);
   border: 1px solid #bfdbfe;
-  min-height: 140px;
+  min-height: 145px;
+  transition: background 0.4s ease, border-color 0.4s ease;
+  user-select: none;
 }
 
 .olx-promo-text {
-  max-width: 55%;
+  max-width: 56%;
   z-index: 2;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .olx-promo-badge {
@@ -655,6 +719,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
+  transition: background-color 0.3s ease;
 }
 
 .olx-promo-text h3 {
@@ -662,7 +727,7 @@
   font-size: 22px;
   font-weight: 800;
   color: var(--lp-navy);
-  line-height: 1.15;
+  line-height: 1.18;
 }
 
 .olx-promo-text p {
@@ -670,6 +735,19 @@
   font-weight: 600;
   color: var(--lp-slate-body);
   margin-top: 4px;
+}
+
+.olx-promo-book-btn {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.olx-promo-book-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(255, 107, 0, 0.45) !important;
+}
+
+.olx-promo-book-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .olx-promo-image-cluster {
@@ -684,35 +762,104 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 50%;
+  width: 52%;
+  overflow: hidden;
   background-size: cover;
   background-position: center;
-  opacity: 0.9;
-  mask-image: linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0));
-  -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 40%, rgba(0,0,0,0));
+  opacity: 0.95;
+  mask-image: linear-gradient(to left, rgba(0,0,0,1) 45%, rgba(0,0,0,0));
+  -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 45%, rgba(0,0,0,0));
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.olx-promo-video-decor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
 }
 
 .olx-banner-dots {
   position: absolute;
-  bottom: 8px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  align-items: center;
   gap: 6px;
   z-index: 5;
 }
 
 .olx-banner-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.2);
+  background: rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.olx-banner-dot:hover {
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .olx-banner-dot.active {
-  width: 18px;
-  border-radius: 4px;
-  background: var(--lp-blue);
+  width: 22px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--lp-orange);
+}
+
+.olx-banner-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  cursor: pointer;
+  z-index: 6;
+  opacity: 0.65;
+  transition: opacity 0.25s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.olx-promo-carousel-wrapper:hover .olx-banner-nav-btn,
+.olx-promo-banner:hover .olx-banner-nav-btn {
+  opacity: 1;
+}
+
+.olx-banner-nav-btn:hover {
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.08);
+  opacity: 1;
+}
+
+.olx-banner-nav-btn.prev {
+  left: 10px;
+}
+
+.olx-banner-nav-btn.next {
+  right: 10px;
+}
+
+@media (max-width: 640px) {
+  .olx-banner-nav-btn {
+    opacity: 0.85;
+    width: 28px;
+    height: 28px;
+  }
 }
 
 /* Section Header (Popular Near You / Featured) */

@@ -205,3 +205,26 @@ export interface PostAdFormData {
   sellerEmail: string;
   hideExactLocation?: boolean;
 }
+
+export interface MarketplacePromoBanner {
+  id: string;
+  badge: string;
+  title: string;
+  subtitle?: string;
+  buttonText: string;
+  buttonLink?: string;
+  actionType: 'category' | 'post_ad' | 'external' | 'search' | 'none';
+  actionPayload?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  mediaType?: 'image' | 'video';
+  targetScreen?: 'all' | 'olx' | 'real_estate';
+  bannerStyle?: 'full_poster' | 'split_template';
+  bgGradient?: string;
+  badgeBg?: string;
+  btnBg?: string;
+  isActive: boolean;
+  orderIndex: number;
+  createdAt?: string;
+  updatedAt?: string;
+}

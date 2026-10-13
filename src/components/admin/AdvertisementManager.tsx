@@ -16,7 +16,11 @@ import {
   AlertTriangle,
   Play,
   Target,
-  PauseCircle
+  PauseCircle,
+  Info,
+  X,
+  SlidersHorizontal,
+  ArrowRight
 } from 'lucide-react';
 import type { Advertisement, AdType } from '../../types';
 import { AdPreviewModal } from './AdPreviewModal';
@@ -44,6 +48,23 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
   const [previewAd, setPreviewAd] = useState<Advertisement | null>(null);
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Live Feed Slot Inspection & Pattern State
+  const [inspectedSlot, setInspectedSlot] = useState<{
+    type: 'news' | 'ad';
+    slotNumber: number;
+    adPosition?: string;
+  } | null>(null);
+
+  const [patternMode, setPatternMode] = useState<'standard' | 'frequent' | 'relaxed'>(() => {
+    return (localStorage.getItem('spotlight_ad_feed_pattern') as any) || 'standard';
+  });
+
+  const handleSetPatternMode = (mode: 'standard' | 'frequent' | 'relaxed') => {
+    setPatternMode(mode);
+    localStorage.setItem('spotlight_ad_feed_pattern', mode);
+    window.dispatchEvent(new Event('storage'));
+  };
 
   // Filtered ads
   const filteredAds = useMemo(() => {
@@ -309,33 +330,328 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Sparkles size={16} color="#ea580c" />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
               Live Feed Slot Pattern:
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700 }}>
-            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 1</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 2</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 3</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#ea580c', color: '#ffffff', padding: '3px 8px', borderRadius: '6px' }}>📢 AD</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 4</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#f1f5f9', color: '#334155', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>News 5</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span style={{ background: '#ea580c', color: '#ffffff', padding: '3px 8px', borderRadius: '6px' }}>📢 AD</span>
+
+          {/* Interactive Clickable Slot Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, flexWrap: 'wrap' }}>
+            {patternMode === 'frequent' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 1 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 1 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 1 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 1 slot"
+                >
+                  News 1
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 2 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 2 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 2 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 2 slot"
+                >
+                  News 2
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'ad', slotNumber: 2, adPosition: 'after_2' })}
+                  style={{
+                    background: inspectedSlot?.type === 'ad' && inspectedSlot.slotNumber === 2 ? '#c2410c' : '#ea580c',
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect and preview Ad Slot 1"
+                >
+                  📢 AD (Slot 1)
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 3 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 3 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 3 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 3 slot"
+                >
+                  News 3
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 4 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 4 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 4 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 4 slot"
+                >
+                  News 4
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'ad', slotNumber: 4, adPosition: 'after_4' })}
+                  style={{
+                    background: inspectedSlot?.type === 'ad' && inspectedSlot.slotNumber === 4 ? '#c2410c' : '#ea580c',
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect and preview Ad Slot 2"
+                >
+                  📢 AD (Slot 2)
+                </button>
+              </>
+            ) : patternMode === 'relaxed' ? (
+              <>
+                {[1, 2, 3, 4].map((num) => (
+                  <React.Fragment key={num}>
+                    <button
+                      type="button"
+                      onClick={() => setInspectedSlot({ type: 'news', slotNumber: num })}
+                      style={{
+                        background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === num ? '#0284c7' : '#f1f5f9',
+                        color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === num ? '#ffffff' : '#334155',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={`Click to inspect News ${num} slot`}
+                    >
+                      News {num}
+                    </button>
+                    <span style={{ color: '#94a3b8' }}>→</span>
+                  </React.Fragment>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'ad', slotNumber: 4, adPosition: 'after_4' })}
+                  style={{
+                    background: inspectedSlot?.type === 'ad' ? '#c2410c' : '#ea580c',
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect and preview Ad Slot"
+                >
+                  📢 AD (Slot 1)
+                </button>
+              </>
+            ) : (
+              /* Standard 3-5 Mode */
+              <>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 1 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 1 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 1 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 1 slot"
+                >
+                  News 1
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 2 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 2 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 2 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 2 slot"
+                >
+                  News 2
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 3 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 3 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 3 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 3 slot"
+                >
+                  News 3
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'ad', slotNumber: 3, adPosition: 'after_3' })}
+                  style={{
+                    background: inspectedSlot?.type === 'ad' && inspectedSlot.slotNumber === 3 ? '#c2410c' : '#ea580c',
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect and preview Ad Slot 1 (after News 3)"
+                >
+                  📢 AD (Slot 1)
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 4 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 4 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 4 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 4 slot"
+                >
+                  News 4
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'news', slotNumber: 5 })}
+                  style={{
+                    background: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 5 ? '#0284c7' : '#f1f5f9',
+                    color: inspectedSlot?.type === 'news' && inspectedSlot.slotNumber === 5 ? '#ffffff' : '#334155',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect News 5 slot"
+                >
+                  News 5
+                </button>
+                <span style={{ color: '#94a3b8' }}>→</span>
+                <button
+                  type="button"
+                  onClick={() => setInspectedSlot({ type: 'ad', slotNumber: 5, adPosition: 'after_5' })}
+                  style={{
+                    background: inspectedSlot?.type === 'ad' && inspectedSlot.slotNumber === 5 ? '#c2410c' : '#ea580c',
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Click to inspect and preview Ad Slot 2 (after News 5)"
+                >
+                  📢 AD (Slot 2)
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        <span style={{ fontSize: '12px', color: '#64748b' }}>
-          Filtered dynamically by user location (District / Taluk / Area)
-        </span>
+        {/* Pattern Mode Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Pattern Frequency:</span>
+          <select
+            value={patternMode}
+            onChange={(e) => handleSetPatternMode(e.target.value as any)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              color: '#0f172a',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            <option value="standard">Standard (Every 3rd & 5th)</option>
+            <option value="frequent">High Density (Every 2nd & 4th)</option>
+            <option value="relaxed">Relaxed (Every 4th)</option>
+          </select>
+        </div>
       </div>
 
       {/* 4. Filter & Search Toolbar */}
@@ -855,6 +1171,350 @@ export const AdvertisementManager: React.FC<AdvertisementManagerProps> = ({
           }}
         />
       )}
+
+      {/* Live Feed Slot Inspector Modal */}
+      {inspectedSlot && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setInspectedSlot(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '540px',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.25)',
+              border: '1px solid #e2e8f0'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: inspectedSlot.type === 'ad' ? '#ffedd5' : '#e0f2fe',
+                    color: inspectedSlot.type === 'ad' ? '#ea580c' : '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {inspectedSlot.type === 'ad' ? <Megaphone size={18} /> : <Sparkles size={18} />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                    {inspectedSlot.type === 'ad'
+                      ? `Live Feed Ad Slot (Position: ${inspectedSlot.adPosition || `after_${inspectedSlot.slotNumber}`})`
+                      : `News Story Slot #${inspectedSlot.slotNumber}`}
+                  </h3>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                    {inspectedSlot.type === 'ad'
+                      ? 'Commercial placement in reader news timeline'
+                      : 'Organic verified news article placement'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setInspectedSlot(null)}
+                style={{
+                  border: 'none',
+                  background: '#f1f5f9',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content for Ad Slot */}
+            {inspectedSlot.type === 'ad' ? (() => {
+              const matchingAds = ads.filter(
+                (ad) =>
+                  ad.status === 'active' &&
+                  (ad.position === inspectedSlot.adPosition ||
+                    ad.position === 'interval_3' ||
+                    ad.position === 'interval_5')
+              );
+              const firstAd = matchingAds[0] || ads.find((a) => a.status === 'active') || ads[0];
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div
+                    style={{
+                      background: '#fff7ed',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      border: '1px solid #fed7aa',
+                      fontSize: '13px',
+                      color: '#9a3412',
+                      lineHeight: 1.5
+                    }}
+                  >
+                    <strong>🎯 How this slot works:</strong> Spotlight injects an advertisement card at this position after readers scroll past story #{inspectedSlot.slotNumber}. Ads are dynamically targeted by user's selected district, taluk, and area.
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+                      Active Campaigns Eligible for this Slot ({matchingAds.length}):
+                    </div>
+
+                    {matchingAds.length === 0 ? (
+                      <div
+                        style={{
+                          padding: '16px',
+                          background: '#f8fafc',
+                          borderRadius: '10px',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '13px',
+                          color: '#64748b',
+                          textAlign: 'center'
+                        }}
+                      >
+                        No campaigns currently set exclusively to this position. General active ads will rotate automatically.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                        {matchingAds.slice(0, 3).map((ad) => (
+                          <div
+                            key={ad.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '10px 12px',
+                              background: '#f8fafc',
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: '6px',
+                                  overflow: 'hidden',
+                                  background: '#e2e8f0'
+                                }}
+                              >
+                                {ad.mediaUrl ? (
+                                  <img src={ad.mediaUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <Megaphone size={16} />
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>{ad.title}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>{ad.advertiserName} • {ad.targetLocation.district}</div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPreviewAd(ad);
+                                setInspectedSlot(null);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                color: '#0284c7',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Eye size={12} />
+                              <span>Preview</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+                    {firstAd && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewAd(firstAd);
+                          setInspectedSlot(null);
+                        }}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          background: '#f8fafc',
+                          color: '#0f172a',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Eye size={14} color="#0284c7" />
+                        <span>Preview Live Feed Ad</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateModal(true);
+                        setEditingAd({
+                          id: '',
+                          title: '',
+                          advertiserName: '',
+                          adType: 'image',
+                          mediaUrl: '',
+                          targetUrl: '',
+                          callToAction: 'விவரங்களை அறிக',
+                          startDate: new Date().toISOString().split('T')[0],
+                          endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                          targetLocation: { district: 'All' },
+                          position: inspectedSlot.adPosition || `after_${inspectedSlot.slotNumber}`,
+                          status: 'active',
+                          impressions: 0,
+                          clicks: 0,
+                          createdAt: new Date().toISOString()
+                        } as any);
+                        setInspectedSlot(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#ea580c',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(234, 88, 12, 0.3)'
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>+ Create Campaign for Slot</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })() : (
+              /* Content for News Slot */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div
+                  style={{
+                    background: '#f0f9ff',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    border: '1px solid #bae6fd',
+                    fontSize: '13px',
+                    color: '#0369a1',
+                    lineHeight: 1.5
+                  }}
+                >
+                  <strong>📰 Editorial Integrity Slot:</strong> Slot #{inspectedSlot.slotNumber} is dedicated solely to verified local citizen news and breaking reports. Commercial advertisements are not served here to maintain a clean reading experience.
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                      Next Commercial Ad Slot:
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                      {inspectedSlot.slotNumber < 3
+                        ? `Occurs after News 3 (${3 - inspectedSlot.slotNumber} story away)`
+                        : inspectedSlot.slotNumber === 3
+                        ? 'Occurs immediately after this story!'
+                        : inspectedSlot.slotNumber < 5
+                        ? `Occurs after News 5 (${5 - inspectedSlot.slotNumber} story away)`
+                        : 'Next commercial slot occurs in secondary rotation'}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedSlot({
+                        type: 'ad',
+                        slotNumber: inspectedSlot.slotNumber <= 3 ? 3 : 5,
+                        adPosition: inspectedSlot.slotNumber <= 3 ? 'after_3' : 'after_5'
+                      });
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#ea580c',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>Inspect Ad Slot</span>
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
