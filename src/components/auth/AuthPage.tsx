@@ -455,7 +455,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Anand Kumar"
+                  placeholder="Enter your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{
@@ -484,7 +484,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="tel"
                   required
-                  placeholder="10-digit mobile number (e.g. 9876543210)"
+                  placeholder="Enter your phone number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   style={{
@@ -510,7 +510,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="email"
                   required
-                  placeholder="yourname@gmail.com"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -536,7 +536,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="password"
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
@@ -600,7 +600,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="yourname@gmail.com"
+                  placeholder="Enter your email or handle"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -626,7 +626,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <input
                   type="password"
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
