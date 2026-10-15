@@ -28,6 +28,7 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   onOpenNotifications?: () => void;
   onToggleMenu?: () => void;
+  onOpenProfile?: () => void;
   unreadAlertCount?: number;
 }
 
@@ -38,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   onOpenNotifications,
   onToggleMenu,
+  onOpenProfile,
   unreadAlertCount = 0
 }) => {
   const { user, logout, isAdmin } = useAuth();
@@ -151,8 +153,8 @@ export const Header: React.FC<HeaderProps> = ({
             <Search size={16} />
           </button>
 
-          {/* User Profile Avatar Pill */}
-          {user && (
+          {/* User Profile Avatar Pill / Guest Login Button */}
+          {user ? (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -322,6 +324,29 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </div>
+          ) : (
+            <button
+              onClick={onOpenProfile}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(255, 69, 0, 0.25)',
+                transition: 'transform 0.15s ease'
+              }}
+              title="Sign in or Register"
+            >
+              <UserIcon size={12} />
+              <span>Login</span>
+            </button>
           )}
         </div>
       </header>

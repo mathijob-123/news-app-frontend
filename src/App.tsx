@@ -703,9 +703,9 @@ export const AppContent: React.FC = () => {
     );
   }
 
-  // Mandatory Authentication: Must Login before using the application
-  if (!isAuthenticated) {
-    if (currentPath === '/admin' || currentPath === '/admin/login') {
+  // Dedicated Separate /admin Route with Authentication
+  if (currentPath === '/admin' || currentPath === '/admin/login') {
+    if (!isAuthenticated) {
       return (
         <AdminAuth
           onLoginSuccess={() => navigateTo('/admin')}
@@ -713,17 +713,6 @@ export const AppContent: React.FC = () => {
         />
       );
     }
-    return (
-      <AuthPage
-        onSuccess={() => navigateTo('/')}
-        onAdminSuccess={() => navigateTo('/admin')}
-        onNewUser={() => navigateTo('/')}
-      />
-    );
-  }
-
-  // Dedicated Separate /admin Route with Authentication
-  if (currentPath === '/admin' || currentPath === '/admin/login') {
     return (
       <AdminPage
         posts={posts}
@@ -733,8 +722,8 @@ export const AppContent: React.FC = () => {
     );
   }
 
-  // New User Onboarding: Must complete profile before accessing main app
-  if (!isAdmin && (authUser?.onboardingCompleted === false || user.onboardingCompleted === false)) {
+  // New User Onboarding: Must complete profile before accessing main app (only for authenticated users)
+  if (isAuthenticated && !isAdmin && (authUser?.onboardingCompleted === false || user.onboardingCompleted === false)) {
     return (
       <ProfileOnboarding
         initialUser={authUser || user}
@@ -921,6 +910,10 @@ export const AppContent: React.FC = () => {
           onOpenSearch={() => setShowSearchModal(true)}
           onOpenAdmin={() => navigateTo('/admin')}
           onOpenNotifications={() => setShowNotificationModal(true)}
+          onOpenProfile={() => {
+            setActiveTab('profile');
+            setActiveView('profile');
+          }}
           onToggleMenu={() => {
             setPreviousView(activeView);
             setPreviousTab(activeTab);
@@ -1145,42 +1138,59 @@ export const AppContent: React.FC = () => {
             </div>
           )}
 
-          {/* PROFILE: Preserves existing UI inside the SAME app viewport */}
+          {/* PROFILE: If guest (new person), shows Register/Login; if already registered, shows actual Profile */}
           {activeView === 'profile' && (
             <div>
-              <ProfileScreen
-                user={user}
-                posts={postsWithDistance}
-                onOpenPost={handleOpenPostInSpots}
-                onNavigateToMonetization={() => {
-                  setActiveTab('monetization');
-                  setActiveView('monetization');
-                }}
-                onUpdateUser={handleUpdateUser}
-                onOpenAdmin={() => navigateTo('/admin')}
-                onToggleMenu={() => {
-                  setPreviousView('profile');
-                  setPreviousTab('profile');
-                  setIsSidebarOpenMobile(true);
-                }}
-                onOpenPostAd={() => setShowPostAdModal(true)}
-                onOpenProduct={(p) => {
-                  if (p.status === 'sold') return;
-                  setPreviousView('profile');
-                  setPreviousTab('profile');
-                  handleSelectProduct(p);
-                  setActiveModule('olx');
-                  setActiveView('olx');
-                }}
-                onNavigateToMarketplace={() => {
-                  setPreviousView('profile');
-                  setPreviousTab('profile');
-                  setSelectedProduct(null);
-                  setActiveModule('olx');
-                  setOlxTab('home');
-                  setActiveView('olx');
-                }}
-              />
+              {!isAuthenticated ? (
+                <AuthPage
+                  initialMode="register"
+                  onSuccess={() => {
+                    refreshAppData();
+                  }}
+                  onAdminSuccess={() => navigateTo('/admin')}
+                  onNewUser={() => {
+                    refreshAppData();
+                  }}
+                  onClose={() => {
+                    setActiveView(previousView === 'profile' ? 'spots' : previousView);
+                    setActiveTab(previousTab === 'profile' ? 'spots' : previousTab);
+                  }}
+                />
+              ) : (
+                <ProfileScreen
+                  user={user}
+                  posts={postsWithDistance}
+                  onOpenPost={handleOpenPostInSpots}
+                  onNavigateToMonetization={() => {
+                    setActiveTab('monetization');
+                    setActiveView('monetization');
+                  }}
+                  onUpdateUser={handleUpdateUser}
+                  onOpenAdmin={() => navigateTo('/admin')}
+                  onToggleMenu={() => {
+                    setPreviousView('profile');
+                    setPreviousTab('profile');
+                    setIsSidebarOpenMobile(true);
+                  }}
+                  onOpenPostAd={() => setShowPostAdModal(true)}
+                  onOpenProduct={(p) => {
+                    if (p.status === 'sold') return;
+                    setPreviousView('profile');
+                    setPreviousTab('profile');
+                    handleSelectProduct(p);
+                    setActiveModule('olx');
+                    setActiveView('olx');
+                  }}
+                  onNavigateToMarketplace={() => {
+                    setPreviousView('profile');
+                    setPreviousTab('profile');
+                    setSelectedProduct(null);
+                    setActiveModule('olx');
+                    setOlxTab('home');
+                    setActiveView('olx');
+                  }}
+                />
+              )}
             </div>
           )}
 
