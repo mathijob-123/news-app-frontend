@@ -34,6 +34,7 @@ export interface User {
   handle: string;
   displayName: string;
   email?: string;
+  phone?: string;
   role: UserRole;
   authProvider?: 'local' | 'google';
   avatar: string;
@@ -57,6 +58,7 @@ export interface RegisterPayload {
   displayName: string;
   handle?: string;
   email: string;
+  phone: string;
   password: string;
   role?: UserRole;
   avatar?: string;

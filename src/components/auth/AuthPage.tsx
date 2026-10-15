@@ -10,6 +10,7 @@ import {
   X,
   Mail,
   Lock,
+  Phone,
   User as UserIcon,
   ArrowRight,
   ArrowLeft
@@ -45,6 +46,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const [authMode, setAuthMode] = useState<'google' | 'register' | 'login'>(initialMode);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -159,8 +161,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) {
-      setError('Please fill in your name, email, and password.');
+    if (!name.trim() || !phone.trim() || !email.trim() || !password) {
+      setError('Please fill in your name, mobile phone number, email, and password.');
+      return;
+    }
+    const cleanPhone = phone.trim().replace(/[^0-9+]/g, '');
+    if (cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit mobile phone number.');
       return;
     }
     if (password.length < 6) {
@@ -172,13 +179,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     try {
       const res = await register({
         displayName: name.trim(),
+        phone: cleanPhone,
         email: email.trim(),
         password,
         role: 'creator'
       });
       processAuthResult(res);
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Email may already exist.');
+      setError(err.message || 'Registration failed. Email or phone number may already exist.');
     } finally {
       setIsLoading(false);
     }
@@ -300,40 +308,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </button>
         )}
 
-        {/* Brand Header Pill */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '5px 14px',
-            borderRadius: '999px',
-            background: '#fff7ed',
-            border: '1px solid #fed7aa',
-            marginBottom: '14px'
-          }}
-        >
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#ff4500',
-              boxShadow: '0 0 8px rgba(255, 69, 0, 0.6)'
-            }}
-          />
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: 800,
-              color: '#ff4500',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase'
-            }}
-          >
-            Spotlight Hyperlocal News
-          </span>
-        </div>
+
 
         {/* Title & Description */}
         <h1
@@ -483,6 +458,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   placeholder="e.g. Anand Kumar"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    outline: 'none',
+                    background: '#f8fafc',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>Mobile Phone Number</span>
+                <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 800, background: '#fef2f2', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fecaca' }}>
+                  * Mandatory
+                </span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Phone size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type="tel"
+                  required
+                  placeholder="10-digit mobile number (e.g. 9876543210)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '10px 14px 10px 38px',
