@@ -166,10 +166,10 @@ export const INITIAL_ADMIN_USERS: AdminUser[] = [
 
 export const INITIAL_APP_SETTINGS: AppSettings = {
   branding: {
-    appName: 'Spotlight Hyperlocal News',
-    tagline: 'Tamil Nadu Hyperlocal Breaking News & Citizen Video Network',
-    logoUrl: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=160&auto=format&fit=crop&q=80',
-    faviconUrl: '/favicon.ico',
+    appName: 'Spotlight360',
+    tagline: 'Hyperlocal Breaking News & Marketplace Network',
+    logoUrl: '/logo.png',
+    faviconUrl: '/favicon.png',
     primaryColor: '#ea580c', // Spotlight Vibrant Orange
     supportEmail: 'contact@spotlightnews.local',
     supportPhone: '+91 98401 23456'

@@ -1,18 +1,24 @@
 {
-  "short_name": "LocalPulse",
-  "name": "LocalPulse — Hyperlocal Short-Video News",
-  "description": "What's happening within 5km of you in under 60 seconds. Citizen journalism powered by verified creator monetization.",
+  "short_name": "Spotlight360",
+  "name": "Spotlight360 — Hyperlocal News & Marketplace",
+  "description": "Spotlight360: What's happening within 5km of you in under 60 seconds. Citizen journalism powered by verified creator monetization.",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192 512x512",
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
       "purpose": "any maskable"
     }
   ],
   "start_url": "/",
   "background_color": "#ffffff",
-  "theme_color": "#ff4500",
+  "theme_color": "#ea580c",
   "display": "standalone",
   "orientation": "portrait"
 }

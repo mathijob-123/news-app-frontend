@@ -586,7 +586,7 @@ export const AppContent: React.FC = () => {
       try {
         await navigator.share({
           title: post.headline,
-          text: `LocalPlus: ${post.headline} (${post.location.placeName})`,
+          text: `Spotlight360: ${post.headline} (${post.location.placeName})`,
           url: window.location.href
         });
       } catch {
@@ -681,21 +681,18 @@ export const AppContent: React.FC = () => {
       >
         <div
           style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #ff4500 0%, #f59e0b 100%)',
-            boxShadow: '0 0 30px #ff4500',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '16px'
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            marginBottom: '16px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
           }}
         >
-          <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffffff' }} />
+          <img src="/logo.png" alt="Spotlight360" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
-        <div style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>LocalPlus</div>
-        <div style={{ fontSize: '12px', color: '#fb923c', fontWeight: 700, marginTop: '2px', letterSpacing: '0.04em' }}>Connect • Buy • Sell • Grow</div>
+        <div style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>Spotlight360</div>
+        <div style={{ fontSize: '12px', color: '#fb923c', fontWeight: 700, marginTop: '2px', letterSpacing: '0.04em' }}>Hyperlocal News & Marketplace</div>
         <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '6px' }}>
           Verifying secure session (Supabase & Cloudflare R2)...
         </div>

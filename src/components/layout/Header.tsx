@@ -71,11 +71,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
           <div className="app-logo">
-            <div className="header-logo-icon">
-              <MapPin size={15} fill="#ffffff" color="#ffffff" />
+            <div className="header-logo-icon" style={{ padding: 0, overflow: 'hidden', background: 'transparent' }}>
+              <img src="/logo.png" alt="Spotlight360" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <span className="header-logo-text">
-              Local<span className="header-logo-accent">Plus</span>
+              Spotlight<span className="header-logo-accent">360</span>
             </span>
           </div>
         </div>
