@@ -269,6 +269,10 @@ export function bulkUpdateStoredPosts(
 
 export function getStoredUser(): User {
   try {
+    const authRaw = localStorage.getItem('spotlight_auth_user_v1');
+    if (authRaw) {
+      return JSON.parse(authRaw);
+    }
     const raw = localStorage.getItem(STORAGE_KEYS.USER);
     if (!raw) {
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(CURRENT_USER));
@@ -283,6 +287,7 @@ export function getStoredUser(): User {
 export function saveUser(user: User): void {
   try {
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    localStorage.setItem('spotlight_auth_user_v1', JSON.stringify(user));
   } catch (err) {
     console.error('Error saving user:', err);
   }

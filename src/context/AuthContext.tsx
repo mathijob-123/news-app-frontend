@@ -78,14 +78,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const data = await authService.getCurrentUser(storedToken);
-        if (isMounted) {
+        if (isMounted && data.user) {
           setUser(data.user);
           if (data.wallet) setWallet(data.wallet);
           localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
         }
-      } catch (err) {
-        console.warn('[AuthContext] Session expired or invalid, logging out.');
-        if (isMounted) clearSession();
+      } catch (err: any) {
+        // Only clear session if server explicitly returned 401 Unauthorized
+        if (err?.message === 'Unauthorized' && !storedToken.startsWith('local_')) {
+          console.warn('[AuthContext] Session unauthorized (401), logging out.');
+          if (isMounted) clearSession();
+        } else {
+          // Keep existing cached user session so app stays logged in!
+          const stored = localStorage.getItem(AUTH_USER_KEY);
+          if (stored && isMounted) {
+            try {
+              setUser(JSON.parse(stored));
+            } catch {}
+          }
+        }
       } finally {
         if (isMounted) setLoading(false);
       }

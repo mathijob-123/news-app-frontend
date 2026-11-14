@@ -1,6 +1,37 @@
 import type { User, RegisterPayload, LoginPayload, AuthResponse } from '../types';
 import { API_BASE } from './apiConfig';
 
+interface LocalAccountRecord {
+  user: User;
+  password?: string;
+  token: string;
+}
+
+const LOCAL_ACCOUNTS_KEY = 'spotlight_registered_accounts_v1';
+
+export function getLocalAccounts(): LocalAccountRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalAccount(record: LocalAccountRecord): void {
+  try {
+    const accounts = getLocalAccounts().filter(
+      (a) =>
+        a.user.email?.toLowerCase() !== record.user.email?.toLowerCase() &&
+        (!record.user.phone || a.user.phone !== record.user.phone)
+    );
+    accounts.push(record);
+    localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+  } catch (err) {
+    console.error('Error saving local account:', err);
+  }
+}
+
 async function parseResponseJson(res: Response): Promise<any> {
   try {
     const text = await res.text();
@@ -24,10 +55,13 @@ export const authService = {
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to create account');
       }
+      if (data.user && data.token) {
+        saveLocalAccount({ user: data.user, password: payload.password, token: data.token });
+      }
       return data;
     } catch (err: any) {
       const errMsg = err?.message || '';
-      // If remote database is paused or offline, provide a seamless local session
+      // If remote database is paused or offline, provide a seamless persistent local session
       if (
         errMsg.includes('tenant') ||
         errMsg.includes('ENOTFOUND') ||
@@ -35,7 +69,21 @@ export const authService = {
         errMsg.includes('NetworkError') ||
         errMsg.includes('offline')
       ) {
-        console.warn('[authService] Remote database offline/paused, creating offline fallback session.');
+        console.warn('[authService] Remote database offline/paused, checking local account registry.');
+        const cleanEmail = payload.email.trim().toLowerCase();
+        const cleanPhone = payload.phone?.trim().replace(/[^0-9+]/g, '');
+        const accounts = getLocalAccounts();
+
+        const duplicate = accounts.find(
+          (a) =>
+            a.user.email?.toLowerCase() === cleanEmail ||
+            (cleanPhone && a.user.phone === cleanPhone)
+        );
+
+        if (duplicate) {
+          throw new Error('An account with this email or mobile number already exists. Please tap "Sign In" above.');
+        }
+
         const fallbackUser: User = {
           id: `usr_${Date.now()}`,
           displayName: payload.displayName,
@@ -62,12 +110,15 @@ export const authService = {
           walletId: `w_${Date.now()}`,
           onboardingCompleted: true
         };
+        const token = `local_session_token_${Date.now()}`;
+        saveLocalAccount({ user: fallbackUser, password: payload.password, token });
+
         return {
           success: true,
-          token: `local_session_token_${Date.now()}`,
+          token,
           user: fallbackUser,
           wallet: { id: `w_${Date.now()}`, balance: 0, points: 100, qualifiedViewsTotal: 0 },
-          message: 'Account created successfully (Offline profile)'
+          message: 'Account created successfully'
         };
       }
       throw err;
@@ -86,6 +137,9 @@ export const authService = {
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to sign in');
       }
+      if (data.user && data.token) {
+        saveLocalAccount({ user: data.user, password: payload.password, token: data.token });
+      }
       return data;
     } catch (err: any) {
       const errMsg = err?.message || '';
@@ -96,40 +150,31 @@ export const authService = {
         errMsg.includes('NetworkError') ||
         errMsg.includes('offline')
       ) {
-        console.warn('[authService] Remote database offline/paused, creating offline fallback session.');
-        const namePart = payload.identifier.split('@')[0];
-        const fallbackUser: User = {
-          id: `usr_${Date.now()}`,
-          displayName: namePart.charAt(0).toUpperCase() + namePart.slice(1),
-          handle: namePart.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          email: payload.identifier.includes('@') ? payload.identifier : `${payload.identifier}@spotlight.app`,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(namePart)}`,
-          bio: 'Spotlight community member',
-          homeLocation: {
-            placeName: 'Chennai Central & Parrys',
-            neighborhood: 'Chennai Central Hub',
-            district: 'Chennai',
-            lat: 13.0827,
-            lng: 80.2707,
-            radiusMeters: 4000
-          },
-          role: 'creator',
-          isCreator: true,
-          creatorTier: 'bronze',
-          trustScore: 100,
-          verified: true,
-          followerCount: 0,
-          followingCount: 0,
-          walletId: `w_${Date.now()}`,
-          onboardingCompleted: true
-        };
-        return {
-          success: true,
-          token: `local_session_token_${Date.now()}`,
-          user: fallbackUser,
-          wallet: { id: `w_${Date.now()}`, balance: 0, points: 100, qualifiedViewsTotal: 0 },
-          message: 'Signed in successfully (Offline profile)'
-        };
+        console.warn('[authService] Remote database offline/paused, authenticating against local account registry.');
+        const cleanIdentifier = payload.identifier.trim().toLowerCase().replace(/^@+/, '');
+        const accounts = getLocalAccounts();
+
+        const matched = accounts.find(
+          (a) =>
+            a.user.email?.toLowerCase() === cleanIdentifier ||
+            a.user.handle?.toLowerCase() === cleanIdentifier ||
+            (a.user.phone && a.user.phone === cleanIdentifier)
+        );
+
+        if (matched) {
+          if (matched.password && payload.password && matched.password !== payload.password) {
+            throw new Error('Incorrect password. Please verify and try again.');
+          }
+          return {
+            success: true,
+            token: matched.token || `local_session_token_${Date.now()}`,
+            user: matched.user,
+            wallet: { id: `w_${Date.now()}`, balance: 0, points: 100, qualifiedViewsTotal: 0 },
+            message: 'Signed in successfully'
+          };
+        }
+
+        throw new Error('No account found with this email or mobile. Tap "New User (Register)" to create an account.');
       }
       throw err;
     }
@@ -165,16 +210,35 @@ export const authService = {
 
   // 5. Validate session token & fetch current user
   async getCurrentUser(token: string): Promise<{ success: boolean; user: User; wallet?: any; isAdmin?: boolean }> {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
+    if (token.startsWith('local_session_token_')) {
+      const stored = localStorage.getItem('spotlight_auth_user_v1');
+      if (stored) {
+        return { success: true, user: JSON.parse(stored) };
       }
-    });
-    const data = await parseResponseJson(res);
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Session expired');
     }
-    return data;
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await parseResponseJson(res);
+      if (!res.ok || !data.success) {
+        if (res.status === 401) {
+          throw new Error('Unauthorized');
+        }
+        throw new Error(data.error || 'Session expired');
+      }
+      return data;
+    } catch (err: any) {
+      if (err?.message === 'Unauthorized') throw err;
+      const stored = localStorage.getItem('spotlight_auth_user_v1');
+      if (stored) {
+        return { success: true, user: JSON.parse(stored) };
+      }
+      throw err;
+    }
   },
 
   // 6. Direct Avatar Upload to Cloudflare R2
