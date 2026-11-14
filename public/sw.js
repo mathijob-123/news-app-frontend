@@ -1,8 +1,9 @@
-const CACHE_NAME = 'localpulse-v1';
+const CACHE_NAME = 'spotlight360-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/favicon.svg',
+  '/logo.png',
+  '/favicon.png',
   '/manifest.json'
 ];
 
