@@ -99,6 +99,10 @@ export function getStoredPosts(): VideoPost[] {
       return INITIAL_POSTS;
     }
     const parsed: VideoPost[] = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(INITIAL_POSTS));
+      return INITIAL_POSTS;
+    }
     let changed = false;
     const sanitized = parsed.map((p, idx) => {
       let item = { ...p };

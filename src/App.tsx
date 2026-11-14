@@ -289,11 +289,12 @@ export const AppContent: React.FC = () => {
   const refreshAppData = async () => {
     try {
       const serverPosts = await apiClient.getPosts();
-      if (Array.isArray(serverPosts)) {
+      if (Array.isArray(serverPosts) && serverPosts.length > 0) {
         setPosts(serverPosts);
         savePosts(serverPosts);
       } else {
-        setPosts(getStoredPosts());
+        const stored = getStoredPosts();
+        if (stored.length > 0) setPosts(stored);
       }
     } catch {
       setPosts(getStoredPosts());
@@ -550,15 +551,16 @@ export const AppContent: React.FC = () => {
     return items;
   }, [feedPosts, eligibleAds]);
 
-  // Spots dispatches: Spotlight Rule: ONLY video/reel posts, STRICTLY filtered by user's current location
+  // Spots dispatches: Spotlight Rule: Video/reel posts prioritized by user location with regional fallback
   const spotsPosts = useMemo(() => {
-    return publicPostsWithDistance.filter((p) => {
-      // 1. Show ONLY reel or video posts (strictly no images, no text fallback)
+    const matching = publicPostsWithDistance.filter((p) => {
       if (p.type !== 'video') return false;
-
-      // 2. Filtered strictly by user's current location
       return isLocationMatch(p.location, activeLocation, p.distanceKm);
     });
+    // If local reels exist for current location, show them
+    if (matching.length > 0) return matching;
+    // Otherwise fallback to all available regional video reels so reels always play smoothly
+    return publicPostsWithDistance.filter((p) => p.type === 'video');
   }, [publicPostsWithDistance, activeLocation]);
 
   // Urgent breaking post for active location (public approved)
