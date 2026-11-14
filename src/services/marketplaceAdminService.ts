@@ -1,7 +1,6 @@
 import type { MarketplacePromoBanner } from '../types/marketplace';
+import { API_BASE } from './apiConfig';
 export type { MarketplacePromoBanner };
-
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
 
 export interface AdminProduct {
   id: string;

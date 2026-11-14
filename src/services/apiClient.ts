@@ -13,8 +13,7 @@ import type {
   AppNotification,
   Spotlight360Video
 } from '../types';
-
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
+import { API_BASE } from './apiConfig';
 
 export const apiClient = {
   async checkHealth(): Promise<{ status: string; timestamp: string }> {

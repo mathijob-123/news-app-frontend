@@ -6,8 +6,7 @@ import {
   PostAdFormData,
   MarketplacePromoBanner
 } from '../types/marketplace';
-
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api';
+import { API_BASE } from './apiConfig';
 
 /**
  * Compresses an uploaded image file into a permanent, high-quality base64 Data URL.
