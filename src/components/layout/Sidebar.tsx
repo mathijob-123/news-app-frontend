@@ -6,6 +6,7 @@ import {
   Building,
   Bookmark,
   User,
+  ShieldCheck,
   ChevronRight,
   X
 } from 'lucide-react';
@@ -24,7 +25,8 @@ export type MainNavSection =
   | 'saved'
   | 'profile'
   | 'spots'
-  | 'monetization';
+  | 'monetization'
+  | 'admin';
 
 interface SidebarProps {
   activeSection: MainNavSection;
@@ -63,7 +65,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     icon: React.ReactNode;
   }> = [
     { id: 'saved', label: 'Saved', icon: <Bookmark size={18} /> },
-    { id: 'profile', label: 'Profile', icon: <User size={18} /> }
+    { id: 'profile', label: 'Profile', icon: <User size={18} /> },
+    { id: 'admin', label: 'Admin Bureau Desk', icon: <ShieldCheck size={18} color="#ea580c" /> }
   ];
 
   return (

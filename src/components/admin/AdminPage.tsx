@@ -24,7 +24,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       return { id: authUser.id, name: authUser.displayName, role: 'SuperAdmin' };
     }
     try {
-      const stored = sessionStorage.getItem(ADMIN_SESSION_KEY);
+      const stored = localStorage.getItem(ADMIN_SESSION_KEY) || sessionStorage.getItem(ADMIN_SESSION_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -43,6 +43,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
   const handleLoginSuccess = (user: { id: string; name: string; role: string }) => {
     try {
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
       sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
     } catch (e) {
       console.error('Failed to save admin session', e);
@@ -52,6 +53,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
   const handleLogout = () => {
     try {
+      localStorage.removeItem(ADMIN_SESSION_KEY);
       sessionStorage.removeItem(ADMIN_SESSION_KEY);
     } catch (e) {
       console.error('Failed to clear admin session', e);

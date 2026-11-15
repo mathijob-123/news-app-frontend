@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   Compass,
   Camera,
-  Loader2
+  Loader2,
+  RotateCw
 } from 'lucide-react';
 import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { isWatchQualified } from '../../services/monetizationEngine';
@@ -37,6 +38,8 @@ interface SpotsPlayerProps {
   onSendTip: (postId: string, amount: number, creatorName: string) => void;
   onOpenCreate?: () => void;
   onReportCopyright?: (post: VideoPost) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 interface ReelCardProps {
@@ -57,16 +60,24 @@ interface ReelCardProps {
   onReportCopyright?: (post: VideoPost) => void;
   isFollowed: boolean;
   onToggleFollow: (creatorId: string) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-const resolveVideoSrc = (rawUrl?: string, hasPlaybackError?: boolean) => {
+const VERIFIED_CDN_VIDEOS = [
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789997093458_sk5cm0.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789996953775_f7x7uj.mp4',
+  'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789995126975_l0csk7.mp4'
+];
+
+const resolveVideoSrc = (rawUrl?: string, hasPlaybackError?: boolean, index: number = 0) => {
   if (
     !rawUrl ||
     hasPlaybackError ||
-    rawUrl.startsWith('blob:') ||
     rawUrl.includes('commondatastorage.googleapis.com')
   ) {
-    return 'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4';
+    return VERIFIED_CDN_VIDEOS[index % VERIFIED_CDN_VIDEOS.length];
   }
   return rawUrl;
 };
@@ -88,7 +99,9 @@ const ReelCard: React.FC<ReelCardProps> = ({
   onOpenTip,
   onReportCopyright,
   isFollowed,
-  onToggleFollow
+  onToggleFollow,
+  onRefresh,
+  isRefreshing
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -102,8 +115,8 @@ const ReelCard: React.FC<ReelCardProps> = ({
   const lastTapRef = useRef<number>(0);
 
   const videoSrc = useMemo(() => {
-    return resolveVideoSrc(post.mediaUrl, hasPlaybackError);
-  }, [post.mediaUrl, hasPlaybackError]);
+    return resolveVideoSrc(post.mediaUrl, hasPlaybackError, index);
+  }, [post.mediaUrl, hasPlaybackError, index]);
 
   // Handle Play/Pause when entering or leaving active view
   useEffect(() => {
@@ -334,6 +347,41 @@ const ReelCard: React.FC<ReelCardProps> = ({
           </span>
           <ChevronDown size={12} />
         </button>
+
+        {onRefresh && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRefresh();
+            }}
+            disabled={isRefreshing}
+            style={{
+              pointerEvents: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(0, 0, 0, 0.55)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '20px',
+              padding: '5px 12px',
+              color: '#ffffff',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              cursor: isRefreshing ? 'wait' : 'pointer'
+            }}
+            title="Refresh Feed"
+          >
+            <RotateCw
+              size={12}
+              style={{
+                transition: 'transform 0.5s ease',
+                transform: isRefreshing ? 'rotate(360deg)' : 'none'
+              }}
+            />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        )}
       </div>
 
       {/* 4. Qualified View Progress Bar */}
@@ -707,7 +755,9 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   getCommentsForPost,
   onSendTip,
   onOpenCreate,
-  onReportCopyright
+  onReportCopyright,
+  onRefresh,
+  isRefreshing
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false); // Sound ON by default
@@ -994,6 +1044,36 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
                 <span>Switch Location / பகுதி மாற்றவும்</span>
               </button>
             )}
+
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  background: 'rgba(255, 107, 0, 0.2)',
+                  border: '1px solid rgba(255, 107, 0, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: isRefreshing ? 'wait' : 'pointer'
+                }}
+              >
+                <RotateCw
+                  size={14}
+                  style={{
+                    animation: isRefreshing ? 'spin 1s linear infinite' : 'none'
+                  }}
+                />
+                <span>{isRefreshing ? 'Refreshing Videos...' : 'Refresh Videos / புதுப்பிக்கவும்'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1041,7 +1121,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             post={post}
             index={idx}
             isActive={idx === activeIndex}
-            isNear={Math.abs(idx - activeIndex) <= 1}
+            isNear={Math.abs(idx - activeIndex) <= 2}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             currentUser={currentUser}
@@ -1061,6 +1141,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             onReportCopyright={onReportCopyright}
             isFollowed={!!followedCreators[post.creatorId]}
             onToggleFollow={toggleFollow}
+            onRefresh={onRefresh}
+            isRefreshing={isRefreshing}
           />
         ))}
       </div>

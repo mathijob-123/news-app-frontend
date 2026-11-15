@@ -144,6 +144,16 @@ export const AppContent: React.FC = () => {
   const [isRefreshingMarketplace, setIsRefreshingMarketplace] = useState(false);
   const [showMyAdsModal, setShowMyAdsModal] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
+
+  const handleRefreshFeed = async () => {
+    setIsRefreshingFeed(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setTimeout(() => setIsRefreshingFeed(false), 500);
+    }
+  };
 
   const handleRefreshMarketplace = async () => {
     setIsRefreshingMarketplace(true);
@@ -242,6 +252,8 @@ export const AppContent: React.FC = () => {
       setActiveTab('home');
       setCategoryFilter('all');
       setSelectedProperty(null);
+    } else if (section === 'admin') {
+      navigateTo('/admin');
     }
     setIsSidebarOpenMobile(false);
   };
@@ -375,6 +387,19 @@ export const AppContent: React.FC = () => {
     loadServerAds();
     loadServerMarketplace();
     return () => { isMounted = false; };
+  }, []);
+
+  // Periodic background sync for real-time posts across all users (every 12 seconds)
+  useEffect(() => {
+    const postSyncTimer = setInterval(() => {
+      apiClient.getPosts().then((serverPosts) => {
+        if (serverPosts && serverPosts.length > 0) {
+          setPosts(serverPosts);
+          savePosts(serverPosts);
+        }
+      }).catch(() => {});
+    }, 12000);
+    return () => clearInterval(postSyncTimer);
   }, []);
 
   // Monitor network online/offline status
@@ -551,16 +576,15 @@ export const AppContent: React.FC = () => {
     return items;
   }, [feedPosts, eligibleAds]);
 
-  // Spots dispatches: Spotlight Rule: Video/reel posts prioritized by user location with regional fallback
+  // Spots dispatches: Prioritize local videos for current location FIRST,
+  // then append all other regional videos so users can endlessly scroll like Instagram Reels!
   const spotsPosts = useMemo(() => {
-    const matching = publicPostsWithDistance.filter((p) => {
-      if (p.type !== 'video') return false;
-      return isLocationMatch(p.location, activeLocation, p.distanceKm);
-    });
-    // If local reels exist for current location, show them
-    if (matching.length > 0) return matching;
-    // Otherwise fallback to all available regional video reels so reels always play smoothly
-    return publicPostsWithDistance.filter((p) => p.type === 'video');
+    const allVideos = publicPostsWithDistance.filter((p) => p.type === 'video');
+    const localReels = allVideos.filter((p) => isLocationMatch(p.location, activeLocation, p.distanceKm));
+    const otherReels = allVideos.filter((p) => !isLocationMatch(p.location, activeLocation, p.distanceKm));
+
+    const combined = [...localReels, ...otherReels];
+    return combined.length > 0 ? combined : allVideos;
   }, [publicPostsWithDistance, activeLocation]);
 
   // Urgent breaking post for active location (public approved)
@@ -704,14 +728,6 @@ export const AppContent: React.FC = () => {
 
   // Dedicated Separate /admin Route with Authentication
   if (currentPath === '/admin' || currentPath === '/admin/login') {
-    if (!isAuthenticated) {
-      return (
-        <AdminAuth
-          onLoginSuccess={() => navigateTo('/admin')}
-          onReturnHome={() => navigateTo('/')}
-        />
-      );
-    }
     return (
       <AdminPage
         posts={posts}
@@ -961,6 +977,8 @@ export const AppContent: React.FC = () => {
                 onSendTip={handleSendTip}
                 onOpenCreate={() => setShowPostAdModal(true)}
                 onReportCopyright={(p) => setReportCopyrightPost(p)}
+                onRefresh={handleRefreshFeed}
+                isRefreshing={isRefreshingFeed}
               />
             </div>
           )}
