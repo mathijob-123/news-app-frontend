@@ -3,6 +3,8 @@ package com.vedaspark.spotlight360;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -14,28 +16,51 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Switch immediately from splash screen theme to regular theme
+        setTheme(R.style.AppTheme_NoActionBar);
         super.onCreate(savedInstanceState);
+
         try {
-            // 1. Set clean white status bar with dark icons
-            getWindow().setStatusBarColor(Color.WHITE);
+            Window window = getWindow();
+
+            // Clear translucent status bar to prevent webview from rendering behind status bar
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+
+            // Clean solid white status bar & navigation bar
+            window.setStatusBarColor(Color.WHITE);
+            window.setNavigationBarColor(Color.WHITE);
+
+            // Dark icons for status bar and navigation bar
             WindowInsetsControllerCompat insetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+                WindowCompat.getInsetsController(window, window.getDecorView());
             if (insetsController != null) {
                 insetsController.setAppearanceLightStatusBars(true);
+                insetsController.setAppearanceLightNavigationBars(true);
             }
 
-            // 2. Pad root content by system insets so app never collides with status bar/notch on ANY phone
+            // Enforce decor fits system windows so app never renders underneath status bar on ANY phone
+            WindowCompat.setDecorFitsSystemWindows(window, true);
+
+            // Apply insets listener to ensure root content is strictly within safe display boundaries
             View contentView = findViewById(android.R.id.content);
             if (contentView != null) {
+                contentView.setFitsSystemWindows(true);
                 ViewCompat.setOnApplyWindowInsetsListener(contentView, (v, windowInsets) -> {
-                    Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    Insets insets = windowInsets.getInsets(
+                        WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+                    );
                     v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
                     return windowInsets;
                 });
+                ViewCompat.requestApplyInsets(contentView);
             }
 
-            // 3. Webview media and storage optimization
+            // Webview settings, fitsSystemWindows, media and storage optimization
             if (this.bridge != null && this.bridge.getWebView() != null) {
+                View webView = this.bridge.getWebView();
+                webView.setFitsSystemWindows(true);
                 WebSettings settings = this.bridge.getWebView().getSettings();
                 settings.setMediaPlaybackRequiresUserGesture(false);
                 settings.setDomStorageEnabled(true);

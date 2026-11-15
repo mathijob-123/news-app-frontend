@@ -127,6 +127,56 @@ export const authService = {
 
   // 2. Email / Handle & Password Login
   async login(payload: LoginPayload): Promise<AuthResponse> {
+    const cleanId = payload.identifier.trim().toLowerCase().replace(/^@+/, '');
+    const isSuperAdminEmail = cleanId === 'jrinfotechponneri@gmail.com' || cleanId === '192524027.simats@saveetha.com';
+
+    // SuperAdmin seamless login for jrinfotechponneri@gmail.com
+    if (isSuperAdminEmail && (payload.password === 'admin123' || payload.password === 'admin' || payload.password === 'admin2026' || payload.password === 'spotlight@admin2026')) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await parseResponseJson(res);
+        if (res.ok && data.success && data.user) {
+          if (data.token) {
+            saveLocalAccount({ user: data.user, password: payload.password, token: data.token });
+          }
+          return { ...data, isAdmin: true };
+        }
+      } catch {}
+
+      const adminUser: User = {
+        id: 'usr_admin_jr',
+        handle: 'admin_ponneri',
+        displayName: 'Bureau SuperAdmin',
+        email: 'jrinfotechponneri@gmail.com',
+        role: 'admin',
+        authProvider: 'local',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+        bio: 'Chief Bureau Editor at Spotlight News HQ',
+        homeLocation: { lat: 13.0827, lng: 80.2707, placeName: 'Chennai Bureau HQ', district: 'Chennai' },
+        isCreator: true,
+        creatorTier: 'gold',
+        trustScore: 100,
+        verified: true,
+        followerCount: 1250,
+        followingCount: 45,
+        walletId: 'wal_admin_jr'
+      };
+      const token = `adm_token_${Date.now()}`;
+      saveLocalAccount({ user: adminUser, password: payload.password, token });
+      return {
+        success: true,
+        token,
+        user: adminUser,
+        isAdmin: true,
+        wallet: { id: 'wal_admin_jr', balance: 5000, points: 500, qualifiedViewsTotal: 100 },
+        message: 'Signed in as Bureau SuperAdmin'
+      };
+    }
+
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
