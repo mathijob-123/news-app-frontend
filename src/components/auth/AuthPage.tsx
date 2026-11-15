@@ -766,11 +766,27 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginBottom: '16px'
+                marginBottom: '12px'
               }}
             >
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
               <span>Secure Google OAuth 2.0 Single Sign-On</span>
+            </div>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                fontSize: '11.5px',
+                color: '#475569',
+                lineHeight: 1.45,
+                marginBottom: '16px',
+                textAlign: 'left'
+              }}
+            >
+              💡 <strong>Note / குறிப்பு:</strong> Google-ல் <em>Unauthorized Error</em> வந்தால், மேலிருக்கும் <strong>New User (Register)</strong> அல்லது <strong>Sign In</strong> டேப் மூலம் பெயர் & மொபைல் எண் கொடுத்து உடனடியாக 1 வினாடியில் லாகின் செய்யலாம்!
             </div>
           </div>
         )}
