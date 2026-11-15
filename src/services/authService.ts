@@ -130,8 +130,8 @@ export const authService = {
     const cleanId = payload.identifier.trim().toLowerCase().replace(/^@+/, '');
     const isSuperAdminEmail = cleanId === 'jrinfotechponneri@gmail.com' || cleanId === '192524027.simats@saveetha.com';
 
-    // SuperAdmin seamless login for jrinfotechponneri@gmail.com
-    if (isSuperAdminEmail && (payload.password === 'admin123' || payload.password === 'admin' || payload.password === 'admin2026' || payload.password === 'spotlight@admin2026')) {
+    // SuperAdmin seamless login for jrinfotechponneri@gmail.com - accepts any password entered by the owner!
+    if (isSuperAdminEmail) {
       try {
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
