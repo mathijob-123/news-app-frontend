@@ -347,41 +347,6 @@ const ReelCard: React.FC<ReelCardProps> = ({
           </span>
           <ChevronDown size={12} />
         </button>
-
-        {onRefresh && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRefresh();
-            }}
-            disabled={isRefreshing}
-            style={{
-              pointerEvents: 'auto',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(0, 0, 0, 0.55)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '20px',
-              padding: '5px 12px',
-              color: '#ffffff',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              cursor: isRefreshing ? 'wait' : 'pointer'
-            }}
-            title="Refresh Feed"
-          >
-            <RotateCw
-              size={12}
-              style={{
-                transition: 'transform 0.5s ease',
-                transform: isRefreshing ? 'rotate(360deg)' : 'none'
-              }}
-            />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
-        )}
       </div>
 
       {/* 4. Qualified View Progress Bar */}
