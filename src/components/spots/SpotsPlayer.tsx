@@ -47,6 +47,7 @@ interface ReelCardProps {
   index: number;
   isActive: boolean;
   isNear: boolean;
+  isNext?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
   currentUser: User;
@@ -87,6 +88,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
   index,
   isActive,
   isNear,
+  isNext,
   isMuted,
   onToggleMute,
   currentUser,
@@ -125,7 +127,9 @@ const ReelCard: React.FC<ReelCardProps> = ({
 
     if (isActive) {
       video.muted = isMuted;
-      video.currentTime = 0;
+      if (video.ended) {
+        video.currentTime = 0;
+      }
       setWatchProgress(0);
       setIsQualifiedView(false);
 
@@ -149,7 +153,6 @@ const ReelCard: React.FC<ReelCardProps> = ({
       }
     } else {
       video.pause();
-      video.currentTime = 0;
       setIsPlaying(false);
       setIsBuffering(false);
       setCaptionExpanded(false);
@@ -260,7 +263,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
           autoPlay={isActive}
           loop
           playsInline
-          preload={isActive ? 'auto' : 'metadata'}
+          preload={isActive || isNext ? 'auto' : 'metadata'}
           muted={isMuted}
           onPlay={() => {
             setIsPlaying(true);
@@ -1087,6 +1090,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             index={idx}
             isActive={idx === activeIndex}
             isNear={Math.abs(idx - activeIndex) <= 2}
+            isNext={Math.abs(idx - activeIndex) === 1}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             currentUser={currentUser}

@@ -389,17 +389,28 @@ export const AppContent: React.FC = () => {
     return () => { isMounted = false; };
   }, []);
 
-  // Periodic background sync for real-time posts across all users (every 12 seconds)
+  // Periodic background sync for real-time posts across all users (every 6 seconds)
   useEffect(() => {
-    const postSyncTimer = setInterval(() => {
+    const syncPosts = () => {
       apiClient.getPosts().then((serverPosts) => {
         if (serverPosts && serverPosts.length > 0) {
           setPosts(serverPosts);
           savePosts(serverPosts);
         }
       }).catch(() => {});
-    }, 12000);
-    return () => clearInterval(postSyncTimer);
+    };
+
+    const postSyncTimer = setInterval(syncPosts, 6000);
+
+    const handleSyncedEvent = () => {
+      syncPosts();
+    };
+    window.addEventListener('spotlight_posts_synced', handleSyncedEvent);
+
+    return () => {
+      clearInterval(postSyncTimer);
+      window.removeEventListener('spotlight_posts_synced', handleSyncedEvent);
+    };
   }, []);
 
   // Monitor network online/offline status
@@ -576,15 +587,11 @@ export const AppContent: React.FC = () => {
     return items;
   }, [feedPosts, eligibleAds]);
 
-  // Spots dispatches: Prioritize local videos for current location FIRST,
-  // then append all other regional videos so users can endlessly scroll like Instagram Reels!
+  // Spots dispatches: Strictly local video reels matching the active location hub ONLY!
+  // Ponneri videos ONLY play in Ponneri; Tiruvallur videos ONLY play in Tiruvallur!
   const spotsPosts = useMemo(() => {
     const allVideos = publicPostsWithDistance.filter((p) => p.type === 'video');
-    const localReels = allVideos.filter((p) => isLocationMatch(p.location, activeLocation, p.distanceKm));
-    const otherReels = allVideos.filter((p) => !isLocationMatch(p.location, activeLocation, p.distanceKm));
-
-    const combined = [...localReels, ...otherReels];
-    return combined.length > 0 ? combined : allVideos;
+    return allVideos.filter((p) => isLocationMatch(p.location, activeLocation, p.distanceKm));
   }, [publicPostsWithDistance, activeLocation]);
 
   // Urgent breaking post for active location (public approved)
@@ -646,7 +653,7 @@ export const AppContent: React.FC = () => {
   };
 
   const handlePublishPost = (newPost: VideoPost) => {
-    const updatedPosts = [newPost, ...posts];
+    const updatedPosts = [newPost, ...posts.filter((p) => p.id !== newPost.id)];
     setPosts(updatedPosts);
     savePosts(updatedPosts);
 
@@ -662,6 +669,16 @@ export const AppContent: React.FC = () => {
     } else {
       setActiveTab('home');
     }
+
+    // Trigger immediate refresh from Supabase/server so state is 100% synchronized
+    setTimeout(() => {
+      apiClient.getPosts().then((serverPosts) => {
+        if (serverPosts && serverPosts.length > 0) {
+          setPosts(serverPosts);
+          savePosts(serverPosts);
+        }
+      }).catch(() => {});
+    }, 400);
   };
 
   const handleRequestPayout = (amt: number, method: string) => {
