@@ -50,21 +50,11 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       <header className="app-header">
         {/* Brand Logo & Hamburger Menu */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="header-left">
           {onToggleMenu && (
             <button
               onClick={onToggleMenu}
-              style={{
-                padding: '6px',
-                borderRadius: '8px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                color: 'var(--text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer'
-              }}
+              className="header-icon-btn menu-btn"
               title="Menu & Marketplace Modules"
             >
               <Menu size={16} />
@@ -86,68 +76,34 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => setShowLocationModal(true)}
           title="Change your active viewing location"
         >
-          <MapPin size={13} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
-          <span>{activeLocation.neighborhood || activeLocation.placeName}</span>
-          <ChevronDown size={12} style={{ flexShrink: 0 }} />
+          <MapPin size={12} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
+          <span className="location-name">{activeLocation.neighborhood || activeLocation.placeName}</span>
+          <ChevronDown size={11} style={{ flexShrink: 0 }} />
         </button>
 
         {/* Action icons & User Profile Menu */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+        <div className="header-right">
           {/* Notifications Bell */}
           <button
             onClick={onOpenNotifications}
+            className="header-icon-btn notif-btn"
             style={{
-              padding: '6px',
-              borderRadius: '50%',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              color: unreadAlertCount > 0 ? '#ea580c' : 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              position: 'relative'
+              color: unreadAlertCount > 0 ? '#ea580c' : 'var(--text-secondary)'
             }}
             title="Notifications & Bureau Alerts"
           >
             <Bell size={16} />
             {unreadAlertCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '-3px',
-                  right: '-3px',
-                  background: '#ea580c',
-                  color: '#ffffff',
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  width: '15px',
-                  height: '15px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1.5px solid #ffffff'
-                }}
-              >
+              <span className="notif-badge">
                 {unreadAlertCount > 9 ? '9+' : unreadAlertCount}
               </span>
             )}
           </button>
 
+          {/* Search Button */}
           <button
             onClick={onOpenSearch}
-            style={{
-              padding: '6px',
-              borderRadius: '50%',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
+            className="header-icon-btn search-btn"
             title="Search local news and places"
           >
             <Search size={16} />
@@ -155,19 +111,13 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* User Profile Avatar Pill / Guest Login Button */}
           {user ? (
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="header-user-avatar-btn"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 6px 3px 3px',
-                  borderRadius: '20px',
                   background: isAdmin ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 69, 0, 0.08)',
-                  border: isAdmin ? '1px solid #10b981' : '1px solid rgba(255, 69, 0, 0.25)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
+                  border: isAdmin ? '1px solid #10b981' : '1px solid rgba(255, 69, 0, 0.25)'
                 }}
                 title={user.displayName}
               >
@@ -179,17 +129,12 @@ export const Header: React.FC<HeaderProps> = ({
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`;
                   }}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
+                  className="header-user-avatar-img"
                 />
                 {isAdmin ? (
-                  <ShieldCheck size={13} color="#059669" />
+                  <ShieldCheck size={12} color="#059669" />
                 ) : user.isCreator ? (
-                  <Flame size={12} color="#ff4500" />
+                  <Flame size={11} color="#ff4500" />
                 ) : null}
               </button>
 
@@ -327,21 +272,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenProfile}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '20px',
-                background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
-                color: '#ffffff',
-                fontSize: '11px',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(255, 69, 0, 0.25)',
-                transition: 'transform 0.15s ease'
-              }}
+              className="header-login-btn"
               title="Sign in or Register"
             >
               <UserIcon size={12} />
