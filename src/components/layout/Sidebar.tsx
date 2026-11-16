@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
   Home,
-  ShoppingBag,
-  Briefcase,
-  Building,
+  Coins,
   Bookmark,
   User,
   ShieldCheck,
@@ -56,9 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     badge?: string;
   }> = [
     { id: 'home', label: 'Home', icon: <Home size={18} /> },
-    { id: 'olx', label: 'OLX / Buy & Sell', icon: <ShoppingBag size={18} /> },
-    { id: 'jobs', label: 'Jobs', icon: <Briefcase size={18} /> },
-    { id: 'real_estate', label: 'Real Estate', icon: <Building size={18} /> }
+    { id: 'monetization', label: 'Points', icon: <Coins size={18} /> }
   ];
 
   const secondaryItems: Array<{

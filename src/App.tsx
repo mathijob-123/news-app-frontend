@@ -45,6 +45,7 @@ import { RealEstateSavedScreen } from './components/marketplace/RealEstateSavedS
 import { PostPropertyModal } from './components/marketplace/PostPropertyModal';
 import { SavedItemsModal } from './components/marketplace/SavedItemsModal';
 import { SellerProfileModal } from './components/marketplace/SellerProfileModal';
+import { MarketplaceLandingPage } from './components/marketplace/MarketplaceLandingPage';
 import './components/marketplace/marketplace.css';
 import {
   getStoredProducts,
@@ -94,7 +95,32 @@ import { apiClient } from './services/apiClient';
 
 export const AppContent: React.FC = () => {
   const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('spots');
+
+  const getInitialNav = () => {
+    const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+    if (path === '/marketplace') {
+      return { view: 'marketplace' as const, tab: 'marketplace' as TabType, module: 'main' as AppModule };
+    }
+    if (path === '/olx' || path === '/marketplace/olx') {
+      return { view: 'olx' as const, tab: 'marketplace' as TabType, module: 'olx' as AppModule };
+    }
+    if (path === '/jobs' || path === '/marketplace/jobs') {
+      return { view: 'jobs' as const, tab: 'marketplace' as TabType, module: 'jobs' as AppModule };
+    }
+    if (path === '/real-estate' || path === '/marketplace/real-estate') {
+      return { view: 'real_estate' as const, tab: 'marketplace' as TabType, module: 'realEstate' as AppModule };
+    }
+    if (path === '/points') {
+      return { view: 'monetization' as const, tab: 'spots' as TabType, module: 'main' as AppModule };
+    }
+    if (path === '/profile') {
+      return { view: 'profile' as const, tab: 'profile' as TabType, module: 'main' as AppModule };
+    }
+    return { view: 'spots' as const, tab: 'spots' as TabType, module: 'main' as AppModule };
+  };
+
+  const initialNav = useMemo(() => getInitialNav(), []);
+  const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
   const [posts, setPosts] = useState<VideoPost[]>(getStoredPosts());
   const [ads, setAds] = useState<Advertisement[]>(getStoredAds());
   const [user, setUser] = useState<User>(() => authUser || getStoredUser());
@@ -126,10 +152,10 @@ export const AppContent: React.FC = () => {
 
   // Navigation History Tracking for seamless natural Back button flow inside mobile app shell
   const [previousTab, setPreviousTab] = useState<TabType>('spots');
-  const [previousView, setPreviousView] = useState<'spots' | 'feed' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
-  const [activeView, setActiveView] = useState<'spots' | 'feed' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
+  const [previousView, setPreviousView] = useState<'spots' | 'feed' | 'marketplace' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
+  const [activeView, setActiveView] = useState<'spots' | 'feed' | 'marketplace' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>(initialNav.view);
   // Module Navigation: 'main' | 'olx' | 'jobs' | 'realEstate'
-  const [activeModule, setActiveModule] = useState<AppModule>('main');
+  const [activeModule, setActiveModule] = useState<AppModule>(initialNav.module);
   const [olxTab, setOlxTab] = useState<OlxTabType>('home');
   const [jobsTab, setJobsTab] = useState<JobsTabType>('jobsHome');
   const [realEstateTab, setRealEstateTab] = useState<RealEstateTabType>('home');
@@ -198,7 +224,7 @@ export const AppContent: React.FC = () => {
   }, [activeView, navSection]);
 
   const handleSidebarSelect = (section: MainNavSection) => {
-    if (activeView === 'spots' || activeView === 'feed' || activeView === 'profile' || activeView === 'monetization') {
+    if (activeView === 'spots' || activeView === 'feed' || activeView === 'marketplace' || activeView === 'profile' || activeView === 'monetization') {
       setPreviousView(activeView);
       setPreviousTab(activeTab);
     }
@@ -213,18 +239,27 @@ export const AppContent: React.FC = () => {
       setActiveTab('spots');
       setNavSection('home');
       setSelectedProperty(null);
+      navigateTo('/');
+    } else if (section === 'monetization') {
+      setActiveModule('main');
+      setActiveView('monetization');
+      setNavSection('monetization');
+      setSelectedProperty(null);
+      navigateTo('/points');
     } else if (section === 'news_feed') {
       setActiveModule('main');
       setActiveView('feed');
       setActiveTab('home');
       setNavSection('news_feed');
       setSelectedProperty(null);
+      navigateTo('/');
     } else if (section === 'profile') {
       setActiveModule('main');
       setActiveView('profile');
       setActiveTab('profile');
       setNavSection('profile');
       setSelectedProperty(null);
+      navigateTo('/profile');
     } else if (section === 'olx' || section === 'services' || section === 'vehicles' || section === 'local_businesses') {
       setSelectedProduct(null);
       setSelectedProperty(null);
@@ -288,7 +323,38 @@ export const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
 
   useEffect(() => {
-    const handlePopState = () => setCurrentPath(window.location.pathname);
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      setCurrentPath(path);
+      if (path === '/marketplace') {
+        setActiveModule('main');
+        setActiveView('marketplace');
+        setActiveTab('marketplace');
+      } else if (path === '/olx' || path === '/marketplace/olx') {
+        setActiveModule('olx');
+        setOlxTab('home');
+        setActiveView('olx');
+      } else if (path === '/jobs' || path === '/marketplace/jobs') {
+        setActiveModule('jobs');
+        setJobsTab('jobsHome');
+        setActiveView('jobs');
+      } else if (path === '/real-estate' || path === '/marketplace/real-estate') {
+        setActiveModule('realEstate');
+        setRealEstateTab('home');
+        setActiveView('real_estate');
+      } else if (path === '/points') {
+        setActiveModule('main');
+        setActiveView('monetization');
+      } else if (path === '/profile') {
+        setActiveModule('main');
+        setActiveView('profile');
+        setActiveTab('profile');
+      } else if (path === '/' || path === '') {
+        setActiveModule('main');
+        setActiveView('spots');
+        setActiveTab('spots');
+      }
+    };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -1228,13 +1294,51 @@ export const AppContent: React.FC = () => {
                     setPreviousView('profile');
                     setPreviousTab('profile');
                     setSelectedProduct(null);
-                    setActiveModule('olx');
-                    setOlxTab('home');
-                    setActiveView('olx');
+                    setActiveModule('main');
+                    setActiveTab('marketplace');
+                    setActiveView('marketplace');
+                    navigateTo('/marketplace');
                   }}
                 />
               )}
             </div>
+          )}
+
+          {/* MARKETPLACE LANDING PAGE */}
+          {activeView === 'marketplace' && (
+            <MarketplaceLandingPage
+              onSelectBuyAndSell={() => {
+                setPreviousView('marketplace');
+                setSelectedProduct(null);
+                setSelectedProperty(null);
+                setActiveModule('olx');
+                setOlxTab('home');
+                setActiveView('olx');
+                navigateTo('/olx');
+              }}
+              onSelectRealEstate={() => {
+                setPreviousView('marketplace');
+                setSelectedProduct(null);
+                setSelectedProperty(null);
+                setActiveModule('realEstate');
+                setRealEstateTab('home');
+                setActiveView('real_estate');
+                navigateTo('/real-estate');
+              }}
+              onSelectJobs={() => {
+                setPreviousView('marketplace');
+                setSelectedProduct(null);
+                setSelectedProperty(null);
+                setActiveModule('jobs');
+                setJobsTab('jobsHome');
+                setActiveView('jobs');
+                navigateTo('/jobs');
+              }}
+              locationName={activeLocation.neighborhood || activeLocation.placeName || 'Chennai & Tiruvallur'}
+              totalProductsCount={marketplaceProducts.length}
+              totalPropertiesCount={getStoredProperties().length}
+              totalJobsCount={getStoredJobs().length}
+            />
           )}
 
           {/* OLX / BUY & SELL: Renders inside the SAME app viewport */}
@@ -1250,9 +1354,17 @@ export const AppContent: React.FC = () => {
                   onRefresh={handleRefreshMarketplace}
                   isRefreshing={isRefreshingMarketplace}
                   onNavigateHome={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                     setSelectedProduct(null);
                   }}
                   onOpenNotifications={() => setShowNotificationModal(true)}
@@ -1271,9 +1383,17 @@ export const AppContent: React.FC = () => {
                   onRefresh={handleRefreshMarketplace}
                   isRefreshing={isRefreshingMarketplace}
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                     setSelectedProduct(null);
                   }}
                 />
@@ -1284,9 +1404,17 @@ export const AppContent: React.FC = () => {
                   products={marketplaceProducts}
                   onSelectProduct={(p) => handleSelectProduct(p)}
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                     setSelectedProduct(null);
                   }}
                 />
@@ -1300,9 +1428,17 @@ export const AppContent: React.FC = () => {
                   onOpenPostAd={() => setShowPostAdModal(true)}
                   onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                     setSelectedProduct(null);
                   }}
                   onOpenSettings={() => {
@@ -1324,9 +1460,17 @@ export const AppContent: React.FC = () => {
                   <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       onClick={() => {
-                        setActiveModule('main');
-                        setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                        setActiveTab(previousTab || 'spots');
+                        if (previousView === 'marketplace') {
+                          setActiveModule('main');
+                          setActiveView('marketplace');
+                          setActiveTab('marketplace');
+                          navigateTo('/marketplace');
+                        } else {
+                          setActiveModule('main');
+                          setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                          setActiveTab(previousTab || 'spots');
+                          navigateTo('/');
+                        }
                       }}
                       style={{
                         display: 'flex',
@@ -1355,9 +1499,17 @@ export const AppContent: React.FC = () => {
               {jobsTab === 'search' && (
                 <JobsSearchScreen
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                 />
               )}
@@ -1365,9 +1517,17 @@ export const AppContent: React.FC = () => {
               {jobsTab === 'applications' && (
                 <JobsApplicationsScreen
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                 />
               )}
@@ -1377,9 +1537,17 @@ export const AppContent: React.FC = () => {
                   user={user}
                   onOpenPostJob={() => setShowPostJobModal(true)}
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                 />
               )}
@@ -1394,9 +1562,17 @@ export const AppContent: React.FC = () => {
                   <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       onClick={() => {
-                        setActiveModule('main');
-                        setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                        setActiveTab(previousTab || 'spots');
+                        if (previousView === 'marketplace') {
+                          setActiveModule('main');
+                          setActiveView('marketplace');
+                          setActiveTab('marketplace');
+                          navigateTo('/marketplace');
+                        } else {
+                          setActiveModule('main');
+                          setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                          setActiveTab(previousTab || 'spots');
+                          navigateTo('/');
+                        }
                       }}
                       style={{
                         display: 'flex',
@@ -1427,9 +1603,17 @@ export const AppContent: React.FC = () => {
               {realEstateTab === 'explore' && (
                 <RealEstateExploreScreen
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                   onSelectProperty={(prop) => setSelectedProperty(prop)}
                 />
@@ -1438,9 +1622,17 @@ export const AppContent: React.FC = () => {
               {realEstateTab === 'saved' && (
                 <RealEstateSavedScreen
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                   onSelectProperty={(prop) => setSelectedProperty(prop)}
                 />
@@ -1451,9 +1643,17 @@ export const AppContent: React.FC = () => {
                   user={user}
                   onOpenPostProperty={() => setShowPostPropertyModal(true)}
                   onBackToMain={() => {
-                    setActiveModule('main');
-                    setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
-                    setActiveTab(previousTab || 'spots');
+                    if (previousView === 'marketplace') {
+                      setActiveModule('main');
+                      setActiveView('marketplace');
+                      setActiveTab('marketplace');
+                      navigateTo('/marketplace');
+                    } else {
+                      setActiveModule('main');
+                      setActiveView(previousView === 'profile' ? 'profile' : previousView === 'feed' ? 'feed' : 'spots');
+                      setActiveTab(previousTab || 'spots');
+                      navigateTo('/');
+                    }
                   }}
                 />
               )}
@@ -1467,10 +1667,22 @@ export const AppContent: React.FC = () => {
           mainTab={activeTab}
           onChangeMainTab={(tab) => {
             setActiveTab(tab);
-            if (tab === 'spots') setActiveView('spots');
-            else if (tab === 'home') setActiveView('feed');
-            else if (tab === 'monetization') setActiveView('monetization');
-            else if (tab === 'profile') setActiveView('profile');
+            if (tab === 'spots') {
+              setActiveView('spots');
+              navigateTo('/');
+            } else if (tab === 'home') {
+              setActiveView('feed');
+              navigateTo('/');
+            } else if (tab === 'marketplace') {
+              setActiveView('marketplace');
+              navigateTo('/marketplace');
+            } else if (tab === 'monetization') {
+              setActiveView('monetization');
+              navigateTo('/points');
+            } else if (tab === 'profile') {
+              setActiveView('profile');
+              navigateTo('/profile');
+            }
             setSelectedProduct(null);
             setSelectedProperty(null);
           }}
@@ -1566,14 +1778,12 @@ export const AppContent: React.FC = () => {
             activeView === 'spots'
               ? 'home'
               : activeView === 'feed'
-              ? 'news_feed'
+              ? 'home'
+              : activeView === 'monetization'
+              ? 'monetization'
               : activeView === 'profile'
               ? 'profile'
-              : activeView === 'jobs'
-              ? 'jobs'
-              : activeView === 'real_estate'
-              ? 'real_estate'
-              : 'olx'
+              : 'home'
           }
           onSelectSection={handleSidebarSelect}
           isOpen={isSidebarOpenMobile}

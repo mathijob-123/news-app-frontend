@@ -169,8 +169,8 @@ export interface Transaction {
 
 export type RadiusFilter = 1 | 5 | 25 | 100; // in km (100 = district-wide)
 
-// 4 navigation tabs (Search accessible from top header/search modal)
-export type TabType = 'spots' | 'home' | 'monetization' | 'profile';
+// Bottom navigation tabs (Spots, Feed, Marketplace, Profile)
+export type TabType = 'spots' | 'home' | 'marketplace' | 'monetization' | 'profile';
 
 export const LOCALPULSE_SCHEMA_VERSION = 3;
 

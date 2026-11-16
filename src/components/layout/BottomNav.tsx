@@ -1,5 +1,5 @@
 import React from 'react';
-import { Newspaper, PlaySquare, Plus, Coins, User } from 'lucide-react';
+import { Newspaper, PlaySquare, Plus, ShoppingBag, User } from 'lucide-react';
 import type { TabType } from '../../types';
 
 export type { TabType };
@@ -48,14 +48,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         </button>
       </div>
 
-      {/* 4. Creator Points & Rewards */}
+      {/* 4. Marketplace */}
       <button
-        className={`nav-tab-item ${activeTab === 'monetization' ? 'active' : ''}`}
-        onClick={() => onChangeTab('monetization')}
-        title="Creator Points & Rewards"
+        className={`nav-tab-item ${activeTab === 'marketplace' ? 'active' : ''}`}
+        onClick={() => onChangeTab('marketplace')}
+        title="Marketplace"
       >
-        <Coins size={19} />
-        <span>Points</span>
+        <ShoppingBag size={19} />
+        <span>Marketplace</span>
       </button>
 
       {/* 5. Profile */}
