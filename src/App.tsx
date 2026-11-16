@@ -644,12 +644,21 @@ export const AppContent: React.FC = () => {
       }
       setSelectedSpotPostId(post.id);
       setActiveTab('spots');
+      setActiveView('spots');
+      setActiveModule('main');
     }
   };
 
   const handleSelectLocation = (loc: LocationCoordinates) => {
     setActiveLocation(loc);
     saveActiveLocation(loc);
+    // Instantly sync latest posts from Supabase so location changes always reflect live database updates
+    apiClient.getPosts().then((serverPosts) => {
+      if (serverPosts && serverPosts.length > 0) {
+        setPosts(serverPosts);
+        savePosts(serverPosts);
+      }
+    }).catch(() => {});
   };
 
   const handlePublishPost = (newPost: VideoPost) => {
