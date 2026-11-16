@@ -49,8 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header className="app-header">
-        {/* Brand Logo & Hamburger Menu */}
-        <div className="header-left">
+        <div className="app-header-content">
+          {/* Brand Logo & Hamburger Menu */}
+          <div className="header-left">
           {onToggleMenu && (
             <button
               onClick={onToggleMenu}
@@ -279,6 +280,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Login</span>
             </button>
           )}
+        </div>
         </div>
       </header>
 

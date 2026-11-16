@@ -174,18 +174,23 @@ input, textarea, select {
   position: sticky;
   top: 0;
   z-index: 40;
-  height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-left: max(10px, env(safe-area-inset-left, 0px));
-  padding-right: max(10px, env(safe-area-inset-right, 0px));
   background: #ffffff;
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  padding-top: env(safe-area-inset-top, 0px);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-header-content {
+  height: 52px;
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1456,11 +1461,11 @@ input, textarea, select {
 }
 
 @media (max-width: 480px) {
-  .app-header {
+  .app-header-content {
+    height: 50px;
     padding-left: max(6px, env(safe-area-inset-left, 0px));
     padding-right: max(6px, env(safe-area-inset-right, 0px));
     gap: 4px;
-    height: 48px;
   }
 
   .header-left {
@@ -1525,7 +1530,8 @@ input, textarea, select {
 }
 
 @media (max-width: 380px) {
-  .app-header {
+  .app-header-content {
+    height: 48px;
     padding-left: 4px;
     padding-right: 4px;
     gap: 3px;
