@@ -431,11 +431,18 @@ export const AppContent: React.FC = () => {
   const refreshNotificationsCount = async () => {
     try {
       const notifs = await apiClient.getNotifications(user.id);
-      const unread = notifs.filter((n) => !n.read).length;
+      const cleaned = (notifs || []).filter(
+        (n) => n.id !== 'notif_welcome' && !n.title?.includes('Community Standing Notice')
+      );
+      const unread = cleaned.filter((n) => !n.read).length;
       setUnreadNotificationsCount(unread);
     } catch {
       const localNotifs = getStoredNotifications();
-      const userNotifs = localNotifs.filter((n) => n.userId === user.id);
+      const userNotifs = localNotifs.filter(
+        (n) => (n.userId === user.id || n.userId === 'all') &&
+          n.id !== 'notif_welcome' &&
+          !n.title?.includes('Community Standing Notice')
+      );
       const unread = userNotifs.filter((n) => !n.read).length;
       setUnreadNotificationsCount(unread);
     }

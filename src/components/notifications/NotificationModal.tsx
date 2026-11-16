@@ -31,9 +31,12 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
   useEffect(() => {
     apiClient.getNotifications(userId).then((serverNotifs) => {
-      if (serverNotifs && serverNotifs.length > 0) {
-        setNotifications(serverNotifs);
-        saveStoredNotifications(serverNotifs);
+      if (serverNotifs) {
+        const cleaned = serverNotifs.filter(
+          (n) => n.id !== 'notif_welcome' && !n.title?.includes('Community Standing Notice')
+        );
+        setNotifications(cleaned);
+        saveStoredNotifications(cleaned);
       }
     }).catch(() => {});
   }, [userId]);

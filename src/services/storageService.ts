@@ -1072,13 +1072,20 @@ export function getStoredNotifications(): AppNotification[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
-      return INITIAL_NOTIFICATIONS;
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([]));
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed: AppNotification[] = JSON.parse(raw);
+    const cleaned = (parsed || []).filter(
+      (n) => n.id !== 'notif_welcome' && !n.title?.includes('Community Standing Notice')
+    );
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch (err) {
     console.error('Error reading notifications:', err);
-    return INITIAL_NOTIFICATIONS;
+    return [];
   }
 }
 
