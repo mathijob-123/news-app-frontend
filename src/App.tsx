@@ -217,6 +217,38 @@ export const AppContent: React.FC = () => {
   const [selectedSeller, setSelectedSeller] = useState<ProductSeller | null>(null);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
 
+  const isAnyModalOpen = Boolean(
+    showCreateModal ||
+    showPostAdModal ||
+    showPostJobModal ||
+    showPostPropertyModal ||
+    showLocationModal ||
+    showSearchModal ||
+    showNotificationModal ||
+    showMyAdsModal ||
+    showSavedModal ||
+    reportCopyrightPost ||
+    commentsDrawerPost ||
+    isSidebarOpenMobile
+  );
+
+  // When any modal opens (or when switching away from spots/feed), pause and mute all background videos immediately
+  useEffect(() => {
+    if (isAnyModalOpen || (activeView !== 'spots' && activeView !== 'feed')) {
+      window.dispatchEvent(new CustomEvent('lp:pause-all-videos'));
+      document.querySelectorAll('video').forEach((v) => {
+        if (!v.closest('.bottom-sheet-content')) {
+          try {
+            v.pause();
+            v.muted = true;
+          } catch {
+            // ignore
+          }
+        }
+      });
+    }
+  }, [isAnyModalOpen, activeView]);
+
   const currentMarketplaceTab: MarketplaceNavTab = useMemo(() => {
     if (activeView === 'jobs' || navSection === 'jobs') return 'jobs';
     if (activeView === 'real_estate' || navSection === 'real_estate') return 'real_estate';
@@ -1058,6 +1090,7 @@ export const AppContent: React.FC = () => {
               <SpotsPlayer
                 posts={spotsPosts}
                 initialPostId={selectedSpotPostId}
+                isPaused={isAnyModalOpen}
                 currentUser={user}
                 activeLocation={activeLocation}
                 onOpenLocationPicker={() => setShowLocationModal(true)}
@@ -1067,7 +1100,7 @@ export const AppContent: React.FC = () => {
                 onAddComment={handleAddComment}
                 getCommentsForPost={(id) => getStoredComments(id)}
                 onSendTip={handleSendTip}
-                onOpenCreate={() => setShowPostAdModal(true)}
+                onOpenCreate={() => setShowCreateModal(true)}
                 onReportCopyright={(p) => setReportCopyrightPost(p)}
                 onRefresh={handleRefreshFeed}
                 isRefreshing={isRefreshingFeed}

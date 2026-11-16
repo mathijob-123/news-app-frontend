@@ -27,6 +27,7 @@ import { TipModal } from './TipModal';
 interface SpotsPlayerProps {
   posts: VideoPost[];
   initialPostId?: string;
+  isPaused?: boolean;
   currentUser: User;
   activeLocation?: LocationCoordinates;
   onOpenLocationPicker?: () => void;
@@ -46,6 +47,7 @@ interface ReelCardProps {
   post: VideoPost;
   index: number;
   isActive: boolean;
+  isPaused?: boolean;
   isNear: boolean;
   isNext?: boolean;
   isMuted: boolean;
@@ -87,6 +89,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
   post,
   index,
   isActive,
+  isPaused = false,
   isNear,
   isNext,
   isMuted,
@@ -115,25 +118,29 @@ const ReelCard: React.FC<ReelCardProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastTapRef = useRef<number>(0);
+  const prevActiveRef = useRef(false);
 
   const videoSrc = useMemo(() => {
     return resolveVideoSrc(post.mediaUrl, hasPlaybackError, index);
   }, [post.mediaUrl, hasPlaybackError, index]);
 
-  // Handle Play/Pause when entering or leaving active view
+  // Handle Play/Pause when entering or leaving active view or when paused by modal/upload
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isActive) {
+    if (isActive && !isPaused) {
       video.muted = isMuted;
-      try {
-        video.currentTime = 0;
-      } catch {
-        // Safely ignore if metadata is still initializing
+      if (!prevActiveRef.current) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          // Safely ignore if metadata is still initializing
+        }
+        setWatchProgress(0);
+        setIsQualifiedView(false);
       }
-      setWatchProgress(0);
-      setIsQualifiedView(false);
+      prevActiveRef.current = true;
 
       const playPromise = video.play();
       if (playPromise !== undefined) {
@@ -155,16 +162,34 @@ const ReelCard: React.FC<ReelCardProps> = ({
       }
     } else {
       video.pause();
-      try {
-        video.currentTime = 0;
-      } catch {
-        // Safely ignore if metadata is still initializing
-      }
       setIsPlaying(false);
       setIsBuffering(false);
       setCaptionExpanded(false);
+      if (!isActive) {
+        prevActiveRef.current = false;
+        try {
+          video.currentTime = 0;
+        } catch {
+          // Safely ignore
+        }
+      }
     }
-  }, [isActive, videoSrc]);
+  }, [isActive, isPaused, videoSrc]);
+
+  // Listen for global pause-all-videos broadcast (e.g., when CreateModal/upload opens)
+  useEffect(() => {
+    const handlePauseAll = () => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        video.pause();
+        setIsPlaying(false);
+      }
+    };
+    window.addEventListener('lp:pause-all-videos', handlePauseAll);
+    return () => {
+      window.removeEventListener('lp:pause-all-videos', handlePauseAll);
+    };
+  }, []);
 
   // Sync mute state dynamically
   useEffect(() => {
@@ -720,6 +745,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
 export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   posts,
   initialPostId,
+  isPaused = false,
   currentUser,
   activeLocation,
   onOpenLocationPicker,
@@ -1095,7 +1121,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             key={post.id}
             post={post}
             index={idx}
-            isActive={idx === activeIndex}
+            isActive={idx === activeIndex && !isPaused && !showComments && !showTipModal}
+            isPaused={isPaused || showComments || showTipModal}
             isNear={Math.abs(idx - activeIndex) <= 2}
             isNext={Math.abs(idx - activeIndex) === 1}
             isMuted={isMuted}

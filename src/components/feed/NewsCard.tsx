@@ -168,6 +168,20 @@ export const NewsCard: React.FC<NewsCardProps> = ({
     };
   }, [post.id]);
 
+  // 3. Pause on global pause-all-videos broadcast (e.g. when CreateModal/upload opens)
+  useEffect(() => {
+    const handlePauseAll = () => {
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    };
+    window.addEventListener('lp:pause-all-videos', handlePauseAll);
+    return () => {
+      window.removeEventListener('lp:pause-all-videos', handlePauseAll);
+    };
+  }, []);
+
   // Toggle audio like Instagram: click once -> play sound, click again -> mute
   const toggleSound = (e: React.MouseEvent) => {
     e.stopPropagation();

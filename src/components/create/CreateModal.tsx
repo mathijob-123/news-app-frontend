@@ -177,6 +177,31 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     };
   }, [previewUrl]);
 
+  // Stop & mute any background videos immediately when CreateModal is mounted
+  useEffect(() => {
+    const pauseAllBgVideos = () => {
+      window.dispatchEvent(new CustomEvent('lp:pause-all-videos'));
+      document.querySelectorAll('video').forEach((v) => {
+        // Do not pause preview video inside this modal
+        if (!v.closest('.bottom-sheet-content')) {
+          try {
+            v.pause();
+            v.muted = true;
+          } catch {
+            // ignore
+          }
+        }
+      });
+    };
+
+    pauseAllBgVideos();
+    const interval = setInterval(pauseAllBgVideos, 800);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
   // Handle single file selection (video or image)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
