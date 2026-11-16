@@ -653,7 +653,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </button>
       </div>
 
-      {/* 2. Content Tabs */}
+      {/* 2. Content Tabs (Smooth Horizontal Scroll on Mobile & Desktop) */}
       <div
         style={{
           display: 'flex',
@@ -663,7 +663,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           top: 0,
           zIndex: 10,
           marginTop: '12px',
-          overflowX: 'auto'
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',
+          overscrollBehaviorX: 'contain',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
       >
         <button
@@ -777,6 +783,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 display: 'flex',
                 gap: '8px',
                 overflowX: 'auto',
+                overflowY: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x',
+                overscrollBehaviorX: 'contain',
+                scrollbarWidth: 'none',
                 paddingBottom: '8px',
                 marginBottom: '14px'
               }}

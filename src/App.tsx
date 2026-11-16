@@ -1011,7 +1011,7 @@ export const AppContent: React.FC = () => {
 
           {/* NEWS FEED */}
           {activeView === 'feed' && (
-            <div style={{ padding: '0 0 16px' }}>
+            <div style={{ padding: '0 0 16px', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
               <BreakingBanner
                 breakingPost={breakingPost}
                 onOpenPost={handleOpenPostInSpots}
