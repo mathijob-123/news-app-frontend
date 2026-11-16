@@ -127,8 +127,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
 
     if (isActive) {
       video.muted = isMuted;
-      if (video.ended) {
+      try {
         video.currentTime = 0;
+      } catch {
+        // Safely ignore if metadata is still initializing
       }
       setWatchProgress(0);
       setIsQualifiedView(false);
@@ -153,6 +155,11 @@ const ReelCard: React.FC<ReelCardProps> = ({
       }
     } else {
       video.pause();
+      try {
+        video.currentTime = 0;
+      } catch {
+        // Safely ignore if metadata is still initializing
+      }
       setIsPlaying(false);
       setIsBuffering(false);
       setCaptionExpanded(false);
