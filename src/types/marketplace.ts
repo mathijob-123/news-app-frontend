@@ -50,7 +50,7 @@ export interface MarketplaceProduct {
     [key: string]: string | undefined;
   };
   seller: ProductSeller;
-  status: 'active' | 'sold' | 'expired' | 'paused' | 'pending';
+  status: 'active' | 'sold' | 'out_of_stock' | 'expired' | 'paused' | 'pending';
   isFavorite?: boolean;
   isMine?: boolean;
 }

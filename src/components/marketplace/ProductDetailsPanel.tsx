@@ -27,7 +27,8 @@ import type { MarketplaceProduct, SellerChatMessage } from '../../types/marketpl
 import {
   getStoredChatMessages,
   addStoredChatMessage,
-  deleteStoredProduct
+  deleteStoredProduct,
+  updateStoredProduct
 } from '../../services/marketplaceService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -55,6 +56,13 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
     (authUser && (product.seller.id === authUser.id || product.seller.email === authUser.email))
   );
 
+  const [currentStatus, setCurrentStatus] = useState<MarketplaceProduct['status']>(product.status);
+  const isOutOfStock = currentStatus === 'out_of_stock' || currentStatus === 'sold';
+
+  React.useEffect(() => {
+    setCurrentStatus(product.status);
+  }, [product.status, product.id]);
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<SellerChatMessage[]>(() =>
     getStoredChatMessages(product.id)
@@ -80,6 +88,13 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
     setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  const handleToggleStock = () => {
+    const nextStatus: MarketplaceProduct['status'] = isOutOfStock ? 'active' : 'out_of_stock';
+    setCurrentStatus(nextStatus);
+    const updated: MarketplaceProduct = { ...product, status: nextStatus };
+    updateStoredProduct(updated);
+  };
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim()) return;
@@ -101,7 +116,9 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
         productId: product.id,
         senderId: product.seller.id,
         senderName: product.seller.name,
-        text: 'Thanks for reaching out! Yes, this item is still available. Feel free to message on WhatsApp or call for a quick deal.',
+        text: isOutOfStock
+          ? 'Thanks for reaching out! This item is currently out of stock, but feel free to message on WhatsApp to get notified when we restock.'
+          : 'Thanks for reaching out! Yes, this item is still available. Feel free to message on WhatsApp or call for a quick deal.',
         isMe: false
       });
       setChatMessages((prev) => [...prev, autoReply]);
@@ -112,7 +129,7 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
     if (navigator.share) {
       navigator.share({
         title: product.title,
-        text: `Check out ${product.title} on LocalPlus for ${formattedPrice}`,
+        text: `Check out ${product.title} on Spotlight360 for ${formattedPrice}`,
         url: window.location.href
       }).catch(() => {});
     } else {
@@ -124,14 +141,24 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
 
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [whatsAppMessage, setWhatsAppMessage] = useState(
-    `Hi, I'm interested in your ${product.title} listed on LocalPlus. Is it still available?`
+    isOutOfStock
+      ? `Hi, I saw your product "${product.title}" on Spotlight360 (${formattedPrice}). It is currently Out of Stock. When will new stock be available?`
+      : `Hi, I want to buy your product "${product.title}" listed on Spotlight360 for ${formattedPrice}. Is it available?`
   );
   const [showCallSellerModal, setShowCallSellerModal] = useState(false);
 
-  // Update prefilled message whenever product changes
+  // Update prefilled message whenever product or stock status changes
   React.useEffect(() => {
-    setWhatsAppMessage(`Hi, I'm interested in your ${product.title} listed on LocalPlus. Is it still available?`);
-  }, [product.title]);
+    if (isOutOfStock) {
+      setWhatsAppMessage(
+        `Hi, I saw your product "${product.title}" on Spotlight360 (${formattedPrice}). It is currently Out of Stock. When will new stock be available?`
+      );
+    } else {
+      setWhatsAppMessage(
+        `Hi, I want to buy your product "${product.title}" listed on Spotlight360 for ${formattedPrice}. Is it available?`
+      );
+    }
+  }, [product.title, formattedPrice, isOutOfStock]);
 
   const handleOpenWhatsAppModal = () => {
     setShowWhatsAppModal(true);
@@ -237,40 +264,54 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
         </div>
       )}
 
-      {product.status === 'sold' && (
+      {isOutOfStock && (
         <div
+          className="p-meesho-out-of-stock-alert"
           style={{
             background: '#fef2f2',
             color: '#dc2626',
             fontSize: '12px',
-            fontWeight: 800,
-            padding: '8px 16px',
-            textAlign: 'center',
+            padding: '10px 16px',
             borderBottom: '1px solid #fecaca',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px'
+            gap: '10px'
           }}
         >
-          <AlertCircle size={14} />
-          <span>THIS PRODUCT HAS BEEN SOLD AND IS NO LONGER AVAILABLE</span>
+          <AlertCircle size={20} color="#dc2626" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '12px', letterSpacing: '0.4px', color: '#991b1b', textTransform: 'uppercase' }}>
+              {currentStatus === 'sold' ? 'Sold Out' : 'Out of Stock'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '1px', lineHeight: 1.3 }}>
+              This item is temporarily out of stock. You can still message the seller on WhatsApp to ask about availability or restocking.
+            </div>
+          </div>
         </div>
       )}
 
       {/* Body Content */}
       <div className="p-detail-body">
         {/* Large Image Preview with Carousel */}
-        <div className="p-image-carousel">
+        <div className="p-image-carousel" style={{ position: 'relative' }}>
           <img
             src={images[activeImageIndex]}
             alt={product.title}
             className="p-carousel-main-img"
+            style={isOutOfStock ? { filter: 'grayscale(0.3) brightness(0.85)' } : undefined}
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
             }}
           />
+
+          {isOutOfStock && (
+            <div className="meesho-out-of-stock-overlay" style={{ pointerEvents: 'none' }}>
+              <span className="meesho-out-of-stock-badge">
+                {currentStatus === 'sold' ? 'SOLD OUT' : 'OUT OF STOCK'}
+              </span>
+            </div>
+          )}
 
           <span className="p-carousel-badge">
             {activeImageIndex + 1}/{images.length}
@@ -459,22 +500,96 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
               border: '1px solid #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px'
+              gap: '12px'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <ShieldCheck size={16} color="#0284c7" />
-                Your Product Listing
+                Seller Controls
               </span>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '12px' }}>
-                Creator / Owner
+                Owner
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
-              Only you have permission to edit or remove this product. You can update title, price, photos, and specifications anytime.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
+
+            {/* Meesho-style Stock Availability Toggle */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b' }}>
+                    Stock Availability
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    {isOutOfStock
+                      ? 'Marked as Out of Stock (Meesho style). Shown with Out of Stock overlay.'
+                      : 'Product is In Stock and ready for buyers to purchase.'}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    background: isOutOfStock ? '#fee2e2' : '#dcfce7',
+                    color: isOutOfStock ? '#b91c1c' : '#15803d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                    flexShrink: 0
+                  }}
+                >
+                  {isOutOfStock ? '● Out of Stock' : '● In Stock'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleStock}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  background: isOutOfStock ? '#16a34a' : '#ea580c',
+                  color: '#ffffff',
+                  boxShadow: isOutOfStock
+                    ? '0 2px 8px rgba(22, 163, 74, 0.3)'
+                    : '0 2px 8px rgba(234, 88, 12, 0.3)',
+                  transition: 'background 0.2s ease'
+                }}
+              >
+                {isOutOfStock ? (
+                  <>
+                    <CheckCircle2 size={15} />
+                    <span>Mark In Stock (Make Available)</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={15} />
+                    <span>Mark Out of Stock</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => onEditProduct?.(product)}
@@ -525,8 +640,8 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
           </div>
         ) : (
           <>
-            {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact Seller ] */}
-            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
+            {/* Action Buttons: [ Save ] [ WhatsApp Buy / Inquire ] [ Contact Seller ] */}
+            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1.2fr', gap: '8px' }}>
               <button
                 className={`p-btn-save ${product.isFavorite ? 'saved' : ''}`}
                 onClick={() => onToggleFavorite(product.id)}
@@ -542,10 +657,16 @@ export const ProductDetailsPanel: React.FC<ProductDetailsPanelProps> = ({
               <button
                 className="p-btn-whatsapp"
                 onClick={handleOpenWhatsAppModal}
-                title="Chat directly on WhatsApp with pre-filled message"
+                style={{
+                  background: '#25D366',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                  fontWeight: 800
+                }}
+                title="Chat directly on WhatsApp to buy or inquire"
               >
-                <MessageCircle size={15} />
-                <span>WhatsApp</span>
+                <MessageCircle size={16} />
+                <span>{isOutOfStock ? 'Inquire on WA' : 'Buy on WA'}</span>
               </button>
 
               <button

@@ -198,20 +198,13 @@ export const AppContent: React.FC = () => {
       setSelectedProduct(null);
       return;
     }
-    if (product.status === 'sold') {
-      return;
-    }
     setSelectedProduct(product);
   };
 
   const handleProductUpdated = (updated: MarketplaceProduct) => {
     setMarketplaceProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     if (selectedProduct?.id === updated.id) {
-      if (updated.status === 'sold') {
-        setSelectedProduct(null);
-      } else {
-        setSelectedProduct(updated);
-      }
+      setSelectedProduct(updated);
     }
   };
   const [selectedSeller, setSelectedSeller] = useState<ProductSeller | null>(null);
@@ -912,7 +905,7 @@ export const AppContent: React.FC = () => {
         onRefreshProducts={() => setMarketplaceProducts(getStoredProducts())}
         onViewProduct={(p) => {
           handleSelectProduct(p);
-          if (p.status !== 'sold') setActiveView('olx');
+          setActiveView('olx');
         }}
       />
 
@@ -925,7 +918,7 @@ export const AppContent: React.FC = () => {
         savedProperties={getStoredProperties().filter((prop) => prop.isSaved)}
         onSelectProduct={(p) => {
           handleSelectProduct(p);
-          if (p.status !== 'sold') setActiveView('olx');
+          setActiveView('olx');
         }}
         onSelectProperty={(prop) => {
           setSelectedProperty(prop);
@@ -962,7 +955,7 @@ export const AppContent: React.FC = () => {
           sellerProducts={marketplaceProducts.filter((p) => p.seller.id === selectedSeller.id)}
           onSelectProduct={(p) => {
             handleSelectProduct(p);
-            if (p.status !== 'sold') setActiveView('olx');
+            setActiveView('olx');
           }}
         />
       )}
@@ -1323,7 +1316,6 @@ export const AppContent: React.FC = () => {
                   }}
                   onOpenPostAd={() => setShowPostAdModal(true)}
                   onOpenProduct={(p) => {
-                    if (p.status === 'sold') return;
                     setPreviousView('profile');
                     setPreviousTab('profile');
                     handleSelectProduct(p);

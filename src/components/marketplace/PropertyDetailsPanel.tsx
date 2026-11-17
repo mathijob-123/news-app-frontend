@@ -17,13 +17,15 @@ import {
   Star,
   X,
   Edit3,
-  Trash2
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import type { MarketplaceProperty, SellerChatMessage } from '../../types/marketplace';
 import {
   getStoredChatMessages,
   addStoredChatMessage,
-  deleteStoredProperty
+  deleteStoredProperty,
+  updateStoredProperty
 } from '../../services/marketplaceService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -50,6 +52,19 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
     isAdmin ||
     (authUser && (property.owner?.id === authUser.id || property.owner?.email === authUser.email))
   );
+  const [currentStatus, setCurrentStatus] = useState<string>(property.status || 'available');
+  const isUnavailable = currentStatus === 'sold' || currentStatus === 'booked';
+
+  React.useEffect(() => {
+    setCurrentStatus(property.status || 'available');
+  }, [property.status, property.id]);
+
+  const handleToggleStatus = () => {
+    const nextStatus = isUnavailable ? 'available' : 'booked';
+    setCurrentStatus(nextStatus);
+    updateStoredProperty({ ...property, status: nextStatus });
+  };
+
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<SellerChatMessage[]>(() =>
     getStoredChatMessages(property.id)
@@ -128,7 +143,7 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
     if (navigator.share) {
       navigator.share({
         title: property.title,
-        text: `Check out ${property.title} for ${property.price} on LocalPlus Real Estate`,
+        text: `Check out ${property.title} for ${property.price} on Spotlight360 Real Estate`,
         url: window.location.href
       }).catch(() => {});
     } else {
@@ -142,7 +157,9 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
     const rawNumber = property.owner.whatsapp || property.whatsappNumber || '919840123456';
     const cleanNumber = rawNumber.replace(/\D/g, '');
     const prefilledText = encodeURIComponent(
-      `Hi, I'm interested in your property listed on LocalPlus. Is it still available?\nProperty: ${property.title} (${property.price}) in ${property.location}`
+      isUnavailable
+        ? `Hi ${property.owner.name || 'Owner'}, I saw your property "${property.title}" (${property.price}) in ${property.location} listed on Spotlight360. It is marked as booked/sold. Do you have similar available properties?`
+        : `Hi ${property.owner.name || 'Owner'}, I am interested in your property "${property.title}" (${property.price}) in ${property.location} listed on Spotlight360. Is it available for site visit/discussion?`
     );
     window.open(`https://wa.me/${cleanNumber}?text=${prefilledText}`, '_blank');
   };
@@ -203,19 +220,54 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
         </div>
       )}
 
+      {isUnavailable && (
+        <div
+          className="p-meesho-out-of-stock-alert"
+          style={{
+            background: '#fef2f2',
+            color: '#dc2626',
+            fontSize: '12px',
+            padding: '10px 16px',
+            borderBottom: '1px solid #fecaca',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}
+        >
+          <AlertCircle size={20} color="#dc2626" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '12px', letterSpacing: '0.4px', color: '#991b1b', textTransform: 'uppercase' }}>
+              {currentStatus === 'sold' ? 'Sold Out' : 'Booked / Unavailable'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '1px', lineHeight: 1.3 }}>
+              This property is currently booked or unavailable. You can still message the owner on WhatsApp to inquire about future openings or similar units.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Body Content */}
       <div className="p-detail-body">
         {/* Large Image Preview with Carousel */}
-        <div className="p-image-carousel">
+        <div className="p-image-carousel" style={{ position: 'relative' }}>
           <img
             src={images[activeMediaIndex]}
             alt={property.title}
             className="p-carousel-main-img"
+            style={isUnavailable ? { filter: 'grayscale(0.3) brightness(0.85)' } : undefined}
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80';
             }}
           />
+
+          {isUnavailable && (
+            <div className="meesho-out-of-stock-overlay" style={{ pointerEvents: 'none' }}>
+              <span className="meesho-out-of-stock-badge">
+                {currentStatus === 'sold' ? 'SOLD OUT' : 'BOOKED'}
+              </span>
+            </div>
+          )}
 
           <span className="p-carousel-badge">
             {activeMediaIndex + 1}/{images.length}
@@ -402,21 +454,95 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
               border: '1px solid #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px'
+              gap: '12px'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <ShieldCheck size={16} color="#0284c7" />
-                Your Property Listing
+                Owner Property Controls
               </span>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '12px' }}>
                 Poster / Owner
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
-              Only you have permission to manage this real estate listing. You can update pricing, photos, or remove it anytime.
-            </p>
+
+            {/* Availability Toggle for Owner */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b' }}>
+                    Listing Availability
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    {isUnavailable
+                      ? 'Marked as Booked / Sold. Shown with overlay banner.'
+                      : 'Property is Available and open for site visits & offers.'}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    background: isUnavailable ? '#fee2e2' : '#dcfce7',
+                    color: isUnavailable ? '#b91c1c' : '#15803d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                    flexShrink: 0
+                  }}
+                >
+                  {isUnavailable ? '● Booked / Sold' : '● Available'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  background: isUnavailable ? '#16a34a' : '#ea580c',
+                  color: '#ffffff',
+                  boxShadow: isUnavailable
+                    ? '0 2px 8px rgba(22, 163, 74, 0.3)'
+                    : '0 2px 8px rgba(234, 88, 12, 0.3)',
+                  transition: 'background 0.2s ease'
+                }}
+              >
+                {isUnavailable ? (
+                  <>
+                    <CheckCircle2 size={15} />
+                    <span>Mark as Available (Open Listing)</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={15} />
+                    <span>Mark as Booked / Sold</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
@@ -469,7 +595,7 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
         ) : (
           <>
             {/* Action Buttons: [ Save ] [ WhatsApp ] [ Contact ] */}
-            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr 1.35fr', gap: '8px' }}>
+            <div className="p-action-buttons-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1.2fr', gap: '8px' }}>
               <button
                 className={`p-btn-save ${isSaved ? 'saved' : ''}`}
                 onClick={() => onToggleSave(property.id)}
@@ -485,9 +611,15 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
               <button
                 className="p-btn-whatsapp"
                 onClick={handleWhatsAppClick}
-                title="Chat directly on WhatsApp"
+                style={{
+                  background: '#25D366',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                  fontWeight: 800
+                }}
+                title="Chat directly on WhatsApp with property owner"
               >
-                <MessageCircle size={15} />
+                <MessageCircle size={16} />
                 <span>WhatsApp</span>
               </button>
 
@@ -499,7 +631,7 @@ export const PropertyDetailsPanel: React.FC<PropertyDetailsPanelProps> = ({
                   justifyContent: 'center',
                   gap: '6px',
                   padding: '10px 10px',
-                  borderRadius: '20px',
+                  borderRadius: '10px',
                   background: '#0f172a',
                   color: '#ffffff',
                   fontSize: '12px',

@@ -184,10 +184,13 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
   };
 
   const handleWhatsApp = (prop: MarketplaceProperty) => {
-    const rawPhone = prop.owner.whatsapp || '919840588990';
+    const rawPhone = prop.owner.whatsapp || prop.whatsappNumber || '919840588990';
     const cleanPhone = rawPhone.replace(/\D/g, '');
+    const isUnavailable = prop.status === 'sold' || prop.status === 'booked';
     const text = encodeURIComponent(
-      `Hello ${prop.owner.name}, I am interested in your property "${prop.title}" (${prop.price}) in ${prop.location} listed on LocalPlus.`
+      isUnavailable
+        ? `Hello ${prop.owner.name}, I saw your property "${prop.title}" (${prop.price}) in ${prop.location} listed on Spotlight360. It is marked as booked/sold. Do you have similar available properties?`
+        : `Hello ${prop.owner.name}, I am interested in your property "${prop.title}" (${prop.price}) in ${prop.location} listed on Spotlight360. Is it available for discussion/site visit?`
     );
     window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
   };
@@ -570,6 +573,15 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                   COVER
                 </span>
 
+                {/* Meesho-style Out of Stock / Sold badge for Properties */}
+                {(prop.status === 'sold' || prop.status === 'booked') && (
+                  <div className="meesho-out-of-stock-overlay">
+                    <span className="meesho-out-of-stock-badge">
+                      {prop.status === 'sold' ? 'SOLD OUT' : 'BOOKED'}
+                    </span>
+                  </div>
+                )}
+
                 <button
                   className="olx-card-fav-btn"
                   onClick={(e) => handleToggleSaved(prop.id, e)}
@@ -615,30 +627,46 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
                 </div>
 
                 {/* Actions Footer */}
-                <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--lp-slate-light)' }}>
+                <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--lp-slate-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {prop.postedAt}
                   </span>
 
-                  <button
-                    className="btn-primary"
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      color: 'var(--lp-slate-dark)',
-                      padding: '6px 16px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenProperty(prop);
-                    }}
-                  >
-                    View Details
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className="re-card-whatsapp-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleWhatsApp(prop);
+                      }}
+                      title="Message owner on WhatsApp"
+                    >
+                      <MessageCircle size={13} />
+                      <span>WhatsApp</span>
+                    </button>
+
+                    <button
+                      className="btn-primary"
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        color: 'var(--lp-slate-dark)',
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenProperty(prop);
+                      }}
+                    >
+                      Details
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -821,6 +821,10 @@ export function updateStoredProduct(updatedProduct: MarketplaceProduct): Marketp
   const next = products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
   saveStoredProducts(next);
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_products_updated', { detail: next }));
+  }
+
   // Sync update to backend
   fetch(`${API_BASE}/marketplace/products/${updatedProduct.id}`, {
     method: 'PATCH',
@@ -831,6 +835,22 @@ export function updateStoredProduct(updatedProduct: MarketplaceProduct): Marketp
   });
 
   return updatedProduct;
+}
+
+export function markStoredProductOutOfStock(id: string): void {
+  const products = getStoredProducts();
+  const next = products.map((p) => (p.id === id ? { ...p, status: 'out_of_stock' as const } : p));
+  saveStoredProducts(next);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_products_updated', { detail: next }));
+  }
+  try {
+    fetch(`${API_BASE}/marketplace/products/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'out_of_stock' })
+    }).catch(() => {});
+  } catch {}
 }
 
 export function deleteStoredProduct(id: string): void {
@@ -1015,6 +1035,10 @@ export function updateStoredProperty(updatedProperty: MarketplaceProperty): void
   const properties = getStoredProperties();
   const next = properties.map((p) => (p.id === updatedProperty.id ? updatedProperty : p));
   saveStoredProperties(next);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_properties_updated', { detail: next }));
+  }
 
   fetch(`${API_BASE}/marketplace/properties/${updatedProperty.id}`, {
     method: 'PATCH',
