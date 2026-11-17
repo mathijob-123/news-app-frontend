@@ -30,7 +30,7 @@ export interface ContextualBottomNavProps {
   realEstateSavedCount?: number;
 }
 
-export const ContextualBottomNav: React.FC<ContextualBottomNavProps> = ({
+export const ContextualBottomNav: React.FC<ContextualBottomNavProps> = React.memo(({
   activeModule,
   mainTab,
   onChangeMainTab,
@@ -89,4 +89,4 @@ export const ContextualBottomNav: React.FC<ContextualBottomNavProps> = ({
       onOpenCreate={onOpenMainCreate}
     />
   );
-};
+});

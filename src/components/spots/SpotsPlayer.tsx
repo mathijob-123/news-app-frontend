@@ -124,6 +124,15 @@ const ReelCard: React.FC<ReelCardProps> = ({
     return resolveVideoSrc(post.mediaUrl, hasPlaybackError, index);
   }, [post.mediaUrl, hasPlaybackError, index]);
 
+  const creatorAvatarUrl = useMemo(() => {
+    return (
+      post.creatorAvatar ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+        post.creatorName || 'Reporter'
+      )}`
+    );
+  }, [post.creatorAvatar, post.creatorName]);
+
   // Handle Play/Pause when entering or leaving active view or when paused by modal/upload
   useEffect(() => {
     const video = videoRef.current;
@@ -204,8 +213,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
     const current = videoRef.current.currentTime;
     const duration = post.durationSeconds || 15;
     const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
-    const progress = Math.min(100, (current / thresholdSeconds) * 100);
-    setWatchProgress(progress);
+    const rawProgress = Math.min(100, (current / thresholdSeconds) * 100);
+    // Throttle progress to 5% steps so ReelCard does not re-render 10x every second during playback
+    const steppedProgress = Math.floor(rawProgress / 5) * 5;
+    setWatchProgress((prev) => (prev !== steppedProgress ? steppedProgress : prev));
 
     if (isWatchQualified(current, duration)) {
       setIsQualifiedView(true);
@@ -588,12 +599,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
         {/* Creator & Follow Row */}
         <div className="spots-creator-row">
           <img
-            src={
-              post.creatorAvatar ||
-              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                post.creatorName || 'Reporter'
-              )}`
-            }
+            src={creatorAvatarUrl}
             alt={post.creatorName}
             className="spots-creator-avatar"
             referrerPolicy="no-referrer"

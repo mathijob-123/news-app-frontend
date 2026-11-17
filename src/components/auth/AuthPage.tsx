@@ -13,7 +13,9 @@ import {
   Phone,
   User as UserIcon,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import type { User } from '../../types';
@@ -49,6 +51,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -534,14 +537,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <div style={{ position: 'relative' }}>
                 <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '10px 14px 10px 38px',
+                    padding: '10px 38px 10px 38px',
                     borderRadius: '12px',
                     border: '1px solid #cbd5e1',
                     fontSize: '13px',
@@ -550,6 +553,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     boxSizing: 'border-box'
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: showPassword ? '#ff4500' : '#94a3b8',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -624,14 +647,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <div style={{ position: 'relative' }}>
                 <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '10px 14px 10px 38px',
+                    padding: '10px 38px 10px 38px',
                     borderRadius: '12px',
                     border: '1px solid #cbd5e1',
                     fontSize: '13px',
@@ -640,6 +663,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     boxSizing: 'border-box'
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: showPassword ? '#ff4500' : '#94a3b8',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 

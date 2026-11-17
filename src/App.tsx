@@ -492,8 +492,18 @@ export const AppContent: React.FC = () => {
     const syncPosts = () => {
       apiClient.getPosts().then((serverPosts) => {
         if (serverPosts && serverPosts.length > 0) {
-          setPosts(serverPosts);
-          savePosts(serverPosts);
+          setPosts((prevPosts) => {
+            // Only update state if count or first/last post IDs changed to prevent periodic re-renders
+            if (
+              prevPosts.length === serverPosts.length &&
+              prevPosts[0]?.id === serverPosts[0]?.id &&
+              prevPosts[prevPosts.length - 1]?.id === serverPosts[serverPosts.length - 1]?.id
+            ) {
+              return prevPosts;
+            }
+            savePosts(serverPosts);
+            return serverPosts;
+          });
         }
       }).catch(() => {});
     };

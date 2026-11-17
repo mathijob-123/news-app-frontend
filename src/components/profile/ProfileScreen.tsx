@@ -98,32 +98,41 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     if (!file) return;
     setIsUploadingAvatar(true);
     try {
-      const publicR2Url = await authService.uploadAvatarToR2(file);
-      const updated: User = { ...user, avatar: publicR2Url };
+      const publicAvatarUrl = await authService.uploadAvatarToR2(file);
+      const updated: User = { ...user, avatar: publicAvatarUrl };
       onUpdateUser(updated);
       authUpdateUser(updated);
+      // Persist avatar change to Supabase database
+      await authService.updateProfile(user.id, { avatar: publicAvatarUrl });
     } catch (err: any) {
-      alert('Avatar upload to R2 failed: ' + (err.message || 'Unknown error'));
+      console.warn('Avatar update notice:', err);
     } finally {
       setIsUploadingAvatar(false);
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    const updatedLocation = {
+      ...user.homeLocation,
+      neighborhood: neighborhoodInput,
+      placeName: `${neighborhoodInput} Hub`
+    };
     const updated: User = {
       ...user,
       displayName: nameInput,
       bio: bioInput,
-      homeLocation: {
-        ...user.homeLocation,
-        neighborhood: neighborhoodInput,
-        placeName: `${neighborhoodInput} Hub`
-      }
+      homeLocation: updatedLocation
     };
     onUpdateUser(updated);
     authUpdateUser(updated);
     setShowEditModal(false);
+    // Persist profile updates to Supabase database
+    await authService.updateProfile(user.id, {
+      displayName: nameInput,
+      bio: bioInput,
+      homeLocation: updatedLocation
+    });
   };
 
   // Marketplace state inside Profile

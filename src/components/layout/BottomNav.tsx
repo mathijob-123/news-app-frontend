@@ -10,7 +10,7 @@ interface BottomNavProps {
   onOpenCreate: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({
+export const BottomNav: React.FC<BottomNavProps> = React.memo(({
   activeTab,
   onChangeTab,
   onOpenCreate
@@ -69,6 +69,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       </button>
     </nav>
   );
-};
+});
 
 export const MainBottomNav = BottomNav;
