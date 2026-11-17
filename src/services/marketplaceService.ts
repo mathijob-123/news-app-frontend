@@ -8,6 +8,9 @@ import {
 } from '../types/marketplace';
 import { API_BASE } from './apiConfig';
 
+const SUPABASE_REST_URL = 'https://xylbmwffyaoojnvrjmlx.supabase.co/rest/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bGJtd2ZmeWFvb2pudnJqbWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MTk4MzYsImV4cCI6MjExMDI5NTgzNn0._hBoUkJRX9y84qa9lPnFNFDx5OzidF5hKQ0c3Rft_BQ';
+
 /**
  * Compresses an uploaded image file into a permanent, high-quality base64 Data URL.
  * Works 100% offline and stays valid across page reloads (unlike temporary blob: URLs).
@@ -717,18 +720,83 @@ export const INITIAL_CHAT_MESSAGES: Record<string, SellerChatMessage[]> = {
 
 // STORAGE & SUPABASE HELPERS
 export async function fetchProductsFromSupabase(): Promise<MarketplaceProduct[]> {
+  let remoteProducts: MarketplaceProduct[] = [];
+
+  // 1. Try Backend API first
   try {
     const res = await fetch(`${API_BASE}/marketplace/products`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-        saveStoredProducts(data.products);
-        return data.products;
+        remoteProducts = data.products;
       }
     }
   } catch (err: any) {
-    console.warn('[Supabase Products Sync Warning]:', err.message);
+    console.warn('[Backend Products Sync Warning]:', err.message);
   }
+
+  // 2. Direct Supabase REST API fallback if backend returned empty or errored
+  if (remoteProducts.length === 0) {
+    try {
+      const supaRes = await fetch(`${SUPABASE_REST_URL}/marketplace_products?order=created_at.desc`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (supaRes.ok) {
+        const rows = await supaRes.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          remoteProducts = rows.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            price: parseFloat(row.price || '0'),
+            priceNegotiable: Boolean(row.price_negotiable),
+            category: row.category,
+            condition: row.condition,
+            description: row.description,
+            location: row.location,
+            distanceKm: parseFloat(row.distance_km || '0'),
+            postedAt: row.posted_at || 'Recently',
+            viewsCount: row.views_count || 1,
+            images: (Array.isArray(row.images) ? row.images : (typeof row.images === 'string' ? JSON.parse(row.images || '[]') : [])).map((img: string) =>
+              img && img.startsWith('blob:')
+                ? 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'
+                : img
+            ),
+            videoUrl: row.video_url,
+            specs: typeof row.specs === 'object' ? row.specs : (typeof row.specs === 'string' ? JSON.parse(row.specs || '{}') : {}),
+            seller: typeof row.seller === 'object' ? row.seller : (typeof row.seller === 'string' ? JSON.parse(row.seller || '{}') : {}),
+            status: row.status || 'active',
+            isFavorite: Boolean(row.is_favorite),
+            createdAt: row.created_at
+          }));
+        }
+      }
+    } catch (supaErr: any) {
+      console.warn('[Direct Supabase REST Products Fetch Warning]:', supaErr.message);
+    }
+  }
+
+  if (remoteProducts.length > 0) {
+    const productMap = new Map<string, MarketplaceProduct>();
+    for (const init of INITIAL_PRODUCTS) {
+      productMap.set(init.id, init);
+    }
+    for (const r of remoteProducts) {
+      productMap.set(r.id, r);
+    }
+    const merged = Array.from(productMap.values()).sort((a, b) => {
+      const aIsCustom = !INITIAL_PRODUCTS.some((ip) => ip.id === a.id);
+      const bIsCustom = !INITIAL_PRODUCTS.some((ip) => ip.id === b.id);
+      if (aIsCustom && !bIsCustom) return -1;
+      if (!aIsCustom && bIsCustom) return 1;
+      return 0;
+    });
+    saveStoredProducts(merged);
+    return merged;
+  }
+
   return getStoredProducts();
 }
 
@@ -764,8 +832,11 @@ export function saveStoredProducts(products: MarketplaceProduct[]): void {
 
 export function addStoredProduct(formData: PostAdFormData, currentUserId = 'usr_current'): MarketplaceProduct {
   const products = getStoredProducts();
+  const productId = `prod_${Date.now()}`;
+  const effectiveImages = formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'];
+
   const newProduct: MarketplaceProduct = {
-    id: `prod_${Date.now()}`,
+    id: productId,
     title: formData.title,
     price: Number(formData.price),
     priceNegotiable: Boolean(formData.priceNegotiable),
@@ -776,7 +847,7 @@ export function addStoredProduct(formData: PostAdFormData, currentUserId = 'usr_
     distanceKm: 0.5,
     postedAt: 'Just now',
     viewsCount: 1,
-    images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'],
+    images: effectiveImages,
     specs: {
       brand: formData.brand || 'Standard',
       model: formData.model || formData.title,
@@ -804,13 +875,49 @@ export function addStoredProduct(formData: PostAdFormData, currentUserId = 'usr_
   const updated = [newProduct, ...products];
   saveStoredProducts(updated);
 
-  // Asynchronously send to Supabase PostgreSQL database
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_products_updated', { detail: updated }));
+  }
+
+  // 1. Dual-write to backend API
   fetch(`${API_BASE}/marketplace/products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newProduct)
   }).catch((err) => {
-    console.warn('[Supabase Product POST Warning]:', err.message);
+    console.warn('[Backend Product POST Warning]:', err.message);
+  });
+
+  // 2. Direct write to Supabase REST (accessible across all mobile devices worldwide)
+  const supaPayload = {
+    id: productId,
+    title: newProduct.title,
+    price: newProduct.price,
+    price_negotiable: newProduct.priceNegotiable,
+    category: newProduct.category,
+    condition: newProduct.condition,
+    description: newProduct.description,
+    location: newProduct.location,
+    distance_km: newProduct.distanceKm,
+    posted_at: newProduct.postedAt,
+    views_count: 1,
+    images: newProduct.images,
+    specs: newProduct.specs,
+    seller: newProduct.seller,
+    status: 'active'
+  };
+
+  fetch(`${SUPABASE_REST_URL}/marketplace_products`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(supaPayload)
+  }).catch((err) => {
+    console.warn('[Direct Supabase Product POST Warning]:', err.message);
   });
 
   return newProduct;
@@ -834,6 +941,23 @@ export function updateStoredProduct(updatedProduct: MarketplaceProduct): Marketp
     console.warn('[Backend Product PATCH Warning]:', err.message);
   });
 
+  // Direct sync to Supabase REST
+  fetch(`${SUPABASE_REST_URL}/marketplace_products?id=eq.${updatedProduct.id}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: updatedProduct.title,
+      price: updatedProduct.price,
+      description: updatedProduct.description,
+      status: updatedProduct.status,
+      updated_at: new Date().toISOString()
+    })
+  }).catch(() => {});
+
   return updatedProduct;
 }
 
@@ -850,6 +974,16 @@ export function markStoredProductOutOfStock(id: string): void {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'out_of_stock' })
     }).catch(() => {});
+
+    fetch(`${SUPABASE_REST_URL}/marketplace_products?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: 'out_of_stock', updated_at: new Date().toISOString() })
+    }).catch(() => {});
   } catch {}
 }
 
@@ -864,6 +998,15 @@ export function deleteStoredProduct(id: string): void {
   }).catch((err) => {
     console.warn('[Backend Product DELETE Warning]:', err.message);
   });
+
+  // Direct delete on Supabase REST
+  fetch(`${SUPABASE_REST_URL}/marketplace_products?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    }
+  }).catch(() => {});
 }
 
 export function toggleStoredProductFavorite(id: string): boolean {
@@ -893,6 +1036,16 @@ export function markStoredProductSold(id: string): void {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'sold' })
     }).catch(() => {});
+
+    fetch(`${SUPABASE_REST_URL}/marketplace_products?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: 'sold', updated_at: new Date().toISOString() })
+    }).catch(() => {});
   } catch {}
 }
 
@@ -908,6 +1061,16 @@ export function markStoredProductActive(id: string): void {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'active' })
+    }).catch(() => {});
+
+    fetch(`${SUPABASE_REST_URL}/marketplace_products?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: 'active', updated_at: new Date().toISOString() })
     }).catch(() => {});
   } catch {}
 }
@@ -969,18 +1132,107 @@ export function toggleStoredJobSaved(id: string): boolean {
 
 // REAL ESTATE STORAGE & SUPABASE HELPERS
 export async function fetchPropertiesFromSupabase(): Promise<MarketplaceProperty[]> {
+  let remoteProperties: MarketplaceProperty[] = [];
+
+  // 1. Try Backend API first
   try {
     const res = await fetch(`${API_BASE}/marketplace/properties`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.properties) && data.properties.length > 0) {
-        saveStoredProperties(data.properties);
-        return data.properties;
+        remoteProperties = data.properties;
       }
     }
   } catch (err: any) {
-    console.warn('[Supabase Properties Sync Warning]:', err.message);
+    console.warn('[Backend Properties Sync Warning]:', err.message);
   }
+
+  // 2. Direct Supabase REST API fallback
+  if (remoteProperties.length === 0) {
+    try {
+      const supaRes = await fetch(`${SUPABASE_REST_URL}/real_estate_properties?order=created_at.desc`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (supaRes.ok) {
+        const rows = await supaRes.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          remoteProperties = rows.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            price: row.price,
+            numericPrice: parseFloat(row.numeric_price || '0'),
+            priceUnit: row.price_unit,
+            listingType: row.listing_type,
+            propertyCategory: row.property_category,
+            propertyType: row.property_type,
+            location: row.location,
+            areaSqFt: parseFloat(row.area_sq_ft || '0'),
+            bedrooms: row.bedrooms,
+            bathrooms: row.bathrooms,
+            furnishing: row.furnishing,
+            propertyAge: row.property_age,
+            floor: row.floor,
+            totalFloors: row.total_floors,
+            parking: row.parking,
+            description: row.description,
+            sellerType: row.seller_type,
+            contactName: row.contact_name,
+            contactNumber: row.contact_number,
+            whatsappNumber: row.whatsapp_number,
+            email: row.email,
+            photos: (Array.isArray(row.photos) ? row.photos : (typeof row.photos === 'string' ? JSON.parse(row.photos || '[]') : [])).map((img: string) =>
+              img && img.startsWith('blob:')
+                ? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'
+                : img
+            ),
+            videos: Array.isArray(row.videos) ? row.videos : (typeof row.videos === 'string' ? JSON.parse(row.videos || '[]') : []),
+            coverImage: row.cover_image && row.cover_image.startsWith('blob:')
+              ? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'
+              : row.cover_image,
+            images: (Array.isArray(row.images) ? row.images : (typeof row.images === 'string' ? JSON.parse(row.images || '[]') : [])).map((img: string) =>
+              img && img.startsWith('blob:')
+                ? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'
+                : img
+            ),
+            isVerified: Boolean(row.is_verified),
+            status: row.status,
+            specifications: typeof row.specifications === 'object' ? row.specifications : (typeof row.specifications === 'string' ? JSON.parse(row.specifications || '{}') : {}),
+            owner: typeof row.owner === 'object' ? row.owner : (typeof row.owner === 'string' ? JSON.parse(row.owner || '{}') : {}),
+            isSaved: Boolean(row.is_saved),
+            createdAt: row.created_at
+          }));
+        }
+      }
+    } catch (supaErr: any) {
+      console.warn('[Direct Supabase REST Properties Fetch Warning]:', supaErr.message);
+    }
+  }
+
+  if (remoteProperties.length > 0) {
+    const propMap = new Map<string, MarketplaceProperty>();
+    for (const init of INITIAL_PROPERTIES) {
+      propMap.set(init.id, init);
+    }
+    for (const r of remoteProperties) {
+      propMap.set(r.id, r);
+    }
+    const merged = Array.from(propMap.values()).sort((a, b) => {
+      const aIsCustom = !INITIAL_PROPERTIES.some((ip) => ip.id === a.id);
+      const bIsCustom = !INITIAL_PROPERTIES.some((ip) => ip.id === b.id);
+      if (aIsCustom && !bIsCustom) return -1;
+      if (!aIsCustom && bIsCustom) return 1;
+      return 0;
+    });
+    saveStoredProperties(merged);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('marketplace_properties_updated', { detail: merged }));
+    }
+    return merged;
+  }
+
   return getStoredProperties();
 }
 
@@ -1019,13 +1271,61 @@ export function addStoredProperty(property: MarketplaceProperty): MarketplacePro
   const updated = [property, ...current];
   saveStoredProperties(updated);
 
-  // Sync to Supabase PostgreSQL database
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_properties_updated', { detail: updated }));
+  }
+
+  // 1. Dual-write to backend API
   fetch(`${API_BASE}/marketplace/properties`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(property)
   }).catch((err) => {
-    console.warn('[Supabase Property POST Warning]:', err.message);
+    console.warn('[Backend Property POST Warning]:', err.message);
+  });
+
+  // 2. Direct write to Supabase REST API
+  const supaProp = {
+    id: property.id,
+    title: property.title,
+    price: property.price,
+    numeric_price: property.numericPrice || 0,
+    price_unit: property.priceUnit,
+    listing_type: property.listingType,
+    property_category: property.propertyCategory || 'Residential',
+    property_type: property.propertyType,
+    location: property.location,
+    area_sq_ft: property.areaSqFt || 0,
+    bedrooms: property.bedrooms || 0,
+    bathrooms: property.bathrooms || 0,
+    furnishing: property.furnishing || null,
+    description: property.description || '',
+    seller_type: property.sellerType || 'Owner',
+    contact_name: property.contactName || property.owner?.name || null,
+    contact_number: property.contactNumber || property.owner?.phone || null,
+    whatsapp_number: property.whatsappNumber || property.owner?.whatsapp || null,
+    email: property.email || null,
+    photos: property.photos || [],
+    videos: property.videos || [],
+    images: property.images || [],
+    specifications: property.specifications || {},
+    owner: property.owner || {},
+    status: 'active',
+    is_verified: true,
+    created_at: new Date().toISOString()
+  };
+
+  fetch(`${SUPABASE_REST_URL}/real_estate_properties`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(supaProp)
+  }).catch((err) => {
+    console.warn('[Direct Supabase Property POST Warning]:', err.message);
   });
 
   return property;
@@ -1047,6 +1347,22 @@ export function updateStoredProperty(updatedProperty: MarketplaceProperty): void
   }).catch((err) => {
     console.warn('[Backend Property PATCH Warning]:', err.message);
   });
+
+  fetch(`${SUPABASE_REST_URL}/real_estate_properties?id=eq.${updatedProperty.id}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: updatedProperty.title,
+      price: updatedProperty.price,
+      description: updatedProperty.description,
+      status: updatedProperty.status,
+      updated_at: new Date().toISOString()
+    })
+  }).catch(() => {});
 }
 
 export function deleteStoredProperty(id: string): void {
@@ -1054,11 +1370,23 @@ export function deleteStoredProperty(id: string): void {
   const next = properties.filter((p) => p.id !== id);
   saveStoredProperties(next);
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('marketplace_properties_updated', { detail: next }));
+  }
+
   fetch(`${API_BASE}/marketplace/properties/${id}`, {
     method: 'DELETE'
   }).catch((err) => {
     console.warn('[Backend Property DELETE Warning]:', err.message);
   });
+
+  fetch(`${SUPABASE_REST_URL}/real_estate_properties?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    }
+  }).catch(() => {});
 }
 
 export function toggleStoredPropertySaved(id: string): boolean {

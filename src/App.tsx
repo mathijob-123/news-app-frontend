@@ -547,14 +547,15 @@ export const AppContent: React.FC = () => {
     };
   }, []);
 
-  // Auto-fetch fresh products from database when viewing OLX marketplace so all users see live statuses
+  // Auto-fetch fresh products and properties from database when viewing marketplace so all users see live updates across all devices
   useEffect(() => {
-    if (activeView === 'olx' || activeModule === 'olx') {
+    if (activeView === 'olx' || activeModule === 'olx' || activeView === 'marketplace' || activeView === 'real_estate') {
       fetchProductsFromSupabase().then((serverProducts) => {
         if (serverProducts && serverProducts.length > 0) {
           setMarketplaceProducts(serverProducts);
         }
       }).catch(() => {});
+      fetchPropertiesFromSupabase().catch(() => {});
 
       const pollTimer = setInterval(() => {
         fetchProductsFromSupabase().then((serverProducts) => {
@@ -562,11 +563,12 @@ export const AppContent: React.FC = () => {
             setMarketplaceProducts(serverProducts);
           }
         }).catch(() => {});
+        fetchPropertiesFromSupabase().catch(() => {});
       }, 10000);
 
       return () => clearInterval(pollTimer);
     }
-  }, [activeView, activeModule, olxTab]);
+  }, [activeView, activeModule, olxTab, realEstateTab]);
 
   // Recalculate distances relative to active location
   const postsWithDistance = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   MapPin,
@@ -29,6 +29,7 @@ import type {
 } from '../../types/marketplace';
 import {
   getStoredProperties,
+  fetchPropertiesFromSupabase,
   toggleStoredPropertySaved
 } from '../../services/marketplaceService';
 import { PromoBannerCarousel } from './PromoBannerCarousel';
@@ -44,8 +45,50 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
   onSelectProperty,
   onToggleSave
 }) => {
-  const [properties, setProperties] = useState<MarketplaceProperty[]>(getStoredProperties());
+  const [properties, setProperties] = useState<MarketplaceProperty[]>(() => getStoredProperties());
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial fetch from Supabase
+    fetchPropertiesFromSupabase()
+      .then((serverProps) => {
+        if (isMounted && serverProps && serverProps.length > 0) {
+          setProperties(serverProps);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Listen to custom event when property is added/updated/deleted
+    const handlePropsUpdate = (e: Event) => {
+      const custom = e as CustomEvent<MarketplaceProperty[]>;
+      if (custom.detail) {
+        setProperties(custom.detail);
+      } else {
+        setProperties(getStoredProperties());
+      }
+    };
+
+    window.addEventListener('marketplace_properties_updated', handlePropsUpdate);
+
+    // 3. Poll every 12 seconds so new properties appear across all devices in real-time
+    const timer = setInterval(() => {
+      fetchPropertiesFromSupabase()
+        .then((serverProps) => {
+          if (isMounted && serverProps && serverProps.length > 0) {
+            setProperties(serverProps);
+          }
+        })
+        .catch(() => {});
+    }, 12000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('marketplace_properties_updated', handlePropsUpdate);
+      clearInterval(timer);
+    };
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedListingType, setSelectedListingType] = useState<string>('All');
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>('All');
@@ -265,10 +308,16 @@ export const RealEstateMarketplace: React.FC<RealEstateMarketplaceProps> = ({
           </div>
 
           <button
-            onClick={() => {
+            onClick={async () => {
               setIsRefreshing(true);
-              setProperties(getStoredProperties());
-              setTimeout(() => setIsRefreshing(false), 500);
+              try {
+                const fresh = await fetchPropertiesFromSupabase();
+                if (fresh && fresh.length > 0) setProperties(fresh);
+              } catch {
+                setProperties(getStoredProperties());
+              } finally {
+                setTimeout(() => setIsRefreshing(false), 500);
+              }
             }}
             disabled={isRefreshing}
             style={{
