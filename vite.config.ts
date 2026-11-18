@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     watch: {
-      ignored: ['**/android/**', '**/release/**']
+      ignored: ['**/android/**', '**/release/**', '**/*.apk']
     },
     proxy: {
       '/api': {

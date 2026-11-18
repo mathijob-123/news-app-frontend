@@ -31,4 +31,4 @@ dist-ssr
 
 # Android APK binaries
 *.apk
-public/*.apk
+!public/Spotlight360-release.apk

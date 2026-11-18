@@ -6,8 +6,10 @@ import {
   User,
   ShieldCheck,
   ChevronRight,
+  Download,
   X
 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { LegalModal } from '../common/LegalModal';
 
 export type MainNavSection =
@@ -207,11 +209,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
+        {/* Download Android App Button (Visible on Web & Mobile Browsers) */}
+        {!Capacitor.isNativePlatform() && (
+          <div style={{ padding: '0 12px', marginTop: 'auto', paddingTop: '16px' }}>
+            <a
+              href="/Spotlight360-release.apk"
+              download="Spotlight360-release.apk"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '11px 16px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '13px',
+                boxShadow: '0 2px 10px rgba(249, 115, 22, 0.3)',
+                boxSizing: 'border-box',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+              }}
+              title="Download Android APK"
+            >
+              <Download size={16} />
+              <span>Download Android App</span>
+            </a>
+          </div>
+        )}
+
         {/* Small Privacy & Terms links positioned at bottom */}
         <div
           style={{
-            marginTop: 'auto',
-            paddingTop: '20px',
+            marginTop: Capacitor.isNativePlatform() ? 'auto' : '8px',
+            paddingTop: '16px',
             paddingBottom: '14px',
             paddingLeft: '14px',
             display: 'flex',
