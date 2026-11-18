@@ -14,12 +14,19 @@ import type {
   Spotlight360Video
 } from '../types';
 import { API_BASE } from './apiConfig';
+import { getLikedPostIds, getSavedPostIds } from './storageService';
 
 const SUPABASE_REST_URL = 'https://xylbmwffyaoojnvrjmlx.supabase.co/rest/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bGJtd2ZmeWFvb2pudnJqbWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MTk4MzYsImV4cCI6MjExMDI5NTgzNn0._hBoUkJRX9y84qa9lPnFNFDx5OzidF5hKQ0c3Rft_BQ';
 
 function mapSupabasePostRow(row: any): VideoPost {
   const loc = typeof row.location === 'string' ? JSON.parse(row.location) : row.location;
+  const likedIds = getLikedPostIds();
+  const savedIds = getSavedPostIds();
+  const isLiked = likedIds.includes(row.id);
+  const isSaved = savedIds.includes(row.id);
+  const rawLikeCount = Number(row.like_count || 0);
+
   return {
     id: row.id,
     creatorId: row.creator_id || 'usr_tn_001',
@@ -39,7 +46,7 @@ function mapSupabasePostRow(row: any): VideoPost {
     status: row.status || 'published',
     viewCount: Number(row.view_count || 0),
     qualifiedViewCount: Number(row.qualified_view_count || 0),
-    likeCount: Number(row.like_count || 0),
+    likeCount: isLiked && rawLikeCount === 0 ? 1 : rawLikeCount,
     commentCount: Number(row.comment_count || 0),
     shareCount: Number(row.share_count || 0),
     isBreaking: Boolean(row.is_breaking),
@@ -47,7 +54,9 @@ function mapSupabasePostRow(row: any): VideoPost {
     adminPayoutAmount: Number(row.admin_payout_amount || 0),
     priceAward: Number(row.price_award || 0),
     rpmRate: Number(row.rpm_rate || 350),
-    createdAt: row.created_at || new Date().toISOString()
+    createdAt: row.created_at || new Date().toISOString(),
+    isLiked,
+    isSaved
   };
 }
 
@@ -228,6 +237,68 @@ export const apiClient = {
       console.warn('[apiClient.updatePost] Network error updating post:', err);
       return { id: postId, ...updates } as VideoPost;
     }
+  },
+
+  async toggleLikePost(
+    postId: string,
+    isLiked: boolean,
+    targetCount: number,
+    userId?: string
+  ): Promise<{ success: boolean; likeCount: number }> {
+    const finalCount = Math.max(0, targetCount);
+
+    // 1. Direct Supabase REST API update to public.video_posts table
+    try {
+      fetch(`${SUPABASE_REST_URL}/video_posts?id=eq.${encodeURIComponent(postId)}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          like_count: finalCount,
+          updated_at: new Date().toISOString()
+        })
+      }).catch((err) => console.warn('[apiClient.toggleLikePost] Supabase REST patch like notice:', err));
+
+      if (userId) {
+        if (isLiked) {
+          fetch(`${SUPABASE_REST_URL}/post_likes`, {
+            method: 'POST',
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer: 'resolution=ignore-duplicates'
+            },
+            body: JSON.stringify({ post_id: postId, user_id: userId })
+          }).catch(() => {});
+        } else {
+          fetch(`${SUPABASE_REST_URL}/post_likes?post_id=eq.${encodeURIComponent(postId)}&user_id=eq.${encodeURIComponent(userId)}`, {
+            method: 'DELETE',
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch (supaErr) {
+      console.warn('[apiClient.toggleLikePost] Supabase REST notice:', supaErr);
+    }
+
+    // 2. Dual-update to backend API /posts/:id/like
+    try {
+      fetch(`${API_BASE}/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isLiked, likeCount: finalCount, userId })
+      }).catch(() => {});
+    } catch {}
+
+    return { success: true, likeCount: finalCount };
   },
 
   async deletePost(postId: string): Promise<boolean> {

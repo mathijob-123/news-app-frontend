@@ -711,17 +711,52 @@ export const AppContent: React.FC = () => {
 
   // Actions
   const handleLike = (postId: string) => {
-    const updated = toggleLikePost(postId);
-    if (updated) {
-      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...updated } : p)));
-    }
+    let nextIsLiked = false;
+    let nextLikeCount = 0;
+
+    // 1. Immediate optimistic UI update directly on memory state
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          nextIsLiked = !p.isLiked;
+          const currentCount = Math.max(0, Number(p.likeCount) || 0);
+          nextLikeCount = Math.max(0, currentCount + (nextIsLiked ? 1 : -1));
+          return {
+            ...p,
+            isLiked: nextIsLiked,
+            likeCount: nextLikeCount
+          };
+        }
+        return p;
+      })
+    );
+
+    // 2. Persist to storage
+    toggleLikePost(postId, posts);
+
+    // 3. Persist to Supabase database & backend asynchronously
+    apiClient.toggleLikePost(postId, nextIsLiked, nextLikeCount, user?.id);
   };
 
   const handleSave = (postId: string) => {
-    const updated = toggleSavePost(postId);
-    if (updated) {
-      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...updated } : p)));
-    }
+    let nextIsSaved = false;
+
+    // 1. Immediate optimistic UI update
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          nextIsSaved = !p.isSaved;
+          return {
+            ...p,
+            isSaved: nextIsSaved
+          };
+        }
+        return p;
+      })
+    );
+
+    // 2. Persist to storage
+    toggleSavePost(postId, posts);
   };
 
   const handleShare = async (post: VideoPost) => {

@@ -489,11 +489,17 @@ const ReelCard: React.FC<ReelCardProps> = ({
             e.stopPropagation();
             onLike(post.id);
           }}
+          title={post.isLiked ? 'Unlike' : 'Like'}
+          aria-label={post.isLiked ? 'Unlike' : 'Like'}
         >
           <div className={`rail-icon-circle ${post.isLiked ? 'liked' : ''}`}>
-            <Heart size={22} fill={post.isLiked ? '#ffffff' : 'none'} />
+            <Heart
+              size={22}
+              fill={post.isLiked ? '#ffffff' : 'none'}
+              color={post.isLiked ? '#ffffff' : 'currentColor'}
+            />
           </div>
-          <span className="rail-label">{post.likeCount}</span>
+          <span className="rail-label">{(post.likeCount ?? 0).toLocaleString()}</span>
         </button>
 
         {/* Comment */}

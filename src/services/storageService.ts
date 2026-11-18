@@ -49,7 +49,9 @@ const STORAGE_KEYS = {
   COPYRIGHT_STRIKES: 'lp_copyright_strikes_v1',
   NOTIFICATIONS: 'lp_user_notifications_v1',
   SPOTLIGHT360_VIDEOS: 'lp_spotlight360_videos_v1',
-  CREATORS: 'lp_creators_directory_v1'
+  CREATORS: 'lp_creators_directory_v1',
+  LIKED_POST_IDS: 'spotlight_liked_posts_v1',
+  SAVED_POST_IDS: 'spotlight_saved_posts_v1'
 };
 
 const VERIFIED_R2_FALLBACKS = [
@@ -128,6 +130,10 @@ export function getStoredPosts(): VideoPost[] {
         changed = true;
         item.mediaUrl = VERIFIED_R2_FALLBACKS[idx % VERIFIED_R2_FALLBACKS.length];
       }
+
+      // 4. Attach persistent user like and save states
+      item.isLiked = isPostLiked(item.id);
+      item.isSaved = isPostSaved(item.id);
 
       return item;
     });
@@ -386,25 +392,168 @@ export function addComment(postId: string, content: string, user: User): Comment
   return newComment;
 }
 
-export function toggleLikePost(postId: string): VideoPost | undefined {
-  const posts = getStoredPosts();
-  const post = posts.find((p) => p.id === postId);
-  if (!post) return undefined;
-
-  post.isLiked = !post.isLiked;
-  post.likeCount += post.isLiked ? 1 : -1;
-  savePosts(posts);
-  return post;
+export function getLikedPostIds(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.LIKED_POST_IDS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-export function toggleSavePost(postId: string): VideoPost | undefined {
-  const posts = getStoredPosts();
-  const post = posts.find((p) => p.id === postId);
-  if (!post) return undefined;
+export function isPostLiked(postId: string): boolean {
+  return getLikedPostIds().includes(postId);
+}
 
-  post.isSaved = !post.isSaved;
-  savePosts(posts);
-  return post;
+export function setPostLiked(postId: string, liked: boolean): void {
+  try {
+    const current = getLikedPostIds();
+    const next = liked
+      ? Array.from(new Set([...current, postId]))
+      : current.filter((id) => id !== postId);
+    localStorage.setItem(STORAGE_KEYS.LIKED_POST_IDS, JSON.stringify(next));
+  } catch (err) {
+    console.error('Error saving liked post ids:', err);
+  }
+}
+
+export function getSavedPostIds(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SAVED_POST_IDS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isPostSaved(postId: string): boolean {
+  return getSavedPostIds().includes(postId);
+}
+
+export function setPostSaved(postId: string, saved: boolean): void {
+  try {
+    const current = getSavedPostIds();
+    const next = saved
+      ? Array.from(new Set([...current, postId]))
+      : current.filter((id) => id !== postId);
+    localStorage.setItem(STORAGE_KEYS.SAVED_POST_IDS, JSON.stringify(next));
+  } catch (err) {
+    console.error('Error saving saved post ids:', err);
+  }
+}
+
+export function toggleLikePost(
+  postId: string,
+  currentPosts?: VideoPost[]
+): { post: VideoPost; isLiked: boolean; newCount: number } {
+  const alreadyLiked = isPostLiked(postId);
+  const nextLiked = !alreadyLiked;
+  setPostLiked(postId, nextLiked);
+
+  const posts = getStoredPosts();
+  let post = posts.find((p) => p.id === postId);
+
+  if (!post && currentPosts) {
+    post = currentPosts.find((p) => p.id === postId);
+  }
+
+  const prevCount = Math.max(0, Number(post?.likeCount || 0));
+  const newCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
+
+  if (post) {
+    post.isLiked = nextLiked;
+    post.likeCount = newCount;
+    const exists = posts.some((p) => p.id === postId);
+    if (exists) {
+      savePosts(posts);
+    } else {
+      savePosts([post, ...posts]);
+    }
+  }
+
+  const fallback: VideoPost = post || {
+    id: postId,
+    creatorId: 'usr_tn_001',
+    creatorName: 'Reporter',
+    creatorHandle: 'spotlight',
+    creatorAvatar: '',
+    creatorVerified: false,
+    type: 'video',
+    mediaUrl: '',
+    thumbnailUrl: '',
+    headline: 'Spotlight News',
+    caption: '',
+    category: 'civic',
+    location: { placeName: 'Chennai Central', lat: 13.0827, lng: 80.2707 },
+    sourceCitation: null,
+    durationSeconds: 15,
+    status: 'published',
+    viewCount: 0,
+    qualifiedViewCount: 0,
+    likeCount: newCount,
+    commentCount: 0,
+    shareCount: 0,
+    isBreaking: false,
+    createdAt: new Date().toISOString(),
+    isLiked: nextLiked
+  };
+
+  return { post: fallback, isLiked: nextLiked, newCount };
+}
+
+export function toggleSavePost(
+  postId: string,
+  currentPosts?: VideoPost[]
+): { post: VideoPost; isSaved: boolean } {
+  const alreadySaved = isPostSaved(postId);
+  const nextSaved = !alreadySaved;
+  setPostSaved(postId, nextSaved);
+
+  const posts = getStoredPosts();
+  let post = posts.find((p) => p.id === postId);
+
+  if (!post && currentPosts) {
+    post = currentPosts.find((p) => p.id === postId);
+  }
+
+  if (post) {
+    post.isSaved = nextSaved;
+    const exists = posts.some((p) => p.id === postId);
+    if (exists) {
+      savePosts(posts);
+    } else {
+      savePosts([post, ...posts]);
+    }
+  }
+
+  const fallback: VideoPost = post || {
+    id: postId,
+    creatorId: 'usr_tn_001',
+    creatorName: 'Reporter',
+    creatorHandle: 'spotlight',
+    creatorAvatar: '',
+    creatorVerified: false,
+    type: 'video',
+    mediaUrl: '',
+    thumbnailUrl: '',
+    headline: 'Spotlight News',
+    caption: '',
+    category: 'civic',
+    location: { placeName: 'Chennai Central', lat: 13.0827, lng: 80.2707 },
+    sourceCitation: null,
+    durationSeconds: 15,
+    status: 'published',
+    viewCount: 0,
+    qualifiedViewCount: 0,
+    likeCount: 0,
+    commentCount: 0,
+    shareCount: 0,
+    isBreaking: false,
+    createdAt: new Date().toISOString(),
+    isSaved: nextSaved
+  };
+
+  return { post: fallback, isSaved: nextSaved };
 }
 
 /**

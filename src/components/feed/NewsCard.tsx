@@ -460,10 +460,17 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         <button
           className={`action-item ${post.isLiked ? 'liked' : ''}`}
           onClick={() => onLike(post.id)}
-          title="Like this report"
+          title={post.isLiked ? 'Unlike this report' : 'Like this report'}
+          aria-label={post.isLiked ? 'Unlike this report' : 'Like this report'}
         >
-          <Heart size={18} fill={post.isLiked ? 'currentColor' : 'none'} />
-          <span>{post.likeCount}</span>
+          <Heart
+            size={18}
+            fill={post.isLiked ? '#ef4444' : 'none'}
+            color={post.isLiked ? '#ef4444' : 'currentColor'}
+          />
+          <span style={{ color: post.isLiked ? '#ef4444' : undefined, fontWeight: post.isLiked ? 700 : undefined }}>
+            {(post.likeCount ?? 0).toLocaleString()}
+          </span>
         </button>
 
         <button
