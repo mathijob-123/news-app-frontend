@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { BottomNav, MainBottomNav } from './components/layout/BottomNav';
 import { OlxBottomNav, OlxTabType } from './components/layout/OlxBottomNav';
 import { JobsBottomNav, JobsTabType } from './components/layout/JobsBottomNav';
@@ -94,6 +94,13 @@ import {
 } from './services/storageService';
 import { calculateDistanceKm, isLocationMatch } from './services/geoService';
 import { apiClient } from './services/apiClient';
+import {
+  generateSmartVideoFeed,
+  getEffectiveUserId,
+  getLocalWatchedSet,
+  recordVideoWatch,
+  syncRemoteWatchHistory
+} from './services/smartVideoFeedService';
 
 export const AppContent: React.FC = () => {
   const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
@@ -129,6 +136,34 @@ export const AppContent: React.FC = () => {
   const [wallet, setWallet] = useState<Wallet>(getStoredWallet());
   const [transactions, setTransactions] = useState<Transaction[]>(getStoredTransactions());
   const [activeLocation, setActiveLocation] = useState<LocationCoordinates>(getActiveLocation());
+
+  // SMART RANDOM VIDEO FEED: Persistent User / Guest Device ID, Watch History & Session Shuffling
+  const effectiveUserId = useMemo(() => {
+    return getEffectiveUserId(user);
+  }, [user?.id]);
+
+  const [watchedPostIds, setWatchedPostIds] = useState<Set<string>>(() => {
+    return getLocalWatchedSet(getEffectiveUserId(user));
+  });
+
+  const [feedSessionKey, setFeedSessionKey] = useState<number>(() => Date.now());
+
+  // Background sync of watch history from Supabase / cloud
+  useEffect(() => {
+    syncRemoteWatchHistory(effectiveUserId).then((cloudSet) => {
+      setWatchedPostIds(new Set(cloudSet));
+    }).catch(() => {});
+  }, [effectiveUserId]);
+
+  const handleVideoWatched = useCallback((postId: string) => {
+    recordVideoWatch(effectiveUserId, postId);
+    setWatchedPostIds((prev) => {
+      if (prev.has(postId)) return prev;
+      const next = new Set(prev);
+      next.add(postId);
+      return next;
+    });
+  }, [effectiveUserId]);
 
   // Sync authenticated user into app user state
   useEffect(() => {
@@ -187,6 +222,7 @@ export const AppContent: React.FC = () => {
 
   const handleRefreshFeed = async () => {
     setIsRefreshingFeed(true);
+    setFeedSessionKey(Date.now());
     try {
       await refreshAppData();
     } finally {
@@ -710,12 +746,22 @@ export const AppContent: React.FC = () => {
     return items;
   }, [feedPosts, eligibleAds]);
 
-  // Spots dispatches: Strictly local video reels matching the active location hub ONLY!
-  // Ponneri videos ONLY play in Ponneri; Tiruvallur videos ONLY play in Tiruvallur!
+  // SMART RANDOM VIDEO FEED: Prioritized Recommendation Engine
+  // 1. Unwatched videos from user's current location (shuffled)
+  // 2. Unwatched videos from nearby locations (shuffled)
+  // 3. New videos uploaded by other users (shuffled)
+  // 4. Other available unwatched videos from different locations (shuffled)
+  // 5. Previously watched videos (pushed to end of feed)
+  // Once all available videos are watched -> automatically advances cycle & reshuffles fresh!
   const spotsPosts = useMemo(() => {
-    const allVideos = publicPostsWithDistance.filter((p) => p.type === 'video');
-    return allVideos.filter((p) => isLocationMatch(p.location, activeLocation, p.distanceKm));
-  }, [publicPostsWithDistance, activeLocation]);
+    const { feed } = generateSmartVideoFeed({
+      posts: publicPostsWithDistance,
+      userLocation: activeLocation,
+      userId: effectiveUserId,
+      watchedSet: watchedPostIds
+    });
+    return feed;
+  }, [publicPostsWithDistance, activeLocation, effectiveUserId, watchedPostIds, feedSessionKey]);
 
   // Urgent breaking post for active location (public approved)
   const breakingPost = useMemo(() => {
@@ -1251,6 +1297,7 @@ export const AppContent: React.FC = () => {
                 getCommentsForPost={(id) => getStoredComments(id)}
                 onOpenCreate={() => setShowCreateModal(true)}
                 onReportCopyright={(p) => setReportCopyrightPost(p)}
+                onVideoWatched={handleVideoWatched}
                 onRefresh={handleRefreshFeed}
                 isRefreshing={isRefreshingFeed}
               />

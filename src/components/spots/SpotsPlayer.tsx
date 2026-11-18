@@ -36,6 +36,7 @@ interface SpotsPlayerProps {
   getCommentsForPost: (postId: string) => any[];
   onOpenCreate?: () => void;
   onReportCopyright?: (post: VideoPost) => void;
+  onVideoWatched?: (postId: string) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }
@@ -57,6 +58,7 @@ interface ReelCardProps {
   onShare: (post: VideoPost) => void;
   onOpenComments: (post: VideoPost) => void;
   onReportCopyright?: (post: VideoPost) => void;
+  onVideoWatched?: (postId: string) => void;
   isFollowed: boolean;
   onToggleFollow: (creatorId: string) => void;
   onRefresh?: () => void;
@@ -98,6 +100,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
   onShare,
   onOpenComments,
   onReportCopyright,
+  onVideoWatched,
   isFollowed,
   onToggleFollow,
   onRefresh,
@@ -215,6 +218,11 @@ const ReelCard: React.FC<ReelCardProps> = ({
     // Direct DOM update: zero component re-renders during video playback (no avatar/tab blinking)
     if (progressBarRef.current) {
       progressBarRef.current.style.width = `${rawProgress}%`;
+    }
+
+    // Engagement mark: automatically records to user's smart watch history
+    if (current >= 2 || isWatchQualified(current, duration)) {
+      onVideoWatched?.(post.id);
     }
 
     if (isWatchQualified(current, duration)) {
@@ -695,6 +703,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   getCommentsForPost,
   onOpenCreate,
   onReportCopyright,
+  onVideoWatched,
   onRefresh,
   isRefreshing
 }) => {
@@ -1075,6 +1084,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               setShowComments(true);
             }}
             onReportCopyright={onReportCopyright}
+            onVideoWatched={onVideoWatched}
             isFollowed={!!followedCreators[post.creatorId]}
             onToggleFollow={toggleFollow}
             onRefresh={onRefresh}

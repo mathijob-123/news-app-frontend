@@ -24,7 +24,7 @@ export function getApiBase(): string {
     // Fallback if Capacitor is not present
   }
 
-  const envBase = import.meta.env.VITE_API_BASE as string;
+  const envBase = (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_API_BASE) as string | undefined;
   if (envBase && envBase !== '/api') {
     return envBase;
   }
