@@ -9,7 +9,6 @@ import {
   Volume2,
   VolumeX,
   Play,
-  DollarSign,
   Flag,
   ChevronDown,
   ShieldCheck,
@@ -22,7 +21,6 @@ import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { isWatchQualified } from '../../services/monetizationEngine';
 import { recordQualifiedView, isCrypticHash, getCleanHeadline } from '../../services/storageService';
 import { CommentsDrawer } from './CommentsDrawer';
-import { TipModal } from './TipModal';
 
 interface SpotsPlayerProps {
   posts: VideoPost[];
@@ -36,7 +34,6 @@ interface SpotsPlayerProps {
   onShare: (post: VideoPost) => void;
   onAddComment: (postId: string, text: string) => void;
   getCommentsForPost: (postId: string) => any[];
-  onSendTip: (postId: string, amount: number, creatorName: string) => void;
   onOpenCreate?: () => void;
   onReportCopyright?: (post: VideoPost) => void;
   onRefresh?: () => void;
@@ -59,7 +56,6 @@ interface ReelCardProps {
   onSave: (postId: string) => void;
   onShare: (post: VideoPost) => void;
   onOpenComments: (post: VideoPost) => void;
-  onOpenTip: (post: VideoPost) => void;
   onReportCopyright?: (post: VideoPost) => void;
   isFollowed: boolean;
   onToggleFollow: (creatorId: string) => void;
@@ -101,7 +97,6 @@ const ReelCard: React.FC<ReelCardProps> = ({
   onSave,
   onShare,
   onOpenComments,
-  onOpenTip,
   onReportCopyright,
   isFollowed,
   onToggleFollow,
@@ -113,10 +108,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
-  const [watchProgress, setWatchProgress] = useState(0);
   const [isQualifiedView, setIsQualifiedView] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
   const lastTapRef = useRef<number>(0);
   const prevActiveRef = useRef(false);
 
@@ -146,7 +141,9 @@ const ReelCard: React.FC<ReelCardProps> = ({
         } catch {
           // Safely ignore if metadata is still initializing
         }
-        setWatchProgress(0);
+        if (progressBarRef.current) {
+          progressBarRef.current.style.width = '0%';
+        }
         setIsQualifiedView(false);
       }
       prevActiveRef.current = true;
@@ -214,9 +211,11 @@ const ReelCard: React.FC<ReelCardProps> = ({
     const duration = post.durationSeconds || 15;
     const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
     const rawProgress = Math.min(100, (current / thresholdSeconds) * 100);
-    // Throttle progress to 5% steps so ReelCard does not re-render 10x every second during playback
-    const steppedProgress = Math.floor(rawProgress / 5) * 5;
-    setWatchProgress((prev) => (prev !== steppedProgress ? steppedProgress : prev));
+    
+    // Direct DOM update: zero component re-renders during video playback (no avatar/tab blinking)
+    if (progressBarRef.current) {
+      progressBarRef.current.style.width = `${rawProgress}%`;
+    }
 
     if (isWatchQualified(current, duration)) {
       setIsQualifiedView(true);
@@ -343,7 +342,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
       <div className="spots-top-gradient" />
 
       {/* 4. Qualified View Progress Bar */}
-      {isActive && watchProgress > 0 && (
+      {isActive && (
         <div
           style={{
             position: 'absolute',
@@ -356,9 +355,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
           }}
         >
           <div
+            ref={progressBarRef}
             style={{
               height: '100%',
-              width: `${watchProgress}%`,
+              width: '0%',
               background: 'var(--brand-gradient)',
               transition: 'width 0.1s linear'
             }}
@@ -461,26 +461,6 @@ const ReelCard: React.FC<ReelCardProps> = ({
             <MessageCircle size={22} />
           </div>
           <span className="rail-label">{post.commentCount}</span>
-        </button>
-
-        {/* Tip / Support Creator */}
-        <button
-          className="rail-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenTip(post);
-          }}
-        >
-          <div
-            className="rail-icon-circle"
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              borderColor: '#34d399'
-            }}
-          >
-            <DollarSign size={22} />
-          </div>
-          <span className="rail-label">Tip</span>
         </button>
 
         {/* Share */}
@@ -713,7 +693,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onShare,
   onAddComment,
   getCommentsForPost,
-  onSendTip,
   onOpenCreate,
   onReportCopyright,
   onRefresh,
@@ -724,7 +703,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
   const [activeModalPost, setActiveModalPost] = useState<VideoPost | null>(null);
   const [showComments, setShowComments] = useState(false);
-  const [showTipModal, setShowTipModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeIndexRef = useRef(0);
@@ -1080,8 +1058,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             key={post.id}
             post={post}
             index={idx}
-            isActive={idx === activeIndex && !isPaused && !showComments && !showTipModal}
-            isPaused={isPaused || showComments || showTipModal}
+            isActive={idx === activeIndex && !isPaused && !showComments}
+            isPaused={isPaused || showComments}
             isNear={Math.abs(idx - activeIndex) <= 2}
             isNext={Math.abs(idx - activeIndex) === 1}
             isMuted={isMuted}
@@ -1095,10 +1073,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             onOpenComments={(p) => {
               setActiveModalPost(p);
               setShowComments(true);
-            }}
-            onOpenTip={(p) => {
-              setActiveModalPost(p);
-              setShowTipModal(true);
             }}
             onReportCopyright={onReportCopyright}
             isFollowed={!!followedCreators[post.creatorId]}
@@ -1124,20 +1098,6 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
               prev ? { ...prev, commentCount: Math.max(0, Number(prev.commentCount) || 0) + 1 } : prev
             );
           }}
-        />
-      )}
-
-      {/* Tip Modal */}
-      {showTipModal && activeModalPost && (
-        <TipModal
-          post={activeModalPost}
-          onClose={() => {
-            setShowTipModal(false);
-            setActiveModalPost(null);
-          }}
-          onSendTip={(amt) =>
-            onSendTip(activeModalPost.id, amt, activeModalPost.creatorName)
-          }
         />
       )}
     </div>

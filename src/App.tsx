@@ -1249,7 +1249,6 @@ export const AppContent: React.FC = () => {
                 onShare={handleShare}
                 onAddComment={handleAddComment}
                 getCommentsForPost={(id) => getStoredComments(id)}
-                onSendTip={handleSendTip}
                 onOpenCreate={() => setShowCreateModal(true)}
                 onReportCopyright={(p) => setReportCopyrightPost(p)}
                 onRefresh={handleRefreshFeed}
