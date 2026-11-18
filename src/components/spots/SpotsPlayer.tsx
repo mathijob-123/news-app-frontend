@@ -1118,7 +1118,12 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             setShowComments(false);
             setActiveModalPost(null);
           }}
-          onAddComment={(text) => onAddComment(activeModalPost.id, text)}
+          onAddComment={(text) => {
+            onAddComment(activeModalPost.id, text);
+            setActiveModalPost((prev) =>
+              prev ? { ...prev, commentCount: Math.max(0, Number(prev.commentCount) || 0) + 1 } : prev
+            );
+          }}
         />
       )}
 

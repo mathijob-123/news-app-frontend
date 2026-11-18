@@ -46,6 +46,8 @@ import { PostPropertyModal } from './components/marketplace/PostPropertyModal';
 import { SavedItemsModal } from './components/marketplace/SavedItemsModal';
 import { SellerProfileModal } from './components/marketplace/SellerProfileModal';
 import { MarketplaceLandingPage } from './components/marketplace/MarketplaceLandingPage';
+import { ShareModal } from './components/common/ShareModal';
+import { Share } from '@capacitor/share';
 import './components/marketplace/marketplace.css';
 import {
   getStoredProducts,
@@ -57,7 +59,7 @@ import {
   toggleStoredPropertySaved
 } from './services/marketplaceService';
 import type { MarketplaceProduct, ProductSeller, MarketplaceProperty } from './types/marketplace';
-import { Newspaper, Plus, Compass, ShieldCheck, WifiOff, ArrowLeft } from 'lucide-react';
+import { Newspaper, Plus, Compass, ShieldCheck, WifiOff, ArrowLeft, Bookmark } from 'lucide-react';
 import type {
   VideoPost,
   User,
@@ -145,6 +147,8 @@ export const AppContent: React.FC = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedSpotPostId, setSelectedSpotPostId] = useState<string | undefined>(undefined);
   const [commentsDrawerPost, setCommentsDrawerPost] = useState<VideoPost | null>(null);
+  const [shareModalPost, setShareModalPost] = useState<VideoPost | null>(null);
+  const [saveToastMessage, setSaveToastMessage] = useState<string | null>(null);
   const [reportCopyrightPost, setReportCopyrightPost] = useState<VideoPost | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
@@ -171,6 +175,15 @@ export const AppContent: React.FC = () => {
   const [showMyAdsModal, setShowMyAdsModal] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
   const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
+
+  useEffect(() => {
+    if (saveToastMessage) {
+      const timer = setTimeout(() => {
+        setSaveToastMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveToastMessage]);
 
   const handleRefreshFeed = async () => {
     setIsRefreshingFeed(true);
@@ -757,28 +770,80 @@ export const AppContent: React.FC = () => {
 
     // 2. Persist to storage
     toggleSavePost(postId, posts);
+
+    // 3. User feedback toast showing exact location of saved item
+    setSaveToastMessage(
+      nextIsSaved
+        ? 'Saved! View anytime in Profile > Saved'
+        : 'Removed from Saved'
+    );
   };
 
   const handleShare = async (post: VideoPost) => {
-    if (navigator.share) {
+    const baseUrl =
+      typeof window !== 'undefined' &&
+      (window.location.origin.includes('localhost') || window.location.protocol.includes('capacitor'))
+        ? 'https://news-app-backend-mathis-projects-a3546874.vercel.app'
+        : window.location.origin;
+
+    const shareUrl = `${baseUrl}?post=${encodeURIComponent(post.id)}`;
+    const shareTitle = post.headline || 'Spotlight360 Ground Report';
+    const locationText = post.location?.placeName || post.location?.neighborhood || 'Local Report';
+    const shareText = `Spotlight360 Ground Report: ${shareTitle} (${locationText})\n\nWatch and verify local updates here:\n${shareUrl}`;
+
+    try {
+      // 1. Native Capacitor Share (triggers Android system chooser with WhatsApp, Instagram, Telegram, Drive, etc.)
+      const canShareRes = await Share.canShare().catch(() => ({ value: false }));
+      if (canShareRes && canShareRes.value) {
+        await Share.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+          dialogTitle: 'Share Ground Report via'
+        });
+        return;
+      }
+    } catch {
+      // Continue to browser Web Share or fallback modal
+    }
+
+    // 2. Browser Web Share API (mobile Chrome / Safari)
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: post.headline,
-          text: `Spotlight360: ${post.headline} (${post.location.placeName})`,
-          url: window.location.href
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl
         });
-      } catch {
-        // Share cancelled or unavailable
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return; // User simply closed the system share sheet
       }
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Report link copied to clipboard!');
     }
+
+    // 3. Fallback: Open bottom share sheet modal with direct WhatsApp, Telegram, and Copy Link buttons
+    setShareModalPost(post);
   };
 
   const handleAddComment = (postId: string, text: string) => {
-    addComment(postId, text, user);
-    setPosts(getStoredPosts());
+    // 1. Immediate optimistic UI update
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          return {
+            ...p,
+            commentCount: Math.max(0, Number(p.commentCount) || 0) + 1
+          };
+        }
+        return p;
+      })
+    );
+
+    // 2. Persist locally to storage
+    const saved = addComment(postId, text, user);
+
+    // 3. Persist asynchronously in Supabase REST and backend API
+    apiClient.addComment(postId, saved);
   };
 
   const handleOpenPostInSpots = (post: VideoPost) => {
@@ -1082,6 +1147,44 @@ export const AppContent: React.FC = () => {
         activeLocation={activeLocation}
         onSelectLocation={handleSelectLocation}
       />
+
+      {/* 11. Native-Style Share Modal Sheet */}
+      {shareModalPost && (
+        <ShareModal
+          post={shareModalPost}
+          onClose={() => setShareModalPost(null)}
+        />
+      )}
+
+      {/* 12. Floating Bookmark / Save Toast Pill */}
+      {saveToastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '64px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(12px)',
+            color: '#ffffff',
+            padding: '9px 18px',
+            borderRadius: '24px',
+            fontSize: '12px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.28)',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Bookmark size={15} fill="#ea580c" color="#ea580c" />
+          <span>{saveToastMessage}</span>
+        </div>
+      )}
     </>
   );
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Settings,
   Edit3,
@@ -49,6 +49,7 @@ import {
   deleteStoredProduct,
   toggleStoredProductPause
 } from '../../services/marketplaceService';
+import { getStoredPosts, isPostSaved, isPostLiked } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 
@@ -194,11 +195,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  // Content tab filtering
-  const myPosts = posts.filter((p) => p.creatorId === user.id);
+  // Content tab filtering with full known posts lookup
+  const allKnownPosts = useMemo(() => {
+    const stored = getStoredPosts();
+    const map = new Map<string, VideoPost>();
+    stored.forEach((p) => map.set(p.id, p));
+    posts.forEach((p) => map.set(p.id, p));
+    return Array.from(map.values());
+  }, [posts]);
+
+  const myPosts = allKnownPosts.filter((p) => p.creatorId === user.id);
   const mySpots = myPosts.filter((p) => p.type === 'video');
-  const savedPosts = posts.filter((p) => p.isSaved);
-  const likedPosts = posts.filter((p) => p.isLiked);
+  const savedPosts = allKnownPosts.filter((p) => isPostSaved(p.id) || p.isSaved);
+  const likedPosts = allKnownPosts.filter((p) => isPostLiked(p.id) || p.isLiked);
 
   const displayedList =
     activeTab === 'posts'

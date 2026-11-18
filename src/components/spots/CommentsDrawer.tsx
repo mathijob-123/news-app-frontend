@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Send, Heart, MessageSquare } from 'lucide-react';
 import type { Comment, User } from '../../types';
 
@@ -16,11 +16,33 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
   currentUser
 }) => {
   const [inputText, setInputText] = useState('');
+  const [commentList, setCommentList] = useState<Comment[]>(comments || []);
+
+  useEffect(() => {
+    if (comments) {
+      setCommentList(comments);
+    }
+  }, [comments]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
-    onAddComment(inputText.trim());
+    const cleanText = inputText.trim();
+    if (!cleanText) return;
+
+    // 0ms Optimistic UI update
+    const optimistic: Comment = {
+      id: `c_${Date.now()}`,
+      postId: '',
+      userHandle: currentUser.handle || 'spotlight',
+      userName: currentUser.displayName || 'Citizen Reporter',
+      userAvatar: currentUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.displayName || 'User')}&backgroundColor=ea580c&textColor=ffffff`,
+      content: cleanText,
+      createdAt: 'Just now',
+      likes: 0
+    };
+
+    setCommentList((prev) => [optimistic, ...prev]);
+    onAddComment(cleanText);
     setInputText('');
   };
 
@@ -34,7 +56,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
         <div className="sheet-handle-bar" />
         <div className="bottom-sheet-header">
           <h3 style={{ fontSize: '15px', fontWeight: 700 }}>
-            Community Discussion ({comments.length})
+            Community Discussion ({commentList.length})
           </h3>
           <button onClick={onClose} style={{ padding: '4px', color: 'var(--text-secondary)' }}>
             <X size={18} />
@@ -52,7 +74,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
             gap: '14px'
           }}
         >
-          {comments.length === 0 ? (
+          {commentList.length === 0 ? (
             <div
               style={{
                 textAlign: 'center',
@@ -87,7 +109,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
               </p>
             </div>
           ) : (
-            comments.map((comment) => (
+            commentList.map((comment) => (
               <div key={comment.id} style={{ display: 'flex', gap: '10px' }}>
                 <img
                   src={comment.userAvatar}
