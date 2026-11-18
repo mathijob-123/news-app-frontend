@@ -135,6 +135,12 @@ export function getStoredPosts(): VideoPost[] {
       item.isLiked = isPostLiked(item.id);
       item.isSaved = isPostSaved(item.id);
 
+      // 5. Ensure initial/mock posts start with 0 likes unless user liked them
+      if (item.id.startsWith('post_sp_') && !item.isLiked && item.likeCount > 0) {
+        item.likeCount = 0;
+        changed = true;
+      }
+
       return item;
     });
 

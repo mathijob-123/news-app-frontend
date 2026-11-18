@@ -28,3 +28,7 @@ dist-ssr
 .env.local
 .env.production
 .env.development
+
+# Android APK binaries
+*.apk
+public/*.apk

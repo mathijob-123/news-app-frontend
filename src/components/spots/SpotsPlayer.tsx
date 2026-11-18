@@ -342,59 +342,6 @@ const ReelCard: React.FC<ReelCardProps> = ({
       {/* Top Gradient for header clarity */}
       <div className="spots-top-gradient" />
 
-      {/* 2. Top Header Bar: Location pill */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 14,
-          right: 14,
-          zIndex: 30,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          pointerEvents: 'none'
-        }}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onOpenLocationPicker) onOpenLocationPicker();
-          }}
-          style={{
-            pointerEvents: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '20px',
-            padding: '5px 12px',
-            color: '#ffffff',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          <MapPin size={12} color="var(--brand-primary)" />
-          <span
-            style={{
-              maxWidth: '140px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {activeLocation?.neighborhood ||
-              activeLocation?.placeName ||
-              post.location.neighborhood ||
-              post.location.placeName}
-          </span>
-          <ChevronDown size={12} />
-        </button>
-      </div>
-
       {/* 4. Qualified View Progress Bar */}
       {isActive && watchProgress > 0 && (
         <div

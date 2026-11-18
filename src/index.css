@@ -985,12 +985,19 @@ input, textarea, select {
 .spots-action-rail {
   position: absolute;
   right: 8px;
-  bottom: calc(var(--bottom-nav-height) + 6px);
+  bottom: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   z-index: 20;
+  max-height: calc(100% - 64px);
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.spots-action-rail > * {
+  pointer-events: auto;
 }
 
 .rail-btn {
@@ -1032,12 +1039,12 @@ input, textarea, select {
 /* Spots Overlay Content */
 .spots-overlay-content {
   position: absolute;
-  bottom: calc(var(--bottom-nav-height) + 3px);
+  bottom: 14px;
   left: 10px;
   right: 56px;
   z-index: 20;
   color: #ffffff;
-  max-height: 20vh;
+  max-height: 24vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1426,20 +1433,26 @@ input, textarea, select {
   }
 
   .spots-action-rail {
-    right: 10px;
-    bottom: 74px;
-    gap: 12px;
+    right: 8px;
+    bottom: 12px;
+    gap: 6px;
+    max-height: calc(100% - 56px);
+    justify-content: flex-end;
   }
 
   .rail-icon-circle {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .rail-label {
+    font-size: 10px;
   }
 
   .spots-overlay-content {
-    left: 12px;
-    right: 64px;
-    bottom: 18px;
+    left: 10px;
+    right: 56px;
+    bottom: 12px;
   }
 
   .spots-headline {
@@ -1564,20 +1577,26 @@ input, textarea, select {
   }
 
   .spots-action-rail {
-    right: 8px;
-    bottom: 68px;
-    gap: 10px;
+    right: 6px;
+    bottom: 10px;
+    gap: 5px;
+    max-height: calc(100% - 48px);
+    justify-content: flex-end;
   }
 
   .rail-icon-circle {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .rail-label {
+    font-size: 9.5px;
   }
 
   .spots-overlay-content {
-    left: 10px;
-    right: 56px;
-    bottom: 14px;
+    left: 8px;
+    right: 50px;
+    bottom: 10px;
   }
 
   .spots-headline {
