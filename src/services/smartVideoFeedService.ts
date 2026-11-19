@@ -219,9 +219,16 @@ export function generateSmartVideoFeed(options: SmartFeedOptions): {
   const { posts, userLocation, userId } = options;
 
   // 1. Strictly consider video posts that are not copyright removed
-  const candidateVideos = posts.filter(
+  let candidateVideos = posts.filter(
     (p) => p.type === 'video' && p.status !== 'copyright_takedown'
   );
+
+  // Strict Hyperlocal Isolation Rule:
+  // When a location is selected (e.g. Ponneri, Tiruvallur, Minjur, Gummidipoondi),
+  // candidate videos MUST strictly belong to that location. Ponneri never leaks into Tiruvallur, etc.
+  if (userLocation) {
+    candidateVideos = candidateVideos.filter((v) => isLocationMatch(v.location, userLocation));
+  }
 
   if (candidateVideos.length === 0) {
     return { feed: [], cycle: 1, unwatchedCount: 0, watchedCount: 0 };
@@ -233,33 +240,40 @@ export function generateSmartVideoFeed(options: SmartFeedOptions): {
 
   // 3. Separate into unwatched and watched
   let unwatchedVideos = candidateVideos.filter((v) => !watchedSet.has(v.id));
+  let watchedVideos = candidateVideos.filter((v) => watchedSet.has(v.id));
 
   // 4. If all videos have been watched by this user, auto-advance cycle and start fresh!
   if (unwatchedVideos.length === 0 && candidateVideos.length > 0) {
     cycle = advanceWatchCycle(userId);
     watchedSet = new Set<string>();
     unwatchedVideos = [...candidateVideos];
+    watchedVideos = [];
   }
 
-  // 5. Pre-calculate distance from user location for all videos
+  // 5. When location is selected: Deliver strictly localized videos,
+  // prioritizing unwatched videos first (dynamically randomized), followed by watched videos at bottom
+  if (userLocation) {
+    const shuffledUnwatched = shuffleArray(unwatchedVideos);
+    const shuffledWatched = shuffleArray(watchedVideos);
+    const finalFeed = [...shuffledUnwatched, ...shuffledWatched];
+
+    return {
+      feed: finalFeed,
+      cycle,
+      unwatchedCount: unwatchedVideos.length,
+      watchedCount: watchedVideos.length
+    };
+  }
+
+  // 6. General fallback feed when no location is active (or permission denied):
+  // Categorize unwatched videos into Priority Buckets
   const videosWithDist = candidateVideos.map((video) => {
-    let distKm: number | undefined = undefined;
-    if (userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' &&
-        video.location && typeof video.location.lat === 'number' && typeof video.location.lng === 'number') {
-      distKm = calculateDistanceKm(
-        userLocation.lat,
-        userLocation.lng,
-        video.location.lat,
-        video.location.lng
-      );
-    }
-    return { ...video, distanceKm: distKm };
+    return { ...video, distanceKm: undefined };
   });
 
   const nowMs = Date.now();
   const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
 
-  // Categorize unwatched videos into Priority Buckets
   const p1CurrentLocation: VideoPost[] = [];
   const p2NearbyLocations: VideoPost[] = [];
   const p3NewUploads: VideoPost[] = [];
@@ -272,29 +286,6 @@ export function generateSmartVideoFeed(options: SmartFeedOptions): {
     if (isWatched) {
       p5WatchedVideos.push(video);
       return;
-    }
-
-    // Proximity checks if user location is available
-    if (userLocation) {
-      const isLocal =
-        isLocationMatch(video.location, userLocation, video.distanceKm) ||
-        (typeof video.distanceKm === 'number' && video.distanceKm <= 10);
-
-      if (isLocal) {
-        p1CurrentLocation.push(video);
-        return;
-      }
-
-      const isNearby =
-        (typeof video.distanceKm === 'number' && video.distanceKm <= 55) ||
-        (video.location.district &&
-          userLocation.district &&
-          video.location.district.toLowerCase() === userLocation.district.toLowerCase());
-
-      if (isNearby) {
-        p2NearbyLocations.push(video);
-        return;
-      }
     }
 
     // New videos uploaded by other users (created within last 48 hours or breaking)
@@ -311,15 +302,13 @@ export function generateSmartVideoFeed(options: SmartFeedOptions): {
     p4OtherLocations.push(video);
   });
 
-  // 6. Apply unbiased random shuffle within each tier
+  // Apply unbiased random shuffle within each tier
   const shuffledP1 = shuffleArray(p1CurrentLocation);
   const shuffledP2 = shuffleArray(p2NearbyLocations);
   const shuffledP3 = shuffleArray(p3NewUploads);
   const shuffledP4 = shuffleArray(p4OtherLocations);
   const shuffledP5 = shuffleArray(p5WatchedVideos);
 
-  // 7. Concatenate strictly in priority order:
-  // [1. Unwatched Local] -> [2. Unwatched Nearby] -> [3. New Uploads] -> [4. Other Unwatched] -> [5. Watched]
   const finalFeed = [
     ...shuffledP1,
     ...shuffledP2,

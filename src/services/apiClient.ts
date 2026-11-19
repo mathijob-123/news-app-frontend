@@ -15,17 +15,28 @@ import type {
 } from '../types';
 import { API_BASE } from './apiConfig';
 import { getLikedPostIds, getSavedPostIds } from './storageService';
+import { getHubIdentifier, normalizeLocationId } from './geoService';
 
 const SUPABASE_REST_URL = 'https://xylbmwffyaoojnvrjmlx.supabase.co/rest/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bGJtd2ZmeWFvb2pudnJqbWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MTk4MzYsImV4cCI6MjExMDI5NTgzNn0._hBoUkJRX9y84qa9lPnFNFDx5OzidF5hKQ0c3Rft_BQ';
 
 function mapSupabasePostRow(row: any): VideoPost {
-  const loc = typeof row.location === 'string' ? JSON.parse(row.location) : row.location;
+  const loc = typeof row.location === 'string' ? JSON.parse(row.location) : (row.location || {});
   const likedIds = getLikedPostIds();
   const savedIds = getSavedPostIds();
   const isLiked = likedIds.includes(row.id);
   const isSaved = savedIds.includes(row.id);
   const rawLikeCount = Number(row.like_count || 0);
+
+  const locId = row.location_id || loc.locationId || normalizeLocationId(loc.neighborhood);
+  const district = row.district || loc.district || 'Tiruvallur';
+  const taluk = row.taluk || loc.taluk || loc.neighborhood || 'Ponneri';
+  const area = row.area || loc.area || loc.placeName || 'Ponneri';
+
+  if (!loc.locationId && locId) loc.locationId = locId;
+  if (!loc.district && district) loc.district = district;
+  if (!loc.taluk && taluk) loc.taluk = taluk;
+  if (!loc.area && area) loc.area = area;
 
   return {
     id: row.id,
@@ -40,7 +51,11 @@ function mapSupabasePostRow(row: any): VideoPost {
     headline: row.headline || 'Local Spotlight Report',
     caption: row.caption || '',
     category: row.category || 'civic',
-    location: loc || { placeName: 'Chennai Central', lat: 13.0827, lng: 80.2707 },
+    location: loc || { placeName: 'Ponneri Town & Taluk', lat: 13.3331, lng: 80.1989, locationId: 'ponneri' },
+    locationId: locId,
+    district,
+    taluk,
+    area,
     sourceCitation: row.source_citation,
     durationSeconds: Number(row.duration_seconds || 15),
     status: row.status || 'published',
@@ -70,10 +85,15 @@ export const apiClient = {
     }
   },
 
-  async getPosts(params?: { status?: string; includeScheduled?: boolean }): Promise<VideoPost[]> {
+  async getPosts(params?: { status?: string; includeScheduled?: boolean; locationId?: string }): Promise<VideoPost[]> {
     // 1. Direct Supabase REST query - ultra-fast (<200ms) and guarantees real-time shared database data across all devices
     try {
-      const supaRes = await fetch(`${SUPABASE_REST_URL}/video_posts?order=created_at.desc`, {
+      let supaUrl = `${SUPABASE_REST_URL}/video_posts?order=created_at.desc`;
+      if (params?.locationId) {
+        const normId = normalizeLocationId(params.locationId);
+        supaUrl = `${SUPABASE_REST_URL}/video_posts?location_id=eq.${encodeURIComponent(normId)}&order=created_at.desc`;
+      }
+      const supaRes = await fetch(supaUrl, {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`
@@ -94,6 +114,7 @@ export const apiClient = {
       const query = new URLSearchParams();
       if (params?.status) query.set('status', params.status);
       if (params?.includeScheduled) query.set('includeScheduled', 'true');
+      if (params?.locationId) query.set('locationId', normalizeLocationId(params.locationId));
       const qs = query.toString();
       const res = await fetch(`${API_BASE}/posts${qs ? `?${qs}` : ''}`);
       if (res.ok) {
@@ -129,6 +150,19 @@ export const apiClient = {
       safeThumbnailUrl = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600';
     }
 
+    const resolvedLocId = post.locationId || post.location?.locationId || (post.location ? getHubIdentifier(post.location) : 'ponneri');
+    const resolvedDistrict = post.district || post.location?.district || 'Tiruvallur';
+    const resolvedTaluk = post.taluk || post.location?.taluk || 'Ponneri';
+    const resolvedArea = post.area || post.location?.area || post.location?.placeName || 'Ponneri';
+
+    const safeLocation = {
+      ...(post.location || { lat: 13.3331, lng: 80.1989, placeName: 'Ponneri Town & Taluk', neighborhood: 'Ponneri', district: 'Tiruvallur', radiusMeters: 5000 }),
+      locationId: resolvedLocId,
+      district: resolvedDistrict,
+      taluk: resolvedTaluk,
+      area: resolvedArea
+    };
+
     const postPayload = {
       ...post,
       id: post.id || `post_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -143,7 +177,11 @@ export const apiClient = {
       headline: post.headline || 'Hyperlocal Ground Dispatch',
       caption: post.caption || post.headline || 'Verified Ground Report',
       category: post.category || 'civic',
-      location: post.location || { lat: 13.3331, lng: 80.1989, placeName: 'Ponneri Town & Taluk', neighborhood: 'Ponneri', district: 'Tiruvallur', radiusMeters: 5000 },
+      location: safeLocation,
+      locationId: resolvedLocId,
+      district: resolvedDistrict,
+      taluk: resolvedTaluk,
+      area: resolvedArea,
       sourceCitation: post.sourceCitation || 'Citizen on-ground eyewitness dispatch',
       durationSeconds: post.durationSeconds || 15,
       status: 'published',
@@ -179,6 +217,10 @@ export const apiClient = {
           caption: postPayload.caption,
           category: postPayload.category,
           location: postPayload.location,
+          location_id: resolvedLocId,
+          district: resolvedDistrict,
+          taluk: resolvedTaluk,
+          area: resolvedArea,
           source_citation: postPayload.sourceCitation,
           duration_seconds: postPayload.durationSeconds,
           status: postPayload.status,

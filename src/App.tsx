@@ -908,6 +908,7 @@ export const AppContent: React.FC = () => {
   const handleSelectLocation = (loc: LocationCoordinates) => {
     setActiveLocation(loc);
     saveActiveLocation(loc);
+    setFeedSessionKey(Date.now());
     // Instantly sync latest posts from Supabase so location changes always reflect live database updates
     apiClient.getPosts().then((serverPosts) => {
       if (serverPosts && serverPosts.length > 0) {
@@ -927,6 +928,7 @@ export const AppContent: React.FC = () => {
       setActiveLocation(newPost.location);
       saveActiveLocation(newPost.location);
     }
+    setFeedSessionKey(Date.now());
 
     if (newPost.type === 'video') {
       setSelectedSpotPostId(newPost.id);

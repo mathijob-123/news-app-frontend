@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import type { VideoPost, User, NewsCategory, LocationCoordinates } from '../../types';
 import { apiClient } from '../../services/apiClient';
-import { PRESET_LOCATIONS } from '../../services/geoService';
+import { PRESET_LOCATIONS, getHubIdentifier } from '../../services/geoService';
 
 interface CreateModalProps {
   currentUser: User;
@@ -328,6 +328,11 @@ export const CreateModal: React.FC<CreateModalProps> = ({
 
       const shouldAutoApprove = isAdmin && autoApproveAsAdmin;
 
+      const resolvedLocationId = postLocation.locationId || getHubIdentifier(postLocation) || 'ponneri';
+      const resolvedDistrict = postLocation.district || 'Tiruvallur';
+      const resolvedTaluk = postLocation.taluk || postLocation.neighborhood || 'Ponneri';
+      const resolvedArea = postLocation.area || postLocation.placeName || 'Ponneri';
+
       const newPostPayload: Partial<VideoPost> = {
         id: postId,
         creatorId: currentUser.id,
@@ -341,12 +346,19 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         headline: headline.trim(),
         caption: caption.trim() || headline.trim(),
         category,
+        locationId: resolvedLocationId,
+        district: resolvedDistrict,
+        taluk: resolvedTaluk,
+        area: resolvedArea,
         location: {
+          locationId: resolvedLocationId,
           placeName: postLocation.placeName || 'Ponneri Town & Taluk',
           neighborhood: postLocation.neighborhood || 'Ponneri',
           lat: postLocation.lat || 13.3331,
           lng: postLocation.lng || 80.1989,
-          district: postLocation.district || 'Tiruvallur',
+          district: resolvedDistrict,
+          taluk: resolvedTaluk,
+          area: resolvedArea,
           pincode: postLocation.pincode,
           radiusMeters: postLocation.radiusMeters || 5000
         },

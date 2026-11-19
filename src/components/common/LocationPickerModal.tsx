@@ -53,6 +53,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
           {PRESET_LOCATIONS.map((loc) => {
             const isSelected =
+              (loc.locationId && activeLocation.locationId === loc.locationId) ||
               (loc.neighborhood && activeLocation.neighborhood === loc.neighborhood) ||
               (loc.lat === activeLocation.lat && loc.lng === activeLocation.lng) ||
               loc.placeName === activeLocation.placeName;
