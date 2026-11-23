@@ -321,10 +321,25 @@ export const LegalModal: React.FC<LegalModalProps> = ({
 
               <div>
                 <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>
-                  5. Updates to Terms
+                  5. User-Generated Content and Limitation of Liability
                 </h4>
                 <p style={{ margin: 0, color: '#475569' }}>
-                  We may periodically revise these terms to reflect new legal guidelines or platform features. Continued use of Spotlight360 implies acceptance of updated terms.
+                  • <strong>1. Content Responsibility:</strong> Users are solely responsible for all content they upload, post, share, or publish on the Spotlight 360 platform, including Reels, videos, photos, images, comments, captions, text, and other media.<br />
+                  • <strong>2. No Creation or Control:</strong> Spotlight 360 does not create, own, or control user-uploaded content and is not responsible for the accuracy, authenticity, legality, originality, or reliability of such content.<br />
+                  • <strong>3. Limitation of Liability:</strong> Spotlight 360 shall not be held responsible for any disputes, damages, losses, copyright violations, defamation claims, misleading information, or legal issues arising from content uploaded or shared by users, to the extent permitted by applicable law.<br />
+                  • <strong>4. Third-Party Rights & Consent:</strong> Users must ensure that they have the necessary rights, permissions, and consent before uploading or sharing any third-party content.<br />
+                  • <strong>5. Violation & Account Actions:</strong> If any uploaded content violates applicable laws, intellectual property rights, privacy rights, or Spotlight 360 community guidelines, Spotlight 360 reserves the right to remove or restrict access to that content and take appropriate action against the account.<br />
+                  • <strong>6. Full User Accountability:</strong> Users agree to take full responsibility for the content they publish and any consequences resulting from their uploads.<br />
+                  • <strong>7. Authority Cooperation:</strong> Spotlight 360 may cooperate with relevant authorities when legally required.
+                </p>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>
+                  6. Updates to Terms (Version 2.4)
+                </h4>
+                <p style={{ margin: 0, color: '#475569' }}>
+                  We may periodically revise these terms to reflect new legal guidelines or platform features. Effective Date: November 23, 2026. Continued use of Spotlight360 implies acceptance of updated terms.
                 </p>
               </div>
             </div>
@@ -339,14 +354,20 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             background: '#f8fafc',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            gap: '12px'
           }}
         >
           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-            Last revised: November 2026 • Spotlight360
+            Effective Date: November 23, 2026 (v2.4) • Spotlight360
           </span>
           <button
-            onClick={onClose}
+            onClick={() => {
+              try {
+                localStorage.setItem('spotlight_terms_accepted_v2_4', new Date().toISOString());
+              } catch {}
+              onClose();
+            }}
             style={{
               padding: '8px 18px',
               borderRadius: '10px',
@@ -356,10 +377,14 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               fontWeight: 700,
               fontSize: '13px',
               cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)'
+              boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            I Understand
+            <CheckCircle2 size={15} />
+            <span>I Accept & Agree</span>
           </button>
         </div>
       </div>
