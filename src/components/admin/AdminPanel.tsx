@@ -73,6 +73,7 @@ import { CopyrightManager } from './CopyrightManager';
 import { Spotlight360Manager } from './spotlight360/Spotlight360Manager';
 import { LocalPlusMarketplaceManager } from './marketplace/LocalPlusMarketplaceManager';
 import { MarketplaceAnalyticsView } from './marketplace/MarketplaceAnalyticsView';
+import { UserManagementView } from './UserManagementView';
 import { marketplaceAdminService, MarketplaceStats } from '../../services/marketplaceAdminService';
 
 interface AdminPanelProps {
@@ -83,7 +84,7 @@ interface AdminPanelProps {
   adminUser?: { id: string; name: string; role: string };
 }
 
-type AdminTab = 'requests' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360' | 'localplus_marketplace';
+type AdminTab = 'requests' | 'users' | 'payouts' | 'advertisements' | 'analytics' | 'settings' | 'copyright' | 'spotlight360' | 'localplus_marketplace';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   posts,
@@ -159,7 +160,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (role === 'super_admin') return true;
     if (role === 'ad_manager') return tab === 'advertisements' || tab === 'spotlight360' || tab === 'analytics';
     if (role === 'editor' || role === 'moderator') {
-      return tab === 'requests' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright' || tab === 'localplus_marketplace';
+      return tab === 'requests' || tab === 'users' || tab === 'spotlight360' || tab === 'analytics' || tab === 'copyright' || tab === 'localplus_marketplace';
     }
     return true;
   };
@@ -901,6 +902,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   {stats.pendingReviewCount}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* TAB: User Management */}
+          {isTabAllowed('users', simulatedRole) && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className="admin-tab-button"
+              style={{
+                color: activeTab === 'users' ? 'var(--brand-primary)' : '#334155',
+                borderBottom: activeTab === 'users' ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent'
+              }}
+            >
+              <Users size={16} />
+              <span>User Management</span>
             </button>
           )}
 
@@ -1896,6 +1912,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB: USER MANAGEMENT                                         */}
+        {/* ============================================================ */}
+        {activeTab === 'users' && (
+          <UserManagementView onRefreshData={onRefreshData} />
         )}
 
         {/* ============================================================ */}

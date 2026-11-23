@@ -11,7 +11,8 @@ import type {
   CopyrightReport,
   CopyrightStrike,
   AppNotification,
-  Spotlight360Video
+  Spotlight360Video,
+  AdminManagedUser
 } from '../types';
 import { API_BASE } from './apiConfig';
 import { getLikedPostIds, getSavedPostIds, saveCommentsForPost } from './storageService';
@@ -1049,6 +1050,102 @@ export const apiClient = {
     } catch {
       return null;
     }
+  },
+
+  // --- APP USER MANAGEMENT (ADMIN) ---
+  async getAppUsers(filters?: { search?: string; role?: string; status?: string; verified?: boolean }): Promise<AdminManagedUser[]> {
+    try {
+      const q = new URLSearchParams();
+      if (filters?.search) q.set('search', filters.search);
+      if (filters?.role) q.set('role', filters.role);
+      if (filters?.status) q.set('status', filters.status);
+      if (filters?.verified !== undefined) q.set('verified', String(filters.verified));
+
+      const res = await fetch(`${API_BASE}/admin/app-users?${q.toString()}`);
+      const data = await res.json();
+      return data.data || [];
+    } catch (err) {
+      console.warn('[apiClient.getAppUsers error]:', err);
+      return [];
+    }
+  },
+
+  async getAppUserById(userId: string): Promise<{ user: AdminManagedUser; videos: VideoPost[]; copyrightReports: any[] } | null> {
+    try {
+      const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      return data.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async createAppUser(userData: {
+    displayName: string;
+    handle: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    bio?: string;
+    verified?: boolean;
+    district?: string;
+    placeName?: string;
+    initialPoints?: number;
+  }): Promise<AdminManagedUser | null> {
+    const res = await fetch(`${API_BASE}/admin/app-users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to create user');
+    return data.data;
+  },
+
+  async updateAppUser(userId: string, updates: Partial<AdminManagedUser>): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async deleteAppUser(userId: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async adjustUserPoints(userId: string, amount: number, reason?: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}/points`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, reason })
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async toggleUserVerification(userId: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}/toggle-verify`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    return data.verified;
+  },
+
+  async toggleUserStatus(userId: string, reason?: string): Promise<{ uploadBlocked: boolean; status: string }> {
+    const res = await fetch(`${API_BASE}/admin/app-users/${encodeURIComponent(userId)}/toggle-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    return data;
   }
 };
 

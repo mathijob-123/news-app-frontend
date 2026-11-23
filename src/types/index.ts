@@ -55,6 +55,18 @@ export interface User {
   uploadBlocked?: boolean;
   uploadBlockedReason?: string;
   uploadBlockedAt?: string;
+  createdAt?: string;
+  walletBalance?: number;
+  videoCount?: number;
+  payoutMethod?: string;
+}
+
+export interface AdminManagedUser extends User {
+  walletBalance?: number;
+  videoCount?: number;
+  payoutMethod?: string;
+  lifetimeEarnings?: number;
+  accountStatus?: 'active' | 'suspended' | 'banned';
 }
 
 export interface RegisterPayload {
