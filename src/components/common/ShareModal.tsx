@@ -15,10 +15,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Resolves the public rich preview URL for video reels
-  // Points to the backend endpoint which generates rich Open Graph video cards for WhatsApp, Instagram, Telegram, and Twitter
+  // Priority:
+  // 1. Explicit custom domain from environment variable (VITE_CUSTOM_DOMAIN or VITE_SITE_URL)
+  // 2. In web browser: dynamic window.location.origin (automatically picks up custom domain in Vercel)
+  // 3. Fallback: production backend Vercel URL
+  const getShareBaseUrl = (): string => {
+    const envDomain = (import.meta.env.VITE_CUSTOM_DOMAIN || import.meta.env.VITE_SITE_URL) as string | undefined;
+    if (envDomain && envDomain.trim()) {
+      return envDomain.trim().replace(/\/+$/, '');
+    }
+
+    if (typeof window !== 'undefined' && window.location.origin) {
+      const isCapacitorLocal =
+        window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'file:' ||
+        (window.location.hostname === 'localhost' && !window.location.port);
+
+      if (!isCapacitorLocal && !window.location.origin.includes('localhost')) {
+        return window.location.origin.replace(/\/+$/, '');
+      }
+    }
+
+    return 'https://news-app-backend-mathis-projects-a3546874.vercel.app';
+  };
+
   const getShareUrl = () => {
-    const backendOrigin = 'https://news-app-backend-mathis-projects-a3546874.vercel.app';
-    return `${backendOrigin}/reel/${encodeURIComponent(post.id)}`;
+    const base = getShareBaseUrl();
+    return `${base}/reel/${encodeURIComponent(post.id)}`;
   };
 
   const shareUrl = getShareUrl();
