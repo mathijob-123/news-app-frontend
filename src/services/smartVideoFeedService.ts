@@ -174,17 +174,10 @@ export async function syncRemoteWatchHistory(userId: string): Promise<Set<string
 }
 
 /**
- * Standard unbiased Fisher-Yates shuffle algorithm.
+ * Deterministic feed order (preserves input order without random shuffling).
  */
 export function shuffleArray<T>(items: T[]): T[] {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-  }
-  return arr;
+  return [...items];
 }
 
 export interface SmartFeedOptions {
@@ -195,20 +188,30 @@ export interface SmartFeedOptions {
 }
 
 /**
- * SMART RANDOM VIDEO FEED RECOMMENDATION ALGORITHM
+ * Consistent feed sorting logic:
+ * 1. Breaking / Urgent videos first.
+ * 2. Newest uploaded videos first (chronological order).
+ * 3. Stable tie-breaker by post ID.
+ */
+export const sortVideosByFeedOrder = (a: VideoPost, b: VideoPost): number => {
+  if (a.isBreaking && !b.isBreaking) return -1;
+  if (!a.isBreaking && b.isBreaking) return 1;
+
+  const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  if (tB !== tA) return tB - tA;
+
+  return (b.id || '').localeCompare(a.id || '');
+};
+
+/**
+ * DETERMINISTIC REELS FEED RECOMMENDATION
  * 
- * Priority Hierarchy:
- * 1. Unwatched videos from user's current location (same hub or within ~10km).
- * 2. Unwatched videos from nearby locations (within ~50km or neighboring districts/taluks like Ponneri <-> Tiruvallur <-> Chennai).
- * 3. Newly uploaded videos by other users (within last 48 hours).
- * 4. Other available unwatched videos from different locations.
- * 5. Previously watched videos (pushed to end of feed so they never start at top).
- * 
- * Within each priority tier, a fresh Fisher-Yates shuffle is applied so the order is
- * delightfully unpredictable, dynamic, and non-repetitive every time the app opens.
- * 
- * When all available videos are watched, the cycle auto-advances, clearing the watch list
- * and reshuffling all videos into a brand-new cycle!
+ * Strict Instagram-Style Consistency:
+ * 1. Unwatched videos displayed in strict chronological feed order (newest first).
+ * 2. Watched videos placed at the end in chronological order.
+ * 3. Never randomly selects or plays videos.
+ * 4. The first video is always index 0 of the consistent sorted feed.
  */
 export function generateSmartVideoFeed(options: SmartFeedOptions): {
   feed: VideoPost[];
@@ -238,89 +241,29 @@ export function generateSmartVideoFeed(options: SmartFeedOptions): {
   let watchedSet = options.watchedSet ? new Set(options.watchedSet) : getLocalWatchedSet(userId);
   let cycle = getWatchCycle(userId);
 
-  // 3. Separate into unwatched and watched
-  let unwatchedVideos = candidateVideos.filter((v) => !watchedSet.has(v.id));
-  let watchedVideos = candidateVideos.filter((v) => watchedSet.has(v.id));
+  // 3. Separate into unwatched and watched, both sorted strictly in feed order
+  let unwatchedVideos = candidateVideos
+    .filter((v) => !watchedSet.has(v.id))
+    .sort(sortVideosByFeedOrder);
+  let watchedVideos = candidateVideos
+    .filter((v) => watchedSet.has(v.id))
+    .sort(sortVideosByFeedOrder);
 
   // 4. If all videos have been watched by this user, auto-advance cycle and start fresh!
   if (unwatchedVideos.length === 0 && candidateVideos.length > 0) {
     cycle = advanceWatchCycle(userId);
     watchedSet = new Set<string>();
-    unwatchedVideos = [...candidateVideos];
+    unwatchedVideos = [...candidateVideos].sort(sortVideosByFeedOrder);
     watchedVideos = [];
   }
 
-  // 5. When location is selected: Deliver strictly localized videos,
-  // prioritizing unwatched videos first (dynamically randomized), followed by watched videos at bottom
-  if (userLocation) {
-    const shuffledUnwatched = shuffleArray(unwatchedVideos);
-    const shuffledWatched = shuffleArray(watchedVideos);
-    const finalFeed = [...shuffledUnwatched, ...shuffledWatched];
-
-    return {
-      feed: finalFeed,
-      cycle,
-      unwatchedCount: unwatchedVideos.length,
-      watchedCount: watchedVideos.length
-    };
-  }
-
-  // 6. General fallback feed when no location is active (or permission denied):
-  // Categorize unwatched videos into Priority Buckets
-  const videosWithDist = candidateVideos.map((video) => {
-    return { ...video, distanceKm: undefined };
-  });
-
-  const nowMs = Date.now();
-  const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
-
-  const p1CurrentLocation: VideoPost[] = [];
-  const p2NearbyLocations: VideoPost[] = [];
-  const p3NewUploads: VideoPost[] = [];
-  const p4OtherLocations: VideoPost[] = [];
-  const p5WatchedVideos: VideoPost[] = [];
-
-  videosWithDist.forEach((video) => {
-    const isWatched = watchedSet.has(video.id);
-
-    if (isWatched) {
-      p5WatchedVideos.push(video);
-      return;
-    }
-
-    // New videos uploaded by other users (created within last 48 hours or breaking)
-    const createdAtMs = video.createdAt ? new Date(video.createdAt).getTime() : 0;
-    const isRecentlyUploaded = nowMs - createdAtMs < FORTY_EIGHT_HOURS_MS;
-    const isFromOtherUser = !userId || video.creatorId !== userId;
-
-    if (isRecentlyUploaded && isFromOtherUser) {
-      p3NewUploads.push(video);
-      return;
-    }
-
-    // Other available unwatched videos
-    p4OtherLocations.push(video);
-  });
-
-  // Apply unbiased random shuffle within each tier
-  const shuffledP1 = shuffleArray(p1CurrentLocation);
-  const shuffledP2 = shuffleArray(p2NearbyLocations);
-  const shuffledP3 = shuffleArray(p3NewUploads);
-  const shuffledP4 = shuffleArray(p4OtherLocations);
-  const shuffledP5 = shuffleArray(p5WatchedVideos);
-
-  const finalFeed = [
-    ...shuffledP1,
-    ...shuffledP2,
-    ...shuffledP3,
-    ...shuffledP4,
-    ...shuffledP5
-  ];
+  // Consistent, deterministic order: unwatched first in feed order, followed by watched
+  const finalFeed = [...unwatchedVideos, ...watchedVideos];
 
   return {
     feed: finalFeed,
     cycle,
     unwatchedCount: unwatchedVideos.length,
-    watchedCount: p5WatchedVideos.length
+    watchedCount: watchedVideos.length
   };
 }

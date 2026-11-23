@@ -14,7 +14,7 @@ import type {
   Spotlight360Video
 } from '../types';
 import { API_BASE } from './apiConfig';
-import { getLikedPostIds, getSavedPostIds } from './storageService';
+import { getLikedPostIds, getSavedPostIds, saveCommentsForPost } from './storageService';
 import { getHubIdentifier, normalizeLocationId } from './geoService';
 
 const SUPABASE_REST_URL = 'https://xylbmwffyaoojnvrjmlx.supabase.co/rest/v1';
@@ -130,6 +130,41 @@ export const apiClient = {
     return [];
   },
 
+  async getPostById(postId: string): Promise<VideoPost | null> {
+    // 1. Direct Supabase query for instant link opening
+    try {
+      const supaRes = await fetch(`${SUPABASE_REST_URL}/video_posts?id=eq.${encodeURIComponent(postId)}&limit=1`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (supaRes.ok) {
+        const rows = await supaRes.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          return mapSupabasePostRow(rows[0]);
+        }
+      }
+    } catch (supaErr) {
+      console.warn('[apiClient.getPostById Supabase notice]:', supaErr);
+    }
+
+    // 2. Backend API fallback
+    try {
+      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(postId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          return data.data;
+        }
+      }
+    } catch (err) {
+      console.warn('[apiClient.getPostById Backend notice]:', err);
+    }
+
+    return null;
+  },
+
   async createPost(post: Partial<VideoPost>): Promise<VideoPost> {
     const defaultCdnVideos = [
       'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1790055069322_p0l98f.mp4',
@@ -141,8 +176,8 @@ export const apiClient = {
     // Ensure valid public media URL: if blob or empty, use high-speed CDN video so all devices can play it
     let safeMediaUrl = post.mediaUrl;
     if (!safeMediaUrl || safeMediaUrl.startsWith('blob:') || safeMediaUrl.includes('commondatastorage.googleapis.com')) {
-      const randIdx = Math.floor(Math.random() * defaultCdnVideos.length);
-      safeMediaUrl = defaultCdnVideos[randIdx];
+      const hash = (post.id || post.headline || 'video').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      safeMediaUrl = defaultCdnVideos[hash % defaultCdnVideos.length];
     }
 
     let safeThumbnailUrl = post.thumbnailUrl;
@@ -460,8 +495,8 @@ export const apiClient = {
 
   async getComments(postId: string): Promise<Comment[]> {
     try {
-      // 1. Direct Supabase REST API
-      const supaRes = await fetch(`${SUPABASE_REST_URL}/comments?post_id=eq.${encodeURIComponent(postId)}&order=created_at.asc`, {
+      // 1. Direct Supabase REST API (fastest, cross-device real-time sync)
+      const supaRes = await fetch(`${SUPABASE_REST_URL}/comments?post_id=eq.${encodeURIComponent(postId)}&order=created_at.desc`, {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`
@@ -470,16 +505,23 @@ export const apiClient = {
       if (supaRes.ok) {
         const rows: any = await supaRes.json();
         if (Array.isArray(rows)) {
-          return rows.map((r: any) => ({
-            id: r.id,
-            postId: r.post_id,
-            userHandle: r.user_handle,
-            userName: r.user_name,
-            userAvatar: r.user_avatar,
-            content: r.content,
-            likes: Number(r.likes || 0),
-            createdAt: r.created_at
-          }));
+          const mapped: Comment[] = rows
+            .filter((r: any) => r.status !== 'hidden')
+            .map((r: any) => ({
+              id: r.id,
+              postId: r.post_id,
+              userId: r.user_id || r.user_handle,
+              userHandle: r.user_handle,
+              userName: r.user_name,
+              userAvatar: r.user_avatar,
+              content: r.content,
+              likes: Number(r.likes || 0),
+              status: r.status || 'active',
+              createdAt: r.created_at,
+              updatedAt: r.updated_at
+            }));
+          saveCommentsForPost(postId, mapped);
+          return mapped;
         }
       }
     } catch (err) {
@@ -488,24 +530,34 @@ export const apiClient = {
 
     try {
       const res = await fetch(`${API_BASE}/comments/${postId}`);
-      const data = await res.json();
-      return data.data || [];
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          saveCommentsForPost(postId, data.data);
+          return data.data;
+        }
+      }
     } catch {
-      return [];
+      // Return local cache on network error
     }
+
+    return [];
   },
 
   async addComment(postId: string, commentData: Partial<Comment>): Promise<Comment> {
-    const newId = commentData.id || `cmt_${Date.now()}`;
+    const newId = commentData.id || `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const commentRecord: Comment = {
       id: newId,
       postId,
+      userId: commentData.userId || 'usr_citizen',
       userHandle: commentData.userHandle || 'spotlight_user',
       userName: commentData.userName || 'Spotlight Citizen',
       userAvatar: commentData.userAvatar || '',
       content: commentData.content || '',
+      status: 'active',
       likes: 0,
-      createdAt: commentData.createdAt || new Date().toISOString()
+      createdAt: commentData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // 1. Send to Supabase REST directly
@@ -521,12 +573,15 @@ export const apiClient = {
         body: JSON.stringify({
           id: commentRecord.id,
           post_id: postId,
+          user_id: commentRecord.userId,
           user_handle: commentRecord.userHandle,
           user_name: commentRecord.userName,
           user_avatar: commentRecord.userAvatar,
           content: commentRecord.content,
+          status: 'active',
           likes: 0,
-          created_at: commentRecord.createdAt
+          created_at: commentRecord.createdAt,
+          updated_at: commentRecord.updatedAt
         })
       });
 
@@ -560,6 +615,13 @@ export const apiClient = {
       });
     } catch {
       // Backend fallback handled
+    }
+
+    // 3. Dispatch global sync event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('spotlight_comment_added', {
+        detail: { postId, comment: commentRecord }
+      }));
     }
 
     return commentRecord;

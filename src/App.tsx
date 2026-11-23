@@ -106,30 +106,39 @@ export const AppContent: React.FC = () => {
   const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
 
   const getInitialNav = () => {
+    let deepPostId: string | undefined = undefined;
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      deepPostId = sp.get('post') || sp.get('spot') || sp.get('video') || undefined;
+    }
+    if (deepPostId) {
+      return { view: 'spots' as const, tab: 'spots' as TabType, module: 'main' as AppModule, deepPostId };
+    }
     const path = typeof window !== 'undefined' ? window.location.pathname : '/';
     if (path === '/marketplace') {
-      return { view: 'marketplace' as const, tab: 'marketplace' as TabType, module: 'main' as AppModule };
+      return { view: 'marketplace' as const, tab: 'marketplace' as TabType, module: 'main' as AppModule, deepPostId: undefined };
     }
     if (path === '/olx' || path === '/marketplace/olx') {
-      return { view: 'olx' as const, tab: 'marketplace' as TabType, module: 'olx' as AppModule };
+      return { view: 'olx' as const, tab: 'marketplace' as TabType, module: 'olx' as AppModule, deepPostId: undefined };
     }
     if (path === '/jobs' || path === '/marketplace/jobs') {
-      return { view: 'jobs' as const, tab: 'marketplace' as TabType, module: 'jobs' as AppModule };
+      return { view: 'jobs' as const, tab: 'marketplace' as TabType, module: 'jobs' as AppModule, deepPostId: undefined };
     }
     if (path === '/real-estate' || path === '/marketplace/real-estate') {
-      return { view: 'real_estate' as const, tab: 'marketplace' as TabType, module: 'realEstate' as AppModule };
+      return { view: 'real_estate' as const, tab: 'marketplace' as TabType, module: 'realEstate' as AppModule, deepPostId: undefined };
     }
     if (path === '/points') {
-      return { view: 'monetization' as const, tab: 'spots' as TabType, module: 'main' as AppModule };
+      return { view: 'monetization' as const, tab: 'spots' as TabType, module: 'main' as AppModule, deepPostId: undefined };
     }
     if (path === '/profile') {
-      return { view: 'profile' as const, tab: 'profile' as TabType, module: 'main' as AppModule };
+      return { view: 'profile' as const, tab: 'profile' as TabType, module: 'main' as AppModule, deepPostId: undefined };
     }
-    return { view: 'spots' as const, tab: 'spots' as TabType, module: 'main' as AppModule };
+    return { view: 'spots' as const, tab: 'spots' as TabType, module: 'main' as AppModule, deepPostId: undefined };
   };
 
   const initialNav = useMemo(() => getInitialNav(), []);
   const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
+  const [selectedSpotPostId, setSelectedSpotPostId] = useState<string | undefined>(initialNav.deepPostId);
   const [posts, setPosts] = useState<VideoPost[]>(getStoredPosts());
   const [ads, setAds] = useState<Advertisement[]>(getStoredAds());
   const [user, setUser] = useState<User>(() => authUser || getStoredUser());
@@ -180,7 +189,6 @@ export const AppContent: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [selectedSpotPostId, setSelectedSpotPostId] = useState<string | undefined>(undefined);
   const [commentsDrawerPost, setCommentsDrawerPost] = useState<VideoPost | null>(null);
   const [shareModalPost, setShareModalPost] = useState<VideoPost | null>(null);
   const [saveToastMessage, setSaveToastMessage] = useState<string | null>(null);
@@ -570,6 +578,59 @@ export const AppContent: React.FC = () => {
     };
   }, []);
 
+  // Deep linking handler: if user arrives with ?post=<id> or ?spot=<id>, load and jump directly to that reel
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const deepPostId = sp.get('post') || sp.get('spot') || sp.get('video');
+    if (!deepPostId) return;
+
+    setSelectedSpotPostId(deepPostId);
+    setActiveTab('spots');
+    setActiveView('spots');
+    setActiveModule('main');
+
+    apiClient.getPostById(deepPostId).then((targetPost) => {
+      if (targetPost) {
+        if (targetPost.location) {
+          setActiveLocation(targetPost.location);
+          saveActiveLocation(targetPost.location);
+        }
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === targetPost.id)) {
+            return prev;
+          }
+          const updated = [targetPost, ...prev];
+          savePosts(updated);
+          return updated;
+        });
+      }
+    }).catch((err) => {
+      console.warn('[Deep Link] Failed to fetch shared post:', err);
+    });
+  }, []);
+
+  // Real-time comment synchronization: update post comment count across all views when any user comments
+  useEffect(() => {
+    const handleCommentAdded = (e: any) => {
+      const postId = e.detail?.postId;
+      if (!postId) return;
+      setPosts((prev) =>
+        prev.map((p) => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              commentCount: Math.max(0, Number(p.commentCount) || 0) + 1
+            };
+          }
+          return p;
+        })
+      );
+    };
+    window.addEventListener('spotlight_comment_added', handleCommentAdded);
+    return () => window.removeEventListener('spotlight_comment_added', handleCommentAdded);
+  }, []);
+
   // Monitor network online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -746,13 +807,11 @@ export const AppContent: React.FC = () => {
     return items;
   }, [feedPosts, eligibleAds]);
 
-  // SMART RANDOM VIDEO FEED: Prioritized Recommendation Engine
-  // 1. Unwatched videos from user's current location (shuffled)
-  // 2. Unwatched videos from nearby locations (shuffled)
-  // 3. New videos uploaded by other users (shuffled)
-  // 4. Other available unwatched videos from different locations (shuffled)
-  // 5. Previously watched videos (pushed to end of feed)
-  // Once all available videos are watched -> automatically advances cycle & reshuffles fresh!
+  // DETERMINISTIC VIDEO FEED: Prioritized & Consistent Recommendation Engine
+  // 1. Breaking / Urgent videos first
+  // 2. Unwatched videos in strict chronological feed order (newest first)
+  // 3. Previously watched videos placed at the end (newest first)
+  // Zero random selection, zero random shuffling. 100% predictable like Instagram Reels.
   const spotsPosts = useMemo(() => {
     const { feed } = generateSmartVideoFeed({
       posts: publicPostsWithDistance,
@@ -760,8 +819,18 @@ export const AppContent: React.FC = () => {
       userId: effectiveUserId,
       watchedSet: watchedPostIds
     });
+    // If a specific video is opened via deep-link or share, ensure it is available in the feed
+    if (selectedSpotPostId) {
+      const exists = feed.some((p) => p.id === selectedSpotPostId);
+      if (!exists) {
+        const target = publicPostsWithDistance.find((p) => p.id === selectedSpotPostId);
+        if (target) {
+          return [target, ...feed];
+        }
+      }
+    }
     return feed;
-  }, [publicPostsWithDistance, activeLocation, effectiveUserId, watchedPostIds, feedSessionKey]);
+  }, [publicPostsWithDistance, activeLocation, effectiveUserId, feedSessionKey, selectedSpotPostId]);
 
   // Urgent breaking post for active location (public approved)
   const breakingPost = useMemo(() => {
@@ -825,54 +894,13 @@ export const AppContent: React.FC = () => {
     );
   };
 
-  const handleShare = async (post: VideoPost) => {
-    const baseUrl =
-      typeof window !== 'undefined' &&
-      (window.location.origin.includes('localhost') || window.location.protocol.includes('capacitor'))
-        ? 'https://news-app-backend-mathis-projects-a3546874.vercel.app'
-        : window.location.origin;
-
-    const shareUrl = `${baseUrl}?post=${encodeURIComponent(post.id)}`;
-    const shareTitle = post.headline || 'Spotlight360 Ground Report';
-    const locationText = post.location?.placeName || post.location?.neighborhood || 'Local Report';
-    const shareText = `Spotlight360 Ground Report: ${shareTitle} (${locationText})\n\nWatch and verify local updates here:\n${shareUrl}`;
-
-    try {
-      // 1. Native Capacitor Share (triggers Android system chooser with WhatsApp, Instagram, Telegram, Drive, etc.)
-      const canShareRes = await Share.canShare().catch(() => ({ value: false }));
-      if (canShareRes && canShareRes.value) {
-        await Share.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-          dialogTitle: 'Share Ground Report via'
-        });
-        return;
-      }
-    } catch {
-      // Continue to browser Web Share or fallback modal
-    }
-
-    // 2. Browser Web Share API (mobile Chrome / Safari)
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl
-        });
-        return;
-      } catch (err: any) {
-        if (err.name === 'AbortError') return; // User simply closed the system share sheet
-      }
-    }
-
-    // 3. Fallback: Open bottom share sheet modal with direct WhatsApp, Telegram, and Copy Link buttons
+  const handleShare = (post: VideoPost) => {
+    // Open the comprehensive ShareModal (WhatsApp, Instagram, Telegram, More Apps / Native Share, Copy Link)
     setShareModalPost(post);
   };
 
-  const handleAddComment = (postId: string, text: string) => {
-    // 1. Immediate optimistic UI update
+  const handleAddComment = (postId: string, _text: string) => {
+    // 1. Immediate optimistic UI update on posts state
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id === postId) {
@@ -884,12 +912,6 @@ export const AppContent: React.FC = () => {
         return p;
       })
     );
-
-    // 2. Persist locally to storage
-    const saved = addComment(postId, text, user);
-
-    // 3. Persist asynchronously in Supabase REST and backend API
-    apiClient.addComment(postId, saved);
   };
 
   const handleOpenPostInSpots = (post: VideoPost) => {
@@ -1157,6 +1179,7 @@ export const AppContent: React.FC = () => {
       {/* 7. Global Comments Drawer */}
       {commentsDrawerPost && (
         <CommentsDrawer
+          postId={commentsDrawerPost.id}
           comments={getStoredComments(commentsDrawerPost.id)}
           currentUser={user}
           onClose={() => setCommentsDrawerPost(null)}
@@ -1281,30 +1304,34 @@ export const AppContent: React.FC = () => {
         )}
 
         {/* Dynamic App Content Area: Only current page content changes inside the SAME mobile viewport */}
-        <div className="app-screen-content">
-          {/* SPOTS PLAYER: Reels / Vertical Short Video News */}
-          {activeView === 'spots' && (
-            <div style={{ height: '100%', width: '100%' }}>
-              <SpotsPlayer
-                posts={spotsPosts}
-                initialPostId={selectedSpotPostId}
-                isPaused={isAnyModalOpen}
-                currentUser={user}
-                activeLocation={activeLocation}
-                onOpenLocationPicker={() => setShowLocationModal(true)}
-                onLike={handleLike}
-                onSave={handleSave}
-                onShare={handleShare}
-                onAddComment={handleAddComment}
-                getCommentsForPost={(id) => getStoredComments(id)}
-                onOpenCreate={() => setShowCreateModal(true)}
-                onReportCopyright={(p) => setReportCopyrightPost(p)}
-                onVideoWatched={handleVideoWatched}
-                onRefresh={handleRefreshFeed}
-                isRefreshing={isRefreshingFeed}
-              />
-            </div>
-          )}
+        <div className={`app-screen-content ${activeView === 'spots' ? 'spots-active-view' : ''}`}>
+          {/* SPOTS PLAYER: Reels / Vertical Short Video News (Kept in DOM so feed position & playback state are preserved across tab switches) */}
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              display: activeView === 'spots' ? 'block' : 'none'
+            }}
+          >
+            <SpotsPlayer
+              posts={spotsPosts}
+              initialPostId={selectedSpotPostId}
+              isPaused={isAnyModalOpen || activeView !== 'spots'}
+              currentUser={user}
+              activeLocation={activeLocation}
+              onOpenLocationPicker={() => setShowLocationModal(true)}
+              onLike={handleLike}
+              onSave={handleSave}
+              onShare={handleShare}
+              onAddComment={handleAddComment}
+              getCommentsForPost={(id) => getStoredComments(id)}
+              onOpenCreate={() => setShowCreateModal(true)}
+              onReportCopyright={(p) => setReportCopyrightPost(p)}
+              onVideoWatched={handleVideoWatched}
+              onRefresh={handleRefreshFeed}
+              isRefreshing={isRefreshingFeed}
+            />
+          </div>
 
           {/* NEWS FEED */}
           {activeView === 'feed' && (
@@ -1898,6 +1925,10 @@ export const AppContent: React.FC = () => {
           onChangeMainTab={(tab) => {
             setActiveTab(tab);
             if (tab === 'spots') {
+              if (activeView === 'spots') {
+                window.dispatchEvent(new CustomEvent('lp:spots-scroll-top'));
+              }
+              setSelectedSpotPostId(undefined);
               setActiveView('spots');
               navigateTo('/');
             } else if (tab === 'home') {

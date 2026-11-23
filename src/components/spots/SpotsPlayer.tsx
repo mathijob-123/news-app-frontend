@@ -63,6 +63,7 @@ interface ReelCardProps {
   onToggleFollow: (creatorId: string) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  isSwipingRef?: React.MutableRefObject<boolean>;
 }
 
 const VERIFIED_CDN_VIDEOS = [
@@ -104,10 +105,12 @@ const ReelCard: React.FC<ReelCardProps> = ({
   isFollowed,
   onToggleFollow,
   onRefresh,
-  isRefreshing
+  isRefreshing,
+  isSwipingRef
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
@@ -117,6 +120,11 @@ const ReelCard: React.FC<ReelCardProps> = ({
   const progressBarRef = useRef<HTMLDivElement | null>(null);
   const lastTapRef = useRef<number>(0);
   const prevActiveRef = useRef(false);
+  const watchedReportedRef = useRef(false);
+
+  useEffect(() => {
+    watchedReportedRef.current = false;
+  }, [post.id]);
 
   const videoSrc = useMemo(() => {
     return resolveVideoSrc(post.mediaUrl, hasPlaybackError, index);
@@ -131,13 +139,15 @@ const ReelCard: React.FC<ReelCardProps> = ({
     );
   }, [post.creatorAvatar, post.creatorName]);
 
-  // Handle Play/Pause when entering or leaving active view or when paused by modal/upload
+  // Handle Play/Pause when entering or leaving active view or when paused by modal
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isActive && !isPaused) {
       video.muted = isMuted;
+      setIsEnded(false);
+
       if (!prevActiveRef.current) {
         try {
           video.currentTime = 0;
@@ -174,6 +184,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
       setIsPlaying(false);
       setIsBuffering(false);
       setCaptionExpanded(false);
+      setIsEnded(false);
       if (!isActive) {
         prevActiveRef.current = false;
         try {
@@ -185,7 +196,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
     }
   }, [isActive, isPaused, videoSrc]);
 
-  // Listen for global pause-all-videos broadcast (e.g., when CreateModal/upload opens)
+  // Listen for global pause-all-videos broadcast (e.g. when CreateModal opens)
   useEffect(() => {
     const handlePauseAll = () => {
       const video = videoRef.current;
@@ -214,14 +225,15 @@ const ReelCard: React.FC<ReelCardProps> = ({
     const duration = post.durationSeconds || 15;
     const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
     const rawProgress = Math.min(100, (current / thresholdSeconds) * 100);
-    
-    // Direct DOM update: zero component re-renders during video playback (no avatar/tab blinking)
+
+    // Direct DOM update: zero component re-renders during video playback
     if (progressBarRef.current) {
       progressBarRef.current.style.width = `${rawProgress}%`;
     }
 
-    // Engagement mark: automatically records to user's smart watch history
-    if (current >= 2 || isWatchQualified(current, duration)) {
+    // Engagement mark: only reported ONCE per video view
+    if ((current >= 2 || isWatchQualified(current, duration)) && !watchedReportedRef.current) {
+      watchedReportedRef.current = true;
       onVideoWatched?.(post.id);
     }
 
@@ -231,8 +243,40 @@ const ReelCard: React.FC<ReelCardProps> = ({
     }
   };
 
+  // Replay video when ended
+  const handleReplay = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    setIsEnded(false);
+    video
+      .play()
+      .then(() => {
+        setIsPlaying(true);
+        setIsBuffering(false);
+      })
+      .catch(() => {});
+  };
+
   // Double tap to like or single tap to toggle play/pause
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isSwipingRef?.current) return;
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('.spots-action-rail') ||
+      target.closest('.spots-overlay-content') ||
+      target.closest('button') ||
+      target.closest('.spots-follow-btn')
+    ) {
+      return;
+    }
+
+    if (isEnded) {
+      handleReplay(e);
+      return;
+    }
+
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
 
@@ -265,7 +309,11 @@ const ReelCard: React.FC<ReelCardProps> = ({
       Boolean(post.mediaUrl.match(/\.(jpe?g|png|gif|webp|avif|bmp|svg)/i)));
 
   return (
-    <div className="spots-reel-card" onClick={handleCardClick}>
+    <div
+      className="spots-reel-card"
+      data-index={index}
+      onClick={handleCardClick}
+    >
       {/* 1. Media Element */}
       {isPhotoPost ? (
         <div
@@ -311,28 +359,33 @@ const ReelCard: React.FC<ReelCardProps> = ({
           src={videoSrc}
           poster={post.thumbnailUrl}
           autoPlay={isActive}
-          loop
           playsInline
           preload={isActive || isNext ? 'auto' : 'metadata'}
           muted={isMuted}
           onPlay={() => {
             setIsPlaying(true);
             setIsBuffering(false);
+            setIsEnded(false);
           }}
           onPause={() => setIsPlaying(false)}
           onPlaying={() => {
             setIsPlaying(true);
             setIsBuffering(false);
+            setIsEnded(false);
           }}
           onWaiting={() => setIsBuffering(true)}
           onCanPlay={() => setIsBuffering(false)}
+          onEnded={() => {
+            setIsEnded(true);
+            setIsPlaying(false);
+            setIsBuffering(false);
+          }}
           onTimeUpdate={handleTimeUpdate}
           onError={() => {
             setHasPlaybackError(true);
             setIsBuffering(false);
           }}
           className="spots-video"
-          style={{ objectFit: 'cover', width: '100%', height: '100%' }}
         />
       ) : (
         <div
@@ -349,7 +402,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
       {/* Top Gradient for header clarity */}
       <div className="spots-top-gradient" />
 
-      {/* 4. Qualified View Progress Bar */}
+      {/* Qualified View Progress Bar */}
       {isActive && (
         <div
           style={{
@@ -375,53 +428,28 @@ const ReelCard: React.FC<ReelCardProps> = ({
       )}
 
       {/* Buffering Loading Spinner */}
-      {isBuffering && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 20,
-            pointerEvents: 'none',
-            background: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(8px)',
-            borderRadius: '50%',
-            padding: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}
-        >
-          <Loader2 size={26} color="#ff4500" className="spin" />
+      {isBuffering && isActive && !isEnded && (
+        <div className="spots-loader-overlay">
+          <Loader2 size={28} color="#ff4500" className="spin" />
         </div>
       )}
 
       {/* Pause Icon Indicator */}
-      {!isPlaying && !isBuffering && isActive && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(6px)',
-            border: '1.5px solid rgba(255, 255, 255, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            pointerEvents: 'none',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-            zIndex: 22
-          }}
-        >
+      {!isPlaying && !isBuffering && !isEnded && isActive && (
+        <div className="spots-play-indicator">
           <Play size={32} fill="#ffffff" style={{ marginLeft: '4px' }} />
+        </div>
+      )}
+
+      {/* Replay Option When Video Ends */}
+      {isEnded && isActive && (
+        <div className="spots-replay-overlay" onClick={handleReplay}>
+          <div className="spots-replay-icon-circle">
+            <RotateCw size={26} color="#ffffff" />
+          </div>
+          <span className="spots-replay-text">
+            Replay / மீண்டும் பார்க்க
+          </span>
         </div>
       )}
 
@@ -432,10 +460,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
         </div>
       )}
 
-      {/* 5. Bottom Gradient for Overlay Readability */}
+      {/* Bottom Gradient for Overlay Readability */}
       <div className="spots-bottom-gradient" />
 
-      {/* 6. Right Action Rail (Instagram Style) */}
+      {/* Right Action Rail */}
       <div className="spots-action-rail">
         {/* Like */}
         <button
@@ -535,7 +563,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
         </button>
       </div>
 
-      {/* 7. Bottom Overlay Content (Creator, Headline, Location Pin) */}
+      {/* Bottom Overlay Content */}
       <div className="spots-overlay-content">
         {/* Creator & Follow Row */}
         <div className="spots-creator-row">
@@ -662,7 +690,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
           </p>
         )}
 
-        {/* Compact Source Citation - Excludes all Campaign and Spotlight360 launch tags */}
+        {/* Source Citation */}
         {post.sourceCitation &&
           !post.sourceCitation.toLowerCase().includes('campaign') &&
           !post.sourceCitation.toLowerCase().includes('spotlight360') && (
@@ -707,8 +735,18 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onRefresh,
   isRefreshing
 }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(false); // Sound ON by default
+  // Restore saved reel index or start at index 0 (never random)
+  const [activeIndex, setActiveIndex] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('spotlight_last_reel_index_v1');
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 0) return parsed;
+      }
+    } catch {}
+    return 0;
+  });
+  const [isMuted, setIsMuted] = useState(false);
   const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
   const [activeModalPost, setActiveModalPost] = useState<VideoPost | null>(null);
   const [showComments, setShowComments] = useState(false);
@@ -716,31 +754,85 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeIndexRef = useRef(0);
   activeIndexRef.current = activeIndex;
+  const hasScrolledInitialRef = useRef<string | null>(null);
+  const isSwipingRef = useRef(false);
+  const prevLocationKeyRef = useRef<string | undefined>(undefined);
 
   // STRICTLY video / reel posts only
   const videoReels = useMemo(() => {
-    return posts.filter((p) => p.type === 'video');
+    return posts.filter((p) => {
+      if (p.type === 'video') return true;
+      if (p.mediaUrl && (p.mediaUrl.endsWith('.mp4') || p.mediaUrl.endsWith('.webm') || p.mediaUrl.includes('/videos/'))) return true;
+      return false;
+    });
   }, [posts]);
 
-  // Set initial post and scroll to it on mount or prop update
+  // Persist current active index so leaving and returning preserves position
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('spotlight_last_reel_index_v1', String(activeIndex));
+    } catch {}
+  }, [activeIndex]);
+
+  // Scroll to saved index on initial mount if not starting from a deep link
+  useEffect(() => {
+    if (!initialPostId && containerRef.current && activeIndex > 0) {
+      containerRef.current.scrollTo({
+        top: activeIndex * containerRef.current.clientHeight,
+        behavior: 'instant'
+      });
+    }
+  }, []);
+
+  // When location changes, reset to the first video (index 0) of the new location
+  const currentLocationKey = `${activeLocation?.lat}_${activeLocation?.lng}`;
+  useEffect(() => {
+    if (prevLocationKeyRef.current && prevLocationKeyRef.current !== currentLocationKey) {
+      setActiveIndex(0);
+      activeIndexRef.current = 0;
+      if (containerRef.current) {
+        containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }
+    prevLocationKeyRef.current = currentLocationKey;
+  }, [currentLocationKey]);
+
+  // Listen for scroll-to-top event (e.g. user taps Reels tab while already on Reels)
+  useEffect(() => {
+    const handleScrollTop = () => {
+      if (containerRef.current) {
+        setActiveIndex(0);
+        activeIndexRef.current = 0;
+        containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('lp:spots-scroll-top', handleScrollTop);
+    return () => window.removeEventListener('lp:spots-scroll-top', handleScrollTop);
+  }, []);
+
+  // Set initial post and scroll to it when initialPostId changes
   useEffect(() => {
     if (initialPostId && containerRef.current && videoReels.length > 0) {
-      const idx = videoReels.findIndex((p) => p.id === initialPostId);
-      if (idx !== -1) {
-        setActiveIndex(idx);
-        containerRef.current.scrollTo({
-          top: idx * containerRef.current.clientHeight,
-          behavior: 'instant'
-        });
+      if (hasScrolledInitialRef.current !== initialPostId) {
+        hasScrolledInitialRef.current = initialPostId;
+        const idx = videoReels.findIndex((p) => p.id === initialPostId);
+        if (idx !== -1) {
+          setActiveIndex(idx);
+          activeIndexRef.current = idx;
+          containerRef.current.scrollTo({
+            top: idx * containerRef.current.clientHeight,
+            behavior: 'instant'
+          });
+        }
       }
+    } else if (!initialPostId) {
+      hasScrolledInitialRef.current = null;
     }
   }, [initialPostId, videoReels]);
 
   // Unlock unmuted audio on user gesture
   useEffect(() => {
-    const unlockAudio = () => {
-      // Browsers allow unmuted audio once any pointer interaction occurs
-    };
+    const unlockAudio = () => {};
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('touchstart', unlockAudio, { once: true });
     window.addEventListener('click', unlockAudio, { once: true });
@@ -751,37 +843,94 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     };
   }, []);
 
-  // Continuous physics scroll listener: detects which reel is active
-  const handleScroll = useCallback(() => {
+  // IntersectionObserver: smoothly detects the active card when the user scrolls
+  // ONLY switches activeIndex when the card is predominantly (>= 60%) visible
+  // Zero automatic scrolling, zero jitter!
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const { scrollTop, clientHeight } = container;
-    if (clientHeight <= 0) return;
 
-    const newIndex = Math.round(scrollTop / clientHeight);
-    if (
-      newIndex >= 0 &&
-      newIndex < videoReels.length &&
-      newIndex !== activeIndexRef.current
-    ) {
-      setActiveIndex(newIndex);
-    }
+    const cards = container.querySelectorAll('.spots-reel-card');
+    if (cards.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+            const idxStr = entry.target.getAttribute('data-index');
+            if (idxStr !== null) {
+              const idx = parseInt(idxStr, 10);
+              if (!isNaN(idx) && idx !== activeIndexRef.current) {
+                setActiveIndex(idx);
+                activeIndexRef.current = idx;
+              }
+            }
+          }
+        });
+      },
+      {
+        root: container,
+        threshold: 0.6
+      }
+    );
+
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [videoReels]);
+
+  // Sync activeIndex immediately when scroll snap completes (mobile & desktop)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let scrollTimeout: any = null;
+
+    const handleScroll = () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const clientHeight = container.clientHeight;
+        if (clientHeight > 0) {
+          const snappedIdx = Math.round(container.scrollTop / clientHeight);
+          if (
+            snappedIdx >= 0 &&
+            snappedIdx < videoReels.length &&
+            snappedIdx !== activeIndexRef.current
+          ) {
+            setActiveIndex(snappedIdx);
+            activeIndexRef.current = snappedIdx;
+          }
+        }
+      }, 50);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
   }, [videoReels.length]);
 
   // Desktop navigation with Arrow keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!containerRef.current) return;
-      const clientHeight = containerRef.current.clientHeight;
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        showComments ||
+        !containerRef.current
+      ) {
+        return;
+      }
 
-      if (e.key === 'ArrowDown') {
+      const clientHeight = containerRef.current.clientHeight;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault();
         const nextIdx = Math.min(videoReels.length - 1, activeIndexRef.current + 1);
         containerRef.current.scrollTo({
           top: nextIdx * clientHeight,
           behavior: 'smooth'
         });
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         const prevIdx = Math.max(0, activeIndexRef.current - 1);
         containerRef.current.scrollTo({
@@ -793,7 +942,152 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [videoReels.length]);
+  }, [videoReels.length, showComments]);
+
+  // Desktop Mouse Wheel Navigation (strictly 1 video per deliberate wheel tick)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let isWheelThrottled = false;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (showComments || isWheelThrottled) return;
+
+      if (e.deltaY > 20) {
+        // Scrolled down -> Next Reel slides up from bottom
+        e.preventDefault();
+        isWheelThrottled = true;
+        const nextIdx = Math.min(videoReels.length - 1, activeIndexRef.current + 1);
+        container.scrollTo({
+          top: nextIdx * container.clientHeight,
+          behavior: 'smooth'
+        });
+        setTimeout(() => {
+          isWheelThrottled = false;
+        }, 400);
+      } else if (e.deltaY < -20) {
+        // Scrolled up -> Previous Reel slides down from top
+        e.preventDefault();
+        isWheelThrottled = true;
+        const prevIdx = Math.max(0, activeIndexRef.current - 1);
+        container.scrollTo({
+          top: prevIdx * container.clientHeight,
+          behavior: 'smooth'
+        });
+        setTimeout(() => {
+          isWheelThrottled = false;
+        }, 400);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [videoReels.length, showComments]);
+
+  // Touch Swipe Handlers (Instagram Reels Standard: Swipe UP = Next, Swipe DOWN = Prev)
+  const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const touchStartTime = useRef(0);
+  const isTouchActive = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (showComments) return;
+    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartTime.current = Date.now();
+    isTouchActive.current = true;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isTouchActive.current || showComments || !containerRef.current) return;
+    isTouchActive.current = false;
+
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaTime = Date.now() - touchStartTime.current;
+
+    if (Math.abs(deltaY) < Math.abs(deltaX) || Math.abs(deltaY) < 30) return;
+
+    const velocity = Math.abs(deltaY) / Math.max(deltaTime, 1);
+    const isFlick = Math.abs(deltaY) > 20 && velocity > 0.25;
+    const clientHeight = containerRef.current.clientHeight;
+
+    if (deltaY < -35 || (deltaY < 0 && isFlick)) {
+      // Swiped UP -> Next Reel slides up from bottom
+      isSwipingRef.current = true;
+      setTimeout(() => {
+        isSwipingRef.current = false;
+      }, 350);
+      const nextIdx = Math.min(videoReels.length - 1, activeIndexRef.current + 1);
+      containerRef.current.scrollTo({
+        top: nextIdx * clientHeight,
+        behavior: 'smooth'
+      });
+    } else if (deltaY > 35 || (deltaY > 0 && isFlick)) {
+      // Swiped DOWN -> Previous Reel slides down from top
+      isSwipingRef.current = true;
+      setTimeout(() => {
+        isSwipingRef.current = false;
+      }, 350);
+      const prevIdx = Math.max(0, activeIndexRef.current - 1);
+      containerRef.current.scrollTo({
+        top: prevIdx * clientHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Mouse Drag Handlers for Desktop Testing
+  const isMouseDown = useRef(false);
+  const mouseStartY = useRef(0);
+  const mouseStartX = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || showComments) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, .spots-action-rail, .spots-overlay-content')) return;
+
+    isMouseDown.current = true;
+    mouseStartY.current = e.clientY;
+    mouseStartX.current = e.clientX;
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isMouseDown.current || showComments || !containerRef.current) return;
+    isMouseDown.current = false;
+
+    const deltaY = e.clientY - mouseStartY.current;
+    const deltaX = e.clientX - mouseStartX.current;
+
+    if (Math.abs(deltaY) < Math.abs(deltaX) || Math.abs(deltaY) < 30) return;
+
+    const clientHeight = containerRef.current.clientHeight;
+    if (deltaY < -30) {
+      // Dragged UP -> Next Reel slides up from bottom
+      isSwipingRef.current = true;
+      setTimeout(() => {
+        isSwipingRef.current = false;
+      }, 350);
+      const nextIdx = Math.min(videoReels.length - 1, activeIndexRef.current + 1);
+      containerRef.current.scrollTo({
+        top: nextIdx * clientHeight,
+        behavior: 'smooth'
+      });
+    } else if (deltaY > 30) {
+      // Dragged DOWN -> Previous Reel slides down from top
+      isSwipingRef.current = true;
+      setTimeout(() => {
+        isSwipingRef.current = false;
+      }, 350);
+      const prevIdx = Math.max(0, activeIndexRef.current - 1);
+      containerRef.current.scrollTo({
+        top: prevIdx * clientHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const toggleFollow = (creatorId: string) => {
     setFollowedCreators((prev) => ({
@@ -1056,11 +1350,14 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
 
   return (
     <div className="spots-container">
-      {/* Instagram-Style Vertical Reel Snap-Scroll Feed */}
+      {/* Native CSS Scroll-Snap Reel List: Natural 60fps mobile touch physics, zero shake */}
       <div
         ref={containerRef}
         className="spots-reel-list"
-        onScroll={handleScroll}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
       >
         {videoReels.map((post, idx) => (
           <ReelCard
@@ -1089,6 +1386,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             onToggleFollow={toggleFollow}
             onRefresh={onRefresh}
             isRefreshing={isRefreshing}
+            isSwipingRef={isSwipingRef}
           />
         ))}
       </div>
@@ -1096,6 +1394,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
       {/* Comments Drawer */}
       {showComments && activeModalPost && (
         <CommentsDrawer
+          postId={activeModalPost.id}
           comments={getCommentsForPost(activeModalPost.id)}
           currentUser={currentUser}
           onClose={() => {

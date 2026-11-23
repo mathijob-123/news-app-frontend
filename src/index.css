@@ -402,6 +402,12 @@ input, textarea, select {
   background: var(--bg-app);
 }
 
+.app-screen-content.spots-active-view {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  height: 100% !important;
+}
+
 /* Bottom Navigation — Floating Frosted Capsule Dock (Image 2 Model) */
 .app-bottom-nav {
   position: sticky;
@@ -903,8 +909,13 @@ input, textarea, select {
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100%;
+  height: 100%;
   background: #000000;
   overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .spots-slider {
@@ -923,8 +934,10 @@ input, textarea, select {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  scroll-behavior: smooth;
   position: relative;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
 }
 
 .spots-reel-list::-webkit-scrollbar {
@@ -935,6 +948,7 @@ input, textarea, select {
   width: 100%;
   height: 100%;
   min-height: 100%;
+  max-height: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   position: relative;
@@ -943,6 +957,8 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .spots-slide {
@@ -959,6 +975,98 @@ input, textarea, select {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  background: #000000;
+}
+
+.spots-replay-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  padding: 18px 24px;
+  cursor: pointer;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.spots-replay-overlay:active {
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+.spots-replay-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(255, 69, 0, 0.45);
+}
+
+.spots-replay-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.spots-loader-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 50%;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.spots-play-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 22;
+  animation: playFadeIn 0.2s ease-out;
+}
+
+@keyframes playFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .spots-bottom-gradient {

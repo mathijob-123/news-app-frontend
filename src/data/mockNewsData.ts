@@ -56,7 +56,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [];
 export const INITIAL_POSTS: VideoPost[] = [
   {
     id: 'post_sp_001',
-    creatorId: 'usr_tn_001',
+    creatorId: 'usr_spotlight_desk',
     creatorName: 'Spotlight News Desk',
     creatorHandle: 'spotlight_chennai',
     creatorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
@@ -308,7 +308,7 @@ export const INITIAL_POSTS: VideoPost[] = [
   },
   {
     id: 'post_sp_006',
-    creatorId: 'usr_tn_001',
+    creatorId: 'usr_coastal_desk',
     creatorName: 'Coastal Chennai Desk',
     creatorHandle: 'chennai_live',
     creatorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80',

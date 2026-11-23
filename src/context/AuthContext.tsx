@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { User, RegisterPayload, LoginPayload, AuthResponse } from '../types';
+import type { User, RegisterPayload, LoginPayload, AuthResponse, Wallet } from '../types';
 import { authService } from '../services/authService';
+import { saveWallet, resetStoredWallet } from '../services/storageService';
 
 interface AuthContextType {
   user: User | null;
@@ -52,7 +53,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const persistSession = (tokenVal: string, userVal: User, walletVal?: any) => {
     setToken(tokenVal);
     setUser(userVal);
-    if (walletVal) setWallet(walletVal);
+    
+    // Synchronize user wallet to localStorage so Monetization/Profile shows fresh accurate points
+    const userWallet: Wallet = {
+      id: walletVal?.id || `wlt_${userVal.id}`,
+      userId: userVal.id,
+      balance: Number(walletVal?.balance) || 0.0,
+      lifetimeEarnings: Number(walletVal?.lifetimeEarnings ?? walletVal?.lifetime_earnings) || 0.0,
+      thisMonthEarnings: Number(walletVal?.thisMonthEarnings ?? walletVal?.this_month_earnings) || 0.0,
+      nextPayoutDate: walletVal?.nextPayoutDate || walletVal?.next_payout_date || 'Not Scheduled',
+      payoutMethod: walletVal?.payoutMethod || walletVal?.payout_method || 'UPI Direct (Not Linked)',
+      qualifiedViewsTotal: Number(walletVal?.qualifiedViewsTotal ?? walletVal?.qualified_views_total) || 0
+    };
+    saveWallet(userWallet);
+    setWallet(userWallet);
+
     localStorage.setItem(AUTH_TOKEN_KEY, tokenVal);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userVal));
   };
@@ -64,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
     sessionStorage.removeItem('lp_admin_session_v1');
+    resetStoredWallet();
   }, []);
 
   // Validate session on mount

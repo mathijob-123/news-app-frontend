@@ -308,14 +308,53 @@ export function saveUser(user: User): void {
 export function getStoredWallet(): Wallet {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.WALLET);
+    const user = getStoredUser();
+
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(INITIAL_WALLET));
-      return INITIAL_WALLET;
+      const initialWallet: Wallet = {
+        ...INITIAL_WALLET,
+        userId: user?.id || INITIAL_WALLET.userId
+      };
+      localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(initialWallet));
+      return initialWallet;
     }
-    return JSON.parse(raw);
+
+    const wallet: Wallet = JSON.parse(raw);
+    // If the wallet stored belongs to a different user, start fresh for current user with 0 points
+    if (user && wallet.userId && wallet.userId !== user.id) {
+      const freshWallet: Wallet = {
+        id: `wlt_${user.id}`,
+        userId: user.id,
+        balance: 0.0,
+        lifetimeEarnings: 0.0,
+        thisMonthEarnings: 0.0,
+        nextPayoutDate: 'Not Scheduled',
+        payoutMethod: 'UPI Direct (Not Linked)',
+        qualifiedViewsTotal: 0
+      };
+      saveWallet(freshWallet);
+      return freshWallet;
+    }
+    return wallet;
   } catch {
     return INITIAL_WALLET;
   }
+}
+
+export function resetStoredWallet(userId?: string): Wallet {
+  const targetId = userId || getStoredUser()?.id || 'usr_guest';
+  const freshWallet: Wallet = {
+    id: `wlt_${targetId}`,
+    userId: targetId,
+    balance: 0.0,
+    lifetimeEarnings: 0.0,
+    thisMonthEarnings: 0.0,
+    nextPayoutDate: 'Not Scheduled',
+    payoutMethod: 'UPI Direct (Not Linked)',
+    qualifiedViewsTotal: 0
+  };
+  saveWallet(freshWallet);
+  return freshWallet;
 }
 
 export function saveWallet(wallet: Wallet): void {
@@ -363,15 +402,28 @@ export function getStoredComments(postId: string): Comment[] {
   }
 }
 
+export function saveCommentsForPost(postId: string, comments: Comment[]): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+    const all: Record<string, Comment[]> = raw ? JSON.parse(raw) : { ...INITIAL_COMMENTS };
+    all[postId] = comments;
+    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(all));
+  } catch (err) {
+    console.error('Error saving comments for post:', err);
+  }
+}
+
 export function addComment(postId: string, content: string, user: User): Comment {
   const newComment: Comment = {
-    id: `c_${Date.now()}`,
+    id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     postId,
-    userHandle: user.handle,
-    userName: user.displayName,
-    userAvatar: user.avatar,
+    userId: user.id || 'usr_citizen',
+    userHandle: user.handle || 'citizen',
+    userName: user.displayName || 'Citizen Reporter',
+    userAvatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || 'User')}`,
     content,
-    createdAt: 'Just now',
+    createdAt: new Date().toISOString(),
+    status: 'active',
     likes: 0
   };
 
@@ -381,14 +433,15 @@ export function addComment(postId: string, content: string, user: User): Comment
     if (!all[postId]) {
       all[postId] = [];
     }
-    all[postId].unshift(newComment);
+    // Avoid duplicate IDs
+    all[postId] = [newComment, ...all[postId].filter((c) => c.id !== newComment.id)];
     localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(all));
 
     // Update comment count on post
     const posts = getStoredPosts();
     const target = posts.find((p) => p.id === postId);
     if (target) {
-      target.commentCount += 1;
+      target.commentCount = Math.max(0, Number(target.commentCount) || 0) + 1;
       savePosts(posts);
     }
   } catch (err) {
@@ -594,8 +647,13 @@ export function recordQualifiedView(postId: string): {
 
       // If user is creator, credit earnings formula:
       // (1 / 1000) * base_RPM (4.50) * tierMultiplier (1.1) * localityMultiplier (1.5) = $0.007425
+      // Only credit if user is authenticated and is the authentic creator of the post
       const user = getStoredUser();
-      if (post.creatorId === user.id) {
+      const hasAuth = Boolean(
+        localStorage.getItem('spotlight_auth_token_v1') &&
+        localStorage.getItem('spotlight_auth_user_v1')
+      );
+      if (hasAuth && user && post.creatorId === user.id) {
         const breakdown = calculatePostEarnings(1, user.creatorTier, true, post.rpmRate || BASE_RPM);
         earnedAmount = breakdown.totalEarnings || 0.01;
 
