@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Send, Share2, Download, Loader2, Video, Film } from 'lucide-react';
+import { X, Copy, Check, Send, Share2, Download, Video, Loader2, Link2 } from 'lucide-react';
 import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
 import type { VideoPost } from '../../types';
 import { API_BASE } from '../../services/apiConfig';
 
@@ -13,18 +12,18 @@ interface ShareModalProps {
 export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isPreparingVideo, setIsPreparingVideo] = useState(false);
-  const [loadingText, setLoadingText] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
+  // Resolves the public frontend URL for the video link
   const getShareBaseUrl = () => {
-    if (typeof window === 'undefined') return 'https://news-app-backend-mathis-projects-a3546874.vercel.app';
+    if (typeof window === 'undefined') return 'https://news-app-frontend-mathis-projects-a3546874.vercel.app';
     const origin = window.location.origin;
     const isNativeCapacitor =
       window.location.protocol === 'capacitor:' ||
       window.location.protocol === 'file:' ||
       (window.location.hostname === 'localhost' && !window.location.port);
     if (isNativeCapacitor) {
-      return 'https://news-app-backend-mathis-projects-a3546874.vercel.app';
+      return 'https://news-app-frontend-mathis-projects-a3546874.vercel.app';
     }
     return origin;
   };
@@ -39,158 +38,136 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
     post.district ||
     'Hyperlocal Report';
 
-  const shareMessage = `🔴 Spotlight 360 | Ground Report\n📍 Location: ${locationText}\n🎬 Headline: ${shareTitle}\n\n▶️ Watch, verify & discuss:\n${shareUrl}`;
+  const shareMessage = `🔴 Spotlight 360 | Ground Report\n📍 Location: ${locationText}\n🎬 Headline: ${shareTitle}\n\n▶️ Watch Reel Link:\n${shareUrl}`;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
-    }, 3800);
+    }, 3200);
   };
 
   /**
-   * Prepares the video file by downloading the blob from CDN or backend proxy.
-   * On native Capacitor: saves to Cache directory and returns file:// URI for Share.share.
-   * On Web / Mobile browser: returns a File object for navigator.share({ files }).
+   * Primary Share Handler: Shares the video as a link via native system share sheet or Web Share API.
    */
-  const prepareVideoFile = async (): Promise<{ file?: File; fileUri?: string }> => {
-    setIsPreparingVideo(true);
-    setLoadingText('Preparing video file...');
-
-    const cleanHeadline = (post.headline || 'spotlight360_video')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 30);
-    const filename = `${cleanHeadline}.mp4`;
-
-    let blob: Blob | null = null;
-
-    // 1. Try fetching directly
-    try {
-      const res = await fetch(post.mediaUrl, { mode: 'cors' });
-      if (res.ok) {
-        blob = await res.blob();
-      }
-    } catch {
-      // Fallback to proxy
-    }
-
-    // 2. Fetch via backend proxy to bypass CORS on web
-    if (!blob || blob.size < 1000) {
-      try {
-        const proxyUrl = `${API_BASE}/media-download?url=${encodeURIComponent(
-          post.mediaUrl
-        )}&filename=${encodeURIComponent(filename)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          blob = await res.blob();
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    if (!blob) {
-      throw new Error('Could not download video file for sharing');
-    }
-
-    // Check if inside native Capacitor app
-    const isCapacitor =
+  const handleShareLink = async () => {
+    const isNativeCapacitor =
       typeof window !== 'undefined' &&
       (window.location.protocol === 'capacitor:' ||
         window.location.protocol === 'file:' ||
         (window.location.hostname === 'localhost' && !window.location.port));
 
-    if (isCapacitor) {
-      setLoadingText('Saving video for sharing...');
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onloadend = () => {
-          const resStr = reader.result as string;
-          const base64 = resStr.split(',')[1] || resStr;
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob!);
-      });
-      const base64Data = await base64Promise;
-
-      await Filesystem.writeFile({
-        path: filename,
-        data: base64Data,
-        directory: Directory.Cache
-      });
-
-      const uriRes = await Filesystem.getUri({
-        path: filename,
-        directory: Directory.Cache
-      });
-
-      return { fileUri: uriRes.uri };
-    }
-
-    // On browser / mobile web
-    const file = new File([blob], filename, { type: 'video/mp4' });
-    return { file };
-  };
-
-  /**
-   * Main Video File Share handler: shares the ACTUAL MP4 video file directly to WhatsApp, Instagram, or System Chooser.
-   */
-  const handleShareVideoFile = async () => {
-    try {
-      const { file, fileUri } = await prepareVideoFile();
-
-      // 1. Native Capacitor Share (Android / iOS)
-      if (fileUri) {
+    // 1. Native Capacitor Share (Android & iOS APK)
+    if (isNativeCapacitor) {
+      try {
         await Share.share({
           title: shareTitle,
-          text: `${shareTitle} (${locationText})\nWatch on Spotlight 360: ${shareUrl}`,
-          files: [fileUri],
-          dialogTitle: 'Share Video to WhatsApp or Apps'
+          text: shareMessage,
+          url: shareUrl,
+          dialogTitle: 'Share Video Link'
         });
-        showToast('Video opened in share sheet!');
+        showToast('✓ Video link shared!');
         onClose();
         return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
       }
+    }
 
-      // 2. Web Share API with File (Mobile Chrome, Safari, Android WebView)
-      if (
-        file &&
-        typeof navigator !== 'undefined' &&
-        typeof navigator.canShare === 'function' &&
-        navigator.canShare({ files: [file] })
-      ) {
+    // 2. Web Share API (Mobile Browsers)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
         await navigator.share({
-          files: [file],
           title: shareTitle,
-          text: `🔴 Spotlight 360 | ${shareTitle} (${locationText})\n${shareUrl}`
+          text: shareMessage,
+          url: shareUrl
         });
-        showToast('Video shared successfully!');
+        showToast('✓ Video link shared!');
         onClose();
         return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
       }
+    }
 
-      // 3. Fallback: Automatically download video so user can send it directly
-      await handleDownloadVideo();
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return; // User closed share sheet
-      console.warn('[handleShareVideoFile warning]:', err);
-      // If direct file share fails or is blocked by browser, trigger download
-      await handleDownloadVideo();
-    } finally {
-      setIsPreparingVideo(false);
-      setLoadingText('');
+    // 3. Fallback: Copy Link
+    await handleCopyLink();
+  };
+
+  /**
+   * Copy link to clipboard
+   */
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setCopied(true);
+      showToast('✓ Video link copied to clipboard!');
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.warn('Copy failed:', err);
     }
   };
 
   /**
-   * Directly downloads the real MP4 video file to the user's phone / PC gallery.
+   * Share link directly to WhatsApp
+   */
+  const handleShareWhatsApp = () => {
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
+    window.open(waUrl, '_blank');
+    onClose();
+  };
+
+  /**
+   * Share to Instagram (copies caption + link and opens Instagram)
+   */
+  const handleShareInstagram = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareMessage);
+      }
+    } catch {}
+
+    showToast('✓ Link copied! Opening Instagram...');
+    setTimeout(() => {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = 'instagram://app';
+        setTimeout(() => {
+          window.open('https://www.instagram.com', '_blank');
+        }, 1200);
+      } else {
+        window.open('https://www.instagram.com', '_blank');
+      }
+      onClose();
+    }, 500);
+  };
+
+  /**
+   * Share link to Telegram
+   */
+  const handleShareTelegram = () => {
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(
+      `🔴 Spotlight 360: ${shareTitle} (${locationText})`
+    )}`;
+    window.open(tgUrl, '_blank');
+    onClose();
+  };
+
+  /**
+   * Optional: Download the MP4 file to gallery
    */
   const handleDownloadVideo = async () => {
     try {
-      setIsPreparingVideo(true);
-      setLoadingText('Downloading MP4 video...');
-
+      setIsDownloading(true);
       const cleanHeadline = (post.headline || 'spotlight360_video')
         .replace(/[^a-zA-Z0-9_-]/g, '_')
         .slice(0, 30);
@@ -219,91 +196,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        showToast('✓ Video downloaded! You can now send it directly on WhatsApp or Instagram.');
+        showToast('✓ Video downloaded successfully!');
       } else {
         window.open(post.mediaUrl, '_blank');
       }
     } catch {
       window.open(post.mediaUrl, '_blank');
     } finally {
-      setIsPreparingVideo(false);
-      setLoadingText('');
+      setIsDownloading(false);
     }
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        const input = document.createElement('input');
-        input.value = shareUrl;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-      }
-      setCopied(true);
-      showToast('Video link copied to clipboard!');
-      setTimeout(() => setCopied(false), 2500);
-    } catch (err) {
-      console.warn('Copy failed:', err);
-    }
-  };
-
-  const handleShareWhatsApp = async () => {
-    // If on mobile device with file sharing, trigger actual video file share!
-    if (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function') {
-      try {
-        await handleShareVideoFile();
-        return;
-      } catch {}
-    }
-    // Fallback: standard WhatsApp link
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
-    window.open(waUrl, '_blank');
-    onClose();
-  };
-
-  const handleShareInstagram = async () => {
-    // If on mobile device with file sharing, trigger actual video file share so Instagram opens with the video!
-    if (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function') {
-      try {
-        await handleShareVideoFile();
-        return;
-      } catch {}
-    }
-
-    // Fallback
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(
-          `${shareTitle} - ${locationText}\nWatch on Spotlight 360:\n${shareUrl}`
-        );
-      }
-    } catch {}
-
-    showToast('Link & caption copied! Opening Instagram...');
-    setTimeout(() => {
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        window.location.href = 'instagram://app';
-        setTimeout(() => {
-          window.open('https://www.instagram.com', '_blank');
-        }, 1200);
-      } else {
-        window.open('https://www.instagram.com', '_blank');
-      }
-      onClose();
-    }, 600);
-  };
-
-  const handleShareTelegram = () => {
-    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(
-      `🔴 Spotlight 360: ${shareTitle} (${locationText})`
-    )}`;
-    window.open(tgUrl, '_blank');
-    onClose();
   };
 
   return (
@@ -365,10 +266,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
                   margin: 0
                 }}
               >
-                Share Video
+                Share Video Link
               </h3>
               <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: 0 }}>
-                Send actual video or link to WhatsApp & Instagram
+                Share video link to WhatsApp, Instagram & Apps
               </p>
             </div>
           </div>
@@ -437,10 +338,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
           </div>
         </div>
 
-        {/* PRIMARY ACTION: SHARE ACTUAL VIDEO FILE */}
+        {/* PRIMARY ACTION: SHARE VIDEO LINK DIRECTLY */}
         <button
-          onClick={handleShareVideoFile}
-          disabled={isPreparingVideo}
+          onClick={handleShareLink}
           style={{
             width: '100%',
             padding: '14px 16px',
@@ -450,7 +350,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             border: 'none',
             fontWeight: 800,
             fontSize: '14px',
-            cursor: isPreparingVideo ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -460,17 +360,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             transition: 'all 0.2s ease'
           }}
         >
-          {isPreparingVideo ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              <span>{loadingText || 'Preparing Video File...'}</span>
-            </>
-          ) : (
-            <>
-              <Film size={18} />
-              <span>Share Actual Video File (WhatsApp / Apps)</span>
-            </>
-          )}
+          <Share2 size={18} />
+          <span>Share Video Link (WhatsApp / Apps)</span>
         </button>
 
         {/* Share Action Grid */}
@@ -482,10 +373,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             marginBottom: '18px'
           }}
         >
-          {/* WhatsApp Video */}
+          {/* WhatsApp Link */}
           <button
             onClick={handleShareWhatsApp}
-            disabled={isPreparingVideo}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -527,10 +417,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>WhatsApp</span>
           </button>
 
-          {/* Instagram Video */}
+          {/* Instagram Link */}
           <button
             onClick={handleShareInstagram}
-            disabled={isPreparingVideo}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -575,11 +464,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>Instagram</span>
           </button>
 
-          {/* Download Video (MP4) */}
+          {/* Copy Link */}
           <button
-            onClick={handleDownloadVideo}
-            disabled={isPreparingVideo}
-            title="Download MP4 video file to device"
+            onClick={handleCopyLink}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -596,23 +483,32 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
                 width: '50px',
                 height: '50px',
                 borderRadius: '50%',
-                background: '#0ea5e9',
+                background: copied ? '#10b981' : '#f1f5f9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.35)'
+                color: copied ? '#ffffff' : '#475569',
+                border: copied ? 'none' : '1px solid #cbd5e1',
+                boxShadow: copied ? '0 4px 12px rgba(16, 185, 129, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
               }}
             >
-              <Download size={21} />
+              {copied ? <Check size={21} /> : <Link2 size={21} />}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>Save MP4</span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: copied ? '#059669' : '#334155'
+              }}
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </span>
           </button>
 
-          {/* Telegram Video */}
+          {/* Telegram Link */}
           <button
             onClick={handleShareTelegram}
-            disabled={isPreparingVideo}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -642,10 +538,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>Telegram</span>
           </button>
 
-          {/* Copy Link */}
+          {/* Save MP4 Video */}
           <button
-            onClick={handleCopyLink}
-            disabled={isPreparingVideo}
+            onClick={handleDownloadVideo}
+            disabled={isDownloading}
+            title="Download MP4 video file to device gallery"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -653,7 +550,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
               gap: '6px',
               background: 'transparent',
               border: 'none',
-              cursor: 'pointer',
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
               padding: 0
             }}
           >
@@ -662,26 +559,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
                 width: '50px',
                 height: '50px',
                 borderRadius: '50%',
-                background: copied ? '#10b981' : '#f1f5f9',
+                background: '#0ea5e9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: copied ? '#ffffff' : '#475569',
-                border: copied ? 'none' : '1px solid #cbd5e1',
-                boxShadow: copied ? '0 4px 12px rgba(16, 185, 129, 0.35)' : 'none',
-                transition: 'all 0.2s ease'
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.35)'
               }}
             >
-              {copied ? <Check size={21} /> : <Copy size={19} />}
+              {isDownloading ? <Loader2 size={20} className="animate-spin" /> : <Download size={21} />}
             </div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: copied ? '#059669' : '#334155'
-              }}
-            >
-              {copied ? 'Copied!' : 'Copy Link'}
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
+              {isDownloading ? 'Saving...' : 'Save MP4'}
             </span>
           </button>
         </div>
