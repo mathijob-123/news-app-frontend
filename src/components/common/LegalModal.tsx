@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, FileText, X, CheckCircle2, Lock, MapPin, AlertCircle, Sparkles } from 'lucide-react';
+import { ShieldCheck, FileText, X, CheckCircle2, Lock, MapPin, AlertCircle, Sparkles, Phone } from 'lucide-react';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -197,7 +197,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               >
                 <Lock size={18} color="#ea580c" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div style={{ fontSize: '12px', color: '#9a3412', lineHeight: 1.5 }}>
-                  <strong>Your Privacy is Sacred:</strong> Spotlight360 only uses your location to discover hyperlocal news, citizen reports, and nearby marketplace deals within your chosen radius. We never sell your personal data.
+                  <strong>Your Privacy is Sacred:</strong> Spotlight360 only uses your location to discover hyperlocal news, citizen reports, and nearby marketplace deals within your chosen radius. We never sell your personal data. For privacy support or assistance, call <strong>9042211470</strong>.
                 </div>
               </div>
 
@@ -206,7 +206,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                   1. Information We Collect
                 </h4>
                 <p style={{ margin: 0, color: '#475569' }}>
-                  • <strong>Account Details:</strong> When you register via Google Sign-In or email, we receive your name, email address, and profile photo.<br />
+                  • <strong>Account Details:</strong> When you register via Google Sign-In or email/phone, we receive your name, email address, mobile number, and profile photo.<br />
                   • <strong>Hyperlocal Location:</strong> With your permission, we obtain approximate GPS coordinates to display news and listings relevant to your neighborhood.<br />
                   • <strong>Content & Media:</strong> Photos, videos, and comments uploaded by you for news verification and marketplace listings.
                 </p>
@@ -235,7 +235,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                   4. Marketplace & Creator Monetization Privacy
                 </h4>
                 <p style={{ margin: 0, color: '#475569' }}>
-                  • When you contact an OLX seller or job recruiter via WhatsApp or Call, your number is only shared directly during that interaction.<br />
+                  • When you contact a Spotlight360 seller or job recruiter via WhatsApp or Call, your number is only shared directly during that interaction.<br />
                   • Creator earnings, payout history, and bank/UPI details are strictly confidential and encrypted in our database.
                 </p>
               </div>
@@ -245,7 +245,19 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                   5. Data Deletion & Rights
                 </h4>
                 <p style={{ margin: 0, color: '#475569' }}>
-                  You have the right to request full account deletion and removal of any published video reports at any time by contacting our support team at <strong>privacy@spotlight360.local</strong>.
+                  You have the right to request full account deletion and removal of any published video reports at any time by contacting our support team at <strong>privacy@spotlight360.local</strong> or calling <strong>9042211470</strong>.
+                </p>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>
+                  6. Contact & Grievance Redressal
+                </h4>
+                <p style={{ margin: 0, color: '#475569' }}>
+                  If you have any questions or concerns regarding our Privacy Policy or data practices, you may reach us directly:<br />
+                  • <strong>Phone / Helpline:</strong> <a href="tel:9042211470" style={{ color: '#ea580c', fontWeight: 700, textDecoration: 'none' }}>9042211470</a><br />
+                  • <strong>WhatsApp:</strong> <a href="https://wa.me/919042211470" target="_blank" rel="noopener noreferrer" style={{ color: '#ea580c', fontWeight: 700, textDecoration: 'none' }}>+91 9042211470</a><br />
+                  • <strong>Email:</strong> <strong>privacy@spotlight360.local</strong>
                 </p>
               </div>
             </div>
@@ -289,11 +301,12 @@ export const LegalModal: React.FC<LegalModalProps> = ({
 
               <div>
                 <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>
-                  3. Marketplace Buy & Sell (OLX, Jobs, Real Estate)
+                  3. Marketplace Buy & Sell (Spotlight360, Jobs, Real Estate)
                 </h4>
                 <p style={{ margin: 0, color: '#475569' }}>
                   • Spotlight360 acts solely as a communication platform connecting local buyers, sellers, job seekers, and property agents.<br />
-                  • Users must verify products and meet in safe, public places. Spotlight360 does not guarantee third-party transactions or hold escrow payments.
+                  • Users must verify products and meet in safe, public places. For support, call <strong>9042211470</strong>.<br />
+                  • Spotlight360 does not guarantee third-party transactions or hold escrow payments.
                 </p>
               </div>
 
