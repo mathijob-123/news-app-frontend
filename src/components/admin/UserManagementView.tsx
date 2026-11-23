@@ -1054,9 +1054,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       {/* MODAL 1: VIEW FULL DETAILS & ACTIVITY                    */}
       {/* ======================================================== */}
       {viewDetailsModalOpen && selectedUser && (
-        <div className="bottom-sheet-backdrop" onClick={() => setViewDetailsModalOpen(false)} style={{ zIndex: 120 }}>
+        <div
+          onClick={() => setViewDetailsModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
           <div
-            className="bottom-sheet-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '680px',
@@ -1215,9 +1227,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       {/* MODAL 2: EDIT USER DETAILS                               */}
       {/* ======================================================== */}
       {editModalOpen && editingUser && (
-        <div className="bottom-sheet-backdrop" onClick={() => setEditModalOpen(false)} style={{ zIndex: 120 }}>
+        <div
+          onClick={() => setEditModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
           <div
-            className="bottom-sheet-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '560px',
@@ -1448,9 +1472,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       {/* MODAL 3: CREATE NEW USER                                 */}
       {/* ======================================================== */}
       {createModalOpen && (
-        <div className="bottom-sheet-backdrop" onClick={() => setCreateModalOpen(false)} style={{ zIndex: 120 }}>
+        <div
+          onClick={() => setCreateModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
           <div
-            className="bottom-sheet-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '540px',
@@ -1628,9 +1664,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       {/* MODAL 4: POINTS ADJUSTMENT MODAL                         */}
       {/* ======================================================== */}
       {pointsModalOpen && pointsTargetUser && (
-        <div className="bottom-sheet-backdrop" onClick={() => setPointsModalOpen(false)} style={{ zIndex: 120 }}>
+        <div
+          onClick={() => setPointsModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
           <div
-            className="bottom-sheet-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '420px',
@@ -1751,9 +1799,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onRefres
       {/* MODAL 5: DELETE USER CONFIRMATION                        */}
       {/* ======================================================== */}
       {deleteModalOpen && userToDelete && (
-        <div className="bottom-sheet-backdrop" onClick={() => setDeleteModalOpen(false)} style={{ zIndex: 120 }}>
+        <div
+          onClick={() => setDeleteModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
           <div
-            className="bottom-sheet-content"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '420px',
