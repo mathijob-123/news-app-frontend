@@ -14,23 +14,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Resolves the public frontend URL for the video link
-  const getShareBaseUrl = () => {
-    if (typeof window === 'undefined') return 'https://news-app-frontend-mathis-projects-a3546874.vercel.app';
-    const origin = window.location.origin;
-    const isNativeCapacitor =
-      window.location.protocol === 'capacitor:' ||
-      window.location.protocol === 'file:' ||
-      (window.location.hostname === 'localhost' && !window.location.port);
-    if (isNativeCapacitor) {
-      return 'https://news-app-frontend-mathis-projects-a3546874.vercel.app';
-    }
-    return origin;
+  // Resolves the public rich preview URL for video reels
+  // Points to the backend endpoint which generates rich Open Graph video cards for WhatsApp, Instagram, Telegram, and Twitter
+  const getShareUrl = () => {
+    const backendOrigin = 'https://news-app-backend-mathis-projects-a3546874.vercel.app';
+    return `${backendOrigin}/reel/${encodeURIComponent(post.id)}`;
   };
 
-  const baseUrl = getShareBaseUrl();
-  const shareUrl = `${baseUrl}?post=${encodeURIComponent(post.id)}`;
-  const shareTitle = post.headline || 'Spotlight360 Ground Report';
+  const shareUrl = getShareUrl();
+  const shareTitle = post.headline || 'Spotlight 360 Ground Report';
   const locationText =
     post.location?.placeName ||
     post.location?.neighborhood ||
@@ -127,9 +119,49 @@ export const ShareModal: React.FC<ShareModalProps> = ({ post, onClose }) => {
   };
 
   /**
-   * Share to Instagram (copies caption + link and opens Instagram)
+   * Share to Instagram (Native system share sheet on mobile or copies caption + link and opens Instagram)
    */
   const handleShareInstagram = async () => {
+    const isNativeCapacitor =
+      typeof window !== 'undefined' &&
+      (window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'file:' ||
+        (window.location.hostname === 'localhost' && !window.location.port));
+
+    // In native Android APK, trigger system share sheet targeting Instagram Stories/Direct/Reels
+    if (isNativeCapacitor) {
+      try {
+        await Share.share({
+          title: shareTitle,
+          text: shareMessage,
+          url: shareUrl,
+          dialogTitle: 'Share to Instagram'
+        });
+        showToast('✓ Video link shared!');
+        onClose();
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+
+    // Try Web Share API (Mobile Chrome / Safari)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareMessage,
+          url: shareUrl
+        });
+        showToast('✓ Video link shared!');
+        onClose();
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+
+    // Fallback: Copy to clipboard and launch Instagram
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareMessage);

@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/reel/(.*)",
+      "destination": "https://news-app-backend-mathis-projects-a3546874.vercel.app/reel/$1"
+    },
+    {
+      "source": "/r/(.*)",
+      "destination": "https://news-app-backend-mathis-projects-a3546874.vercel.app/r/$1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "https://news-app-backend-mathis-projects-a3546874.vercel.app/api/$1"
     },
