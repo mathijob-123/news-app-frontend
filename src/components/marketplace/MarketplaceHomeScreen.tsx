@@ -121,7 +121,7 @@ export const MarketplaceHomeScreen: React.FC<MarketplaceHomeScreenProps> = ({
               <ShoppingBag size={22} />
             </div>
             <div className="olx-title-text">
-              <h2>OLX / Buy & Sell</h2>
+              <h2>Buy & Sell</h2>
               <p>Buy • Sell • Swap</p>
             </div>
           </div>

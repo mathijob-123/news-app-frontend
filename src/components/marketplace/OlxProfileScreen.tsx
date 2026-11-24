@@ -128,7 +128,7 @@ export const OlxProfileScreen: React.FC<OlxProfileScreenProps> = ({
             </button>
           )}
           <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-            OLX Seller Profile
+            Seller Profile
           </h2>
         </div>
 

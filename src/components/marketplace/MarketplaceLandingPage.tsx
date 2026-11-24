@@ -31,7 +31,7 @@ export const MarketplaceLandingPage: React.FC<MarketplaceLandingPageProps> = ({
   const categories = [
     {
       id: 'olx',
-      title: 'Buy & Sell (OLX)',
+      title: 'Buy & Sell',
       subtitle: 'Mobiles, electronics, vehicles, furniture, fashion & household items. Buy or sell locally.',
       badge: `${totalProductsCount} Active Listings`,
       icon: <ShoppingBag size={28} strokeWidth={2.2} />,

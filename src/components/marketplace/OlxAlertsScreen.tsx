@@ -125,7 +125,7 @@ export const OlxAlertsScreen: React.FC<OlxAlertsScreenProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Bell size={20} color="#ea580c" />
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-              OLX Alerts
+              Alerts
             </h2>
           </div>
         </div>

@@ -59,7 +59,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
             onClick={() => onSelectTab('olx')}
           >
             <ShoppingBag size={16} />
-            <span>OLX / Buy & Sell</span>
+            <span>Buy & Sell</span>
           </button>
 
           <button

@@ -25,12 +25,12 @@ export const OlxBottomNav: React.FC<OlxBottomNavProps> = ({
         boxShadow: '0 -2px 12px rgba(15, 23, 42, 0.05)'
       }}
     >
-      {/* 1. Home -> OLX Buy & Sell home page */}
+      {/* 1. Home -> Buy & Sell home page */}
       <button
         type="button"
         className={`nav-tab-item ${activeTab === 'home' ? 'active' : ''}`}
         onClick={() => onChangeTab('home')}
-        title="OLX Buy & Sell Home"
+        title="Buy & Sell Home"
         style={{
           color: activeTab === 'home' ? '#ea580c' : '#64748b'
         }}
@@ -59,7 +59,7 @@ export const OlxBottomNav: React.FC<OlxBottomNavProps> = ({
           type="button"
           className="nav-create-fab"
           onClick={onOpenPostAd}
-          title="Post an Ad on OLX"
+          title="Post an Ad"
           style={{
             width: '42px',
             height: '42px',
@@ -77,12 +77,12 @@ export const OlxBottomNav: React.FC<OlxBottomNavProps> = ({
         </button>
       </div>
 
-      {/* 4. Alerts -> OLX notifications, saved-search alerts, enquiries */}
+      {/* 4. Alerts -> notifications, saved-search alerts, enquiries */}
       <button
         type="button"
         className={`nav-tab-item ${activeTab === 'alerts' ? 'active' : ''}`}
         onClick={() => onChangeTab('alerts')}
-        title="OLX Alerts & Enquiries"
+        title="Alerts & Enquiries"
         style={{
           color: activeTab === 'alerts' ? '#ea580c' : '#64748b',
           position: 'relative'
@@ -107,12 +107,12 @@ export const OlxBottomNav: React.FC<OlxBottomNavProps> = ({
         <span style={{ fontWeight: activeTab === 'alerts' ? 700 : 500 }}>Alerts</span>
       </button>
 
-      {/* 5. Profile -> OLX-specific user profile / My Ads page */}
+      {/* 5. Profile -> user profile / My Ads page */}
       <button
         type="button"
         className={`nav-tab-item ${activeTab === 'profile' ? 'active' : ''}`}
         onClick={() => onChangeTab('profile')}
-        title="OLX Profile & My Ads"
+        title="Profile & My Ads"
         style={{
           color: activeTab === 'profile' ? '#ea580c' : '#64748b'
         }}
