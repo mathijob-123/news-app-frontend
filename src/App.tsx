@@ -76,6 +76,7 @@ import {
   getStoredUser,
   saveUser,
   getStoredWallet,
+  saveWallet,
   getStoredTransactions,
   getStoredComments,
   addComment,
@@ -103,7 +104,7 @@ import {
 } from './services/smartVideoFeedService';
 
 export const AppContent: React.FC = () => {
-  const { user: authUser, isAuthenticated, isAdmin, loading } = useAuth();
+  const { user: authUser, wallet: authWallet, refreshUser, isAuthenticated, isAdmin, loading } = useAuth();
 
   const getInitialNav = () => {
     let deepPostId: string | undefined = undefined;
@@ -174,13 +175,17 @@ export const AppContent: React.FC = () => {
     });
   }, [effectiveUserId]);
 
-  // Sync authenticated user into app user state
+  // Sync authenticated user and wallet into app user state
   useEffect(() => {
     if (authUser) {
       setUser(authUser);
       saveUser(authUser);
     }
-  }, [authUser]);
+    if (authWallet) {
+      setWallet(authWallet);
+      saveWallet(authWallet);
+    }
+  }, [authUser, authWallet]);
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<NewsCategory | 'following'>('all');
@@ -201,6 +206,24 @@ export const AppContent: React.FC = () => {
   const [previousTab, setPreviousTab] = useState<TabType>('spots');
   const [previousView, setPreviousView] = useState<'spots' | 'feed' | 'marketplace' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>('spots');
   const [activeView, setActiveView] = useState<'spots' | 'feed' | 'marketplace' | 'monetization' | 'profile' | 'olx' | 'jobs' | 'real_estate'>(initialNav.view);
+
+  // Real-time synchronization of wallet balance when entering Creator Points or Profile
+  useEffect(() => {
+    if (activeView === 'monetization' || activeView === 'profile') {
+      const targetUserId = authUser?.id || user?.id;
+      if (targetUserId) {
+        apiClient.getWallet(targetUserId).then((res) => {
+          if (res?.wallet) {
+            setWallet(res.wallet);
+            saveWallet(res.wallet);
+            if (res.transactions && res.transactions.length > 0) {
+              setTransactions(res.transactions);
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [activeView, authUser?.id, user?.id]);
   // Module Navigation: 'main' | 'olx' | 'jobs' | 'realEstate'
   const [activeModule, setActiveModule] = useState<AppModule>(initialNav.module);
   const [olxTab, setOlxTab] = useState<OlxTabType>('home');
@@ -1501,6 +1524,20 @@ export const AppContent: React.FC = () => {
                 allPosts={postsWithDistance}
                 onRequestPayout={handleRequestPayout}
                 onAdminApprovePayout={handleAdminApprovePayout}
+                onRefreshWallet={() => {
+                  const targetUserId = authUser?.id || user?.id;
+                  if (targetUserId) {
+                    apiClient.getWallet(targetUserId).then((res) => {
+                      if (res?.wallet) {
+                        setWallet(res.wallet);
+                        saveWallet(res.wallet);
+                      }
+                      if (res?.transactions && res.transactions.length > 0) {
+                        setTransactions(res.transactions);
+                      }
+                    }).catch(() => {});
+                  }
+                }}
               />
             </div>
           )}

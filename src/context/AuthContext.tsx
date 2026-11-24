@@ -96,7 +96,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = await authService.getCurrentUser(storedToken);
         if (isMounted && data.user) {
           setUser(data.user);
-          if (data.wallet) setWallet(data.wallet);
+          if (data.wallet) {
+            const userWallet: Wallet = {
+              id: data.wallet.id || `wlt_${data.user.id}`,
+              userId: data.user.id,
+              balance: Number(data.wallet.balance) || 0.0,
+              lifetimeEarnings: Number(data.wallet.lifetimeEarnings ?? data.wallet.lifetime_earnings) || 0.0,
+              thisMonthEarnings: Number(data.wallet.thisMonthEarnings ?? data.wallet.this_month_earnings) || 0.0,
+              nextPayoutDate: data.wallet.nextPayoutDate || data.wallet.next_payout_date || 'Not Scheduled',
+              payoutMethod: data.wallet.payoutMethod || data.wallet.payout_method || 'UPI Direct (Not Linked)',
+              qualifiedViewsTotal: Number(data.wallet.qualifiedViewsTotal ?? data.wallet.qualified_views_total) || 0
+            };
+            saveWallet(userWallet);
+            setWallet(userWallet);
+          }
           localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
         }
       } catch (err: any) {
@@ -164,7 +177,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const data = await authService.getCurrentUser(token);
       setUser(data.user);
-      if (data.wallet) setWallet(data.wallet);
+      if (data.wallet) {
+        const userWallet: Wallet = {
+          id: data.wallet.id || `wlt_${data.user.id}`,
+          userId: data.user.id,
+          balance: Number(data.wallet.balance) || 0.0,
+          lifetimeEarnings: Number(data.wallet.lifetimeEarnings ?? data.wallet.lifetime_earnings) || 0.0,
+          thisMonthEarnings: Number(data.wallet.thisMonthEarnings ?? data.wallet.this_month_earnings) || 0.0,
+          nextPayoutDate: data.wallet.nextPayoutDate || data.wallet.next_payout_date || 'Not Scheduled',
+          payoutMethod: data.wallet.payoutMethod || data.wallet.payout_method || 'UPI Direct (Not Linked)',
+          qualifiedViewsTotal: Number(data.wallet.qualifiedViewsTotal ?? data.wallet.qualified_views_total) || 0
+        };
+        saveWallet(userWallet);
+        setWallet(userWallet);
+      }
       localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
     } catch (err) {
       console.error('[AuthContext] Failed to refresh user:', err);

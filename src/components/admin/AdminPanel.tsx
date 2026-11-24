@@ -41,7 +41,9 @@ import {
   Globe,
   CheckSquare,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  Smartphone,
+  Building
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { VideoPost, AdminReviewStatus, Advertisement, AppSettings, AdminUser, AdminRoleType, SocialMediaPost, NewsCategory, LocationCoordinates } from '../../types';
@@ -367,6 +369,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [customGrantAmount, setCustomGrantAmount] = useState<number>(100);
   const [bountyBonus, setBountyBonus] = useState<number>(0);
   const [payoutFeedback, setPayoutFeedback] = useState<{ success: boolean; message: string } | null>(null);
+
+  // User Redemptions state in Points Approval
+  const [redemptions, setRedemptions] = useState<any[]>([]);
+  const [payoutSubTab, setPayoutSubTab] = useState<'redemptions' | 'videos'>('redemptions');
+  const [isFetchingRedemptions, setIsFetchingRedemptions] = useState(false);
+
+  const loadRedemptions = React.useCallback(async () => {
+    setIsFetchingRedemptions(true);
+    try {
+      const data = await apiClient.getAdminRedemptions();
+      setRedemptions(data || []);
+    } catch (err) {
+      console.warn('Failed to load redemptions:', err);
+    } finally {
+      setIsFetchingRedemptions(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab === 'payouts') {
+      loadRedemptions();
+    }
+  }, [activeTab, loadRedemptions]);
+
+  const handleUpdateRedemptionStatus = async (id: string, newStatus: string) => {
+    try {
+      const success = await apiClient.updateRedemptionStatus(id, newStatus);
+      if (success) {
+        setRedemptions((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update redemption status:', err);
+    }
+  };
 
   // Editorial Step 2 Review & Accept Modal State
   const [acceptingPost, setAcceptingPost] = useState<VideoPost | null>(null);
@@ -1966,144 +2004,508 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Approved Video Reports Ready For Points Allocation ({payoutQueue.length})
-            </div>
-
-            {payoutQueue.length === 0 ? (
-              <div
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '16px',
-                  padding: '50px 24px',
-                  textAlign: 'center',
-                  boxShadow: 'var(--shadow-sm)',
-                  maxWidth: '640px',
-                  margin: '30px auto',
-                  width: '100%'
-                }}
-              >
-                <div
+            {/* Sub-tab Switcher: Redemptions vs Video Points */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setPayoutSubTab('redemptions')}
                   style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '16px',
-                    background: posts.length === 0 ? '#f8fafc' : '#ecfdf5',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 12px',
-                    color: posts.length === 0 ? 'var(--brand-primary)' : '#059669',
-                    border: posts.length === 0 ? '1px solid var(--border-subtle)' : '1px solid #a7f3d0'
+                    gap: '8px',
+                    background: payoutSubTab === 'redemptions' ? 'var(--brand-primary)' : '#f8fafc',
+                    color: payoutSubTab === 'redemptions' ? '#ffffff' : 'var(--text-secondary)',
+                    border: payoutSubTab === 'redemptions' ? 'none' : '1px solid var(--border-subtle)',
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  {posts.length === 0 ? <Coins size={28} /> : <CheckCircle2 size={28} />}
-                </div>
-                <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {posts.length === 0 ? 'No Video Reports Awaiting Points' : 'All Video Points Awarded'}
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: '340px', margin: '0 auto' }}>
-                  {posts.length === 0
-                    ? 'No citizen video dispatches have been submitted yet. Once citizen news videos are approved by the editorial desk, they will appear here for 1-click points allocation.'
-                    : 'All eligible citizen video dispatches have received their approved points.'}
-                </p>
-              </div>
-            ) : (
-              <div className="admin-responsive-grid">
-                {payoutQueue.map((post) => {
-                  const totalPaidSoFar = (post.adminPayoutAmount || 0) + (post.adminBountyAwarded || 0);
-
-                  return (
-                    <div
-                      key={post.id}
+                  <CreditCard size={15} />
+                  <span>User Redemption Requests</span>
+                  {redemptions.filter((r) => r.status === 'pending').length > 0 && (
+                    <span
                       style={{
-                        background: '#ffffff',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        boxShadow: 'var(--shadow-sm)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '12px'
+                        background: payoutSubTab === 'redemptions' ? '#ffffff' : '#ef4444',
+                        color: payoutSubTab === 'redemptions' ? 'var(--brand-primary)' : '#ffffff',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '1px 6px',
+                        borderRadius: '10px'
                       }}
                     >
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <img
-                          src={post.thumbnailUrl}
-                          alt={post.headline}
-                          style={{ width: '64px', height: '64px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, marginBottom: '4px' }}>
-                            {post.headline}
-                          </h4>
-                          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>By @{post.creatorHandle}</span>
-                            <span>•</span>
-                            <span>{post.qualifiedViewCount} qualified views</span>
-                          </div>
-                        </div>
-                      </div>
+                      {redemptions.filter((r) => r.status === 'pending').length}
+                    </span>
+                  )}
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setPayoutSubTab('videos')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: payoutSubTab === 'videos' ? 'var(--brand-primary)' : '#f8fafc',
+                    color: payoutSubTab === 'videos' ? '#ffffff' : 'var(--text-secondary)',
+                    border: payoutSubTab === 'videos' ? 'none' : '1px solid var(--border-subtle)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Coins size={15} />
+                  <span>Video Points Allocation Queue</span>
+                  <span
+                    style={{
+                      background: payoutSubTab === 'videos' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                      color: payoutSubTab === 'videos' ? '#ffffff' : 'var(--text-secondary)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '1px 6px',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    {payoutQueue.length}
+                  </span>
+                </button>
+              </div>
+
+              {payoutSubTab === 'redemptions' && (
+                <button
+                  type="button"
+                  onClick={() => loadRedemptions()}
+                  disabled={isFetchingRedemptions}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#ffffff',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RefreshCw size={13} className={isFetchingRedemptions ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+              )}
+            </div>
+
+            {/* Sub-Tab 1: User Redemptions */}
+            {payoutSubTab === 'redemptions' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    Creator Redemption Requests ({redemptions.length})
+                  </div>
+                </div>
+
+                {redemptions.length === 0 ? (
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '16px',
+                      padding: '50px 24px',
+                      textAlign: 'center',
+                      boxShadow: 'var(--shadow-sm)',
+                      maxWidth: '640px',
+                      margin: '20px auto',
+                      width: '100%'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        background: '#fff7ed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 12px',
+                        color: 'var(--brand-primary)',
+                        border: '1px solid #fed7aa'
+                      }}
+                    >
+                      <CreditCard size={28} />
+                    </div>
+                    <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                      No Redemption Requests
+                    </h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: '380px', margin: '0 auto' }}>
+                      When creators withdraw their earned points to UPI or Bank Accounts, their payout details and requests will appear here for processing.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {redemptions.map((item) => (
                       <div
+                        key={item.id}
                         style={{
+                          background: '#ffffff',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          boxShadow: 'var(--shadow-sm)',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingTop: '12px',
-                          borderTop: '1px solid #f1f5f9'
+                          flexDirection: 'column',
+                          gap: '12px'
                         }}
                       >
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total Points:</span>
-                          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brand-primary)', marginLeft: '4px' }}>
-                            {Math.round(totalPaidSoFar).toLocaleString('en-IN')} Points
-                          </span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                {item.user_name || 'Creator'}
+                              </span>
+                              {item.user_handle && (
+                                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                  @{item.user_handle}
+                                </span>
+                              )}
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  background: item.method_type === 'upi' ? '#e0f2fe' : '#fef3c7',
+                                  color: item.method_type === 'upi' ? '#0369a1' : '#b45309'
+                                }}
+                              >
+                                {item.method_type === 'upi' ? 'UPI Transfer' : 'Bank Transfer'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                              {item.user_email || 'No email provided'} • Requested on {new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669' }}>
+                              ₹{Number(item.amount).toLocaleString('en-IN')}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                              {Number(item.amount).toLocaleString('en-IN')} Points
+                            </div>
+                          </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            onClick={() => setInspectingPost(post)}
-                            style={{
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              background: '#f8fafc',
-                              color: 'var(--text-secondary)',
-                              border: '1px solid var(--border-subtle)',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <Eye size={13} />
-                            <span>Inspect</span>
-                          </button>
-                          <button
-                            onClick={() => setPayoutTargetPost(post)}
-                            className="btn-primary"
-                            style={{
-                              padding: '8px 16px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <Coins size={13} />
-                            <span>Award Points</span>
-                          </button>
+                        {/* Payment Details Container */}
+                        <div
+                          style={{
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '12px 14px',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: '12px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {item.method_type === 'upi' ? (
+                            <>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  UPI ID / VPA
+                                </span>
+                                <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>
+                                  {item.upi_id || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Account Holder / Payee
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {item.account_holder_name || item.user_name || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Phone Number
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {item.phone || '—'}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Account Number
+                                </span>
+                                <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>
+                                  {item.account_number || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  IFSC Code
+                                </span>
+                                <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                                  {item.ifsc_code || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Bank Name
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {item.bank_name || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Account Holder
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {item.account_holder_name || '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-tertiary)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>
+                                  Registered Phone
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {item.phone || '—'}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Status & Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Status:</span>
+                            {item.status === 'pending' && (
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Clock size={11} /> Pending Review & Payment
+                              </span>
+                            )}
+                            {item.status === 'approved' && (
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', background: '#dcfce7', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <CheckCircle2 size={11} /> Approved & Disbursed
+                              </span>
+                            )}
+                            {item.status === 'rejected' && (
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <XCircle size={11} /> Rejected
+                              </span>
+                            )}
+                          </div>
+
+                          {item.status === 'pending' ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateRedemptionStatus(item.id, 'rejected')}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  background: '#fff1f2',
+                                  color: '#e11d48',
+                                  border: '1px solid #fecdd3',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Reject
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateRedemptionStatus(item.id, 'approved')}
+                                style={{
+                                  padding: '6px 16px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  background: '#10b981',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <Check size={13} />
+                                <span>Approve & Mark Paid</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                              Processed
+                            </div>
+                          )}
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sub-Tab 2: Video Reports Payout Queue */}
+            {payoutSubTab === 'videos' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Approved Video Reports Ready For Points Allocation ({payoutQueue.length})
+                </div>
+
+                {payoutQueue.length === 0 ? (
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '16px',
+                      padding: '50px 24px',
+                      textAlign: 'center',
+                      boxShadow: 'var(--shadow-sm)',
+                      maxWidth: '640px',
+                      margin: '30px auto',
+                      width: '100%'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        background: posts.length === 0 ? '#f8fafc' : '#ecfdf5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 12px',
+                        color: posts.length === 0 ? 'var(--brand-primary)' : '#059669',
+                        border: posts.length === 0 ? '1px solid var(--border-subtle)' : '1px solid #a7f3d0'
+                      }}
+                    >
+                      {posts.length === 0 ? <Coins size={28} /> : <CheckCircle2 size={28} />}
                     </div>
-                  );
-                })}
+                    <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                      {posts.length === 0 ? 'No Video Reports Awaiting Points' : 'All Video Points Awarded'}
+                    </h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: '340px', margin: '0 auto' }}>
+                      {posts.length === 0
+                        ? 'No citizen video dispatches have been submitted yet. Once citizen news videos are approved by the editorial desk, they will appear here for 1-click points allocation.'
+                        : 'All eligible citizen video dispatches have received their approved points.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="admin-responsive-grid">
+                    {payoutQueue.map((post) => {
+                      const totalPaidSoFar = (post.adminPayoutAmount || 0) + (post.adminBountyAwarded || 0);
+
+                      return (
+                        <div
+                          key={post.id}
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            <img
+                              src={post.thumbnailUrl}
+                              alt={post.headline}
+                              style={{ width: '64px', height: '64px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, marginBottom: '4px' }}>
+                                {post.headline}
+                              </h4>
+                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>By @{post.creatorHandle}</span>
+                                <span>•</span>
+                                <span>{post.qualifiedViewCount} qualified views</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingTop: '12px',
+                              borderTop: '1px solid #f1f5f9'
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total Points:</span>
+                              <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brand-primary)', marginLeft: '4px' }}>
+                                {Math.round(totalPaidSoFar).toLocaleString('en-IN')} Points
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                onClick={() => setInspectingPost(post)}
+                                style={{
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  background: '#f8fafc',
+                                  color: 'var(--text-secondary)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Eye size={13} />
+                                <span>Inspect</span>
+                              </button>
+                              <button
+                                onClick={() => setPayoutTargetPost(post)}
+                                className="btn-primary"
+                                style={{
+                                  padding: '8px 16px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <Coins size={13} />
+                                <span>Award Points</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

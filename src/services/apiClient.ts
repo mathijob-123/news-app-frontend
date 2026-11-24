@@ -479,16 +479,66 @@ export const apiClient = {
     return data.data;
   },
 
-  async getWallet(): Promise<{ wallet: Wallet; transactions: any[] }> {
-    const res = await fetch(`${API_BASE}/wallet`);
+  async getWallet(userId?: string): Promise<{ wallet: Wallet; transactions: any[] }> {
+    const token = localStorage.getItem('spotlight_auth_token') || localStorage.getItem('localpulse_auth_token');
+    const url = userId ? `${API_BASE}/wallet?userId=${encodeURIComponent(userId)}` : `${API_BASE}/wallet`;
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
     const data = await res.json();
     return { wallet: data.data, transactions: data.transactions || [] };
   },
 
-  async requestPayout(amount: number, method: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/wallet/payout`, {
+  async redeemPoints(payload: {
+    amount: number;
+    methodType: 'upi' | 'bank';
+    upiId?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    phone?: string;
+    userId?: string;
+    userName?: string;
+    userHandle?: string;
+    userEmail?: string;
+  }): Promise<{ success: boolean; message: string; data?: Wallet; error?: string }> {
+    const token = localStorage.getItem('spotlight_auth_token') || localStorage.getItem('localpulse_auth_token');
+    const res = await fetch(`${API_BASE}/wallet/redeem`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  },
+
+  async getAdminRedemptions(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/admin/redemptions`);
+    const data = await res.json();
+    return data.data || [];
+  },
+
+  async updateRedemptionStatus(id: string, status: string, adminNotes?: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/admin/redemptions/${encodeURIComponent(id)}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, adminNotes })
+    });
+    const data = await res.json();
+    return Boolean(data.success);
+  },
+
+  async requestPayout(amount: number, method: string): Promise<any> {
+    const token = localStorage.getItem('spotlight_auth_token') || localStorage.getItem('localpulse_auth_token');
+    const res = await fetch(`${API_BASE}/wallet/payout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ amount, method })
     });
     return res.json();
