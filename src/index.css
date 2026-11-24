@@ -1116,6 +1116,15 @@ input, textarea, select {
   z-index: 5;
 }
 
+.spots-floating-back-btn:hover {
+  background: rgba(0, 0, 0, 0.65) !important;
+  transform: scale(1.05);
+}
+
+.spots-floating-back-btn:active {
+  transform: scale(0.95);
+}
+
 /* Spots Right Action Rail */
 .spots-action-rail {
   position: absolute;

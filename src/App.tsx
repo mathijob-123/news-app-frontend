@@ -162,7 +162,7 @@ export const AppContent: React.FC = () => {
   useEffect(() => {
     syncRemoteWatchHistory(effectiveUserId).then((cloudSet) => {
       setWatchedPostIds(new Set(cloudSet));
-    }).catch(() => {});
+    }).catch(() => { });
   }, [effectiveUserId]);
 
   const handleVideoWatched = useCallback((postId: string) => {
@@ -220,7 +220,7 @@ export const AppContent: React.FC = () => {
               setTransactions(res.transactions);
             }
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }, [activeView, authUser?.id, user?.id]);
@@ -585,7 +585,7 @@ export const AppContent: React.FC = () => {
             return serverPosts;
           });
         }
-      }).catch(() => {});
+      }).catch(() => { });
     };
 
     const postSyncTimer = setInterval(syncPosts, 6000);
@@ -697,16 +697,16 @@ export const AppContent: React.FC = () => {
         if (serverProducts && serverProducts.length > 0) {
           setMarketplaceProducts(serverProducts);
         }
-      }).catch(() => {});
-      fetchPropertiesFromSupabase().catch(() => {});
+      }).catch(() => { });
+      fetchPropertiesFromSupabase().catch(() => { });
 
       const pollTimer = setInterval(() => {
         fetchProductsFromSupabase().then((serverProducts) => {
           if (serverProducts && serverProducts.length > 0) {
             setMarketplaceProducts(serverProducts);
           }
-        }).catch(() => {});
-        fetchPropertiesFromSupabase().catch(() => {});
+        }).catch(() => { });
+        fetchPropertiesFromSupabase().catch(() => { });
       }, 10000);
 
       return () => clearInterval(pollTimer);
@@ -960,7 +960,7 @@ export const AppContent: React.FC = () => {
         setPosts(serverPosts);
         savePosts(serverPosts);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const handlePublishPost = (newPost: VideoPost) => {
@@ -989,7 +989,7 @@ export const AppContent: React.FC = () => {
           setPosts(serverPosts);
           savePosts(serverPosts);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }, 400);
   };
 
@@ -1286,27 +1286,29 @@ export const AppContent: React.FC = () => {
   return (
     <div className="app-container">
       <div className="app-device-shell">
-        {/* Main Top Header with Hamburger Button */}
-        <Header
-          activeLocation={activeLocation}
-          onSelectLocation={handleSelectLocation}
-          onOpenSearch={() => setShowSearchModal(true)}
-          onOpenAdmin={() => navigateTo('/admin')}
-          onOpenNotifications={() => setShowNotificationModal(true)}
-          onOpenProfile={() => {
-            setActiveTab('profile');
-            setActiveView('profile');
-          }}
-          onToggleMenu={() => {
-            setPreviousView(activeView);
-            setPreviousTab(activeTab);
-            setIsSidebarOpenMobile(true);
-          }}
-          unreadAlertCount={unreadNotificationsCount}
-        />
+        {/* Main Top Header: Hidden when watching Reels / Spots for 100% immersive full-screen video on mobile without header */}
+        {activeView !== 'spots' && (
+          <Header
+            activeLocation={activeLocation}
+            onSelectLocation={handleSelectLocation}
+            onOpenSearch={() => setShowSearchModal(true)}
+            onOpenAdmin={() => navigateTo('/admin')}
+            onOpenNotifications={() => setShowNotificationModal(true)}
+            onOpenProfile={() => {
+              setActiveTab('profile');
+              setActiveView('profile');
+            }}
+            onToggleMenu={() => {
+              setPreviousView(activeView);
+              setPreviousTab(activeTab);
+              setIsSidebarOpenMobile(true);
+            }}
+            unreadAlertCount={unreadNotificationsCount}
+          />
+        )}
 
         {/* Offline Warning Banner */}
-        {isOffline && (
+        {isOffline && activeView !== 'spots' && (
           <div
             style={{
               background: '#fef2f2',
@@ -1353,6 +1355,14 @@ export const AppContent: React.FC = () => {
               onVideoWatched={handleVideoWatched}
               onRefresh={handleRefreshFeed}
               isRefreshing={isRefreshingFeed}
+              onBack={
+                previousView && previousView !== 'spots'
+                  ? () => {
+                      setActiveView(previousView);
+                      setActiveTab(previousTab as TabType);
+                    }
+                  : undefined
+              }
             />
           </div>
 
@@ -1535,7 +1545,7 @@ export const AppContent: React.FC = () => {
                       if (res?.transactions && res.transactions.length > 0) {
                         setTransactions(res.transactions);
                       }
-                    }).catch(() => {});
+                    }).catch(() => { });
                   }
                 }}
               />
@@ -1965,6 +1975,8 @@ export const AppContent: React.FC = () => {
               if (activeView === 'spots') {
                 window.dispatchEvent(new CustomEvent('lp:spots-scroll-top'));
               }
+              setPreviousView('spots');
+              setPreviousTab('spots');
               setSelectedSpotPostId(undefined);
               setActiveView('spots');
               navigateTo('/');
@@ -2076,12 +2088,12 @@ export const AppContent: React.FC = () => {
             activeView === 'spots'
               ? 'home'
               : activeView === 'feed'
-              ? 'home'
-              : activeView === 'monetization'
-              ? 'monetization'
-              : activeView === 'profile'
-              ? 'profile'
-              : 'home'
+                ? 'home'
+                : activeView === 'monetization'
+                  ? 'monetization'
+                  : activeView === 'profile'
+                    ? 'profile'
+                    : 'home'
           }
           onSelectSection={handleSidebarSelect}
           isOpen={isSidebarOpenMobile}

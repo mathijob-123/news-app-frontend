@@ -16,7 +16,8 @@ import {
   Camera,
   Loader2,
   RotateCw,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { isWatchQualified } from '../../services/monetizationEngine';
@@ -40,6 +41,7 @@ interface SpotsPlayerProps {
   onVideoWatched?: (postId: string) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  onBack?: () => void;
 }
 
 interface ReelCardProps {
@@ -418,7 +420,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
         <div
           style={{
             position: 'absolute',
-            top: 0,
+            top: 'max(0px, env(safe-area-inset-top, 0px))',
             left: 0,
             right: 0,
             height: '3px',
@@ -698,6 +700,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
             }}
           >
             <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenLocationPicker?.();
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -706,8 +712,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
                 padding: '1.5px 6px',
                 borderRadius: '4px',
                 fontSize: '9.5px',
-                fontWeight: 700
+                fontWeight: 700,
+                cursor: onOpenLocationPicker ? 'pointer' : 'default'
               }}
+              title="Change active location"
             >
               <MapPin size={9} />
               <span>
@@ -814,7 +822,8 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   onReportCopyright,
   onVideoWatched,
   onRefresh,
-  isRefreshing
+  isRefreshing,
+  onBack
 }) => {
   // Restore saved reel index or start at index 0 (never random)
   const [activeIndex, setActiveIndex] = useState(() => {
@@ -1471,6 +1480,40 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
           />
         ))}
       </div>
+
+      {/* Floating Back Button (only shown when arrived from Feed/Search/Profile) */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onBack();
+          }}
+          aria-label="Go Back"
+          className="spots-floating-back-btn"
+          style={{
+            position: 'absolute',
+            top: 'max(14px, calc(env(safe-area-inset-top, 0px) + 8px))',
+            left: '12px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            background: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 45,
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
+          }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+      )}
 
       {/* Comments Drawer */}
       {showComments && activeModalPost && (
