@@ -348,7 +348,8 @@ const ReelCard: React.FC<ReelCardProps> = ({
               zIndex: 2,
               width: '100%',
               height: '100%',
-              objectFit: 'contain',
+              objectFit: 'cover',
+              objectPosition: 'center top',
               display: 'block'
             }}
           />
