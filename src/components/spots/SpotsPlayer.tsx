@@ -15,7 +15,8 @@ import {
   Compass,
   Camera,
   Loader2,
-  RotateCw
+  RotateCw,
+  AlertCircle
 } from 'lucide-react';
 import type { VideoPost, User, LocationCoordinates } from '../../types';
 import { isWatchQualified } from '../../services/monetizationEngine';
@@ -73,10 +74,9 @@ const VERIFIED_CDN_VIDEOS = [
   'https://pub-5051362230a34232ba4afb2cf7ac345c.r2.dev/videos/1789995126975_l0csk7.mp4'
 ];
 
-const resolveVideoSrc = (rawUrl?: string, hasPlaybackError?: boolean, index: number = 0) => {
+const resolveVideoSrc = (rawUrl?: string, index: number = 0) => {
   if (
     !rawUrl ||
-    hasPlaybackError ||
     rawUrl.includes('commondatastorage.googleapis.com')
   ) {
     return VERIFIED_CDN_VIDEOS[index % VERIFIED_CDN_VIDEOS.length];
@@ -127,8 +127,8 @@ const ReelCard: React.FC<ReelCardProps> = ({
   }, [post.id]);
 
   const videoSrc = useMemo(() => {
-    return resolveVideoSrc(post.mediaUrl, hasPlaybackError, index);
-  }, [post.mediaUrl, hasPlaybackError, index]);
+    return resolveVideoSrc(post.mediaUrl, index);
+  }, [post.mediaUrl, index]);
 
   const creatorAvatarUrl = useMemo(() => {
     return (
@@ -442,7 +442,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
       )}
 
       {/* Replay Option When Video Ends */}
-      {isEnded && isActive && (
+      {isEnded && isActive && !hasPlaybackError && (
         <div className="spots-replay-overlay" onClick={handleReplay}>
           <div className="spots-replay-icon-circle">
             <RotateCw size={26} color="#ffffff" />
@@ -450,6 +450,76 @@ const ReelCard: React.FC<ReelCardProps> = ({
           <span className="spots-replay-text">
             Replay / மீண்டும் பார்க்க
           </span>
+        </div>
+      )}
+
+      {/* Playback Error Notice with Retry */}
+      {hasPlaybackError && isActive && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(9, 9, 11, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 35,
+            padding: '24px',
+            textAlign: 'center'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(234, 88, 12, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '14px',
+              border: '1px solid rgba(234, 88, 12, 0.4)'
+            }}
+          >
+            <AlertCircle size={28} color="#ea580c" />
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
+            Video Unavailable
+          </h3>
+          <p style={{ fontSize: '12px', color: '#a1a1aa', maxWidth: '260px', lineHeight: 1.5, marginBottom: '16px' }}>
+            This reel could not be played. It may still be processing or had a network interruption.
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setHasPlaybackError(false);
+              const video = videoRef.current;
+              if (video) {
+                video.load();
+                video.play().catch(() => {});
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 18px',
+              borderRadius: '9999px',
+              background: '#ea580c',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <RotateCw size={14} />
+            <span>Retry Video</span>
+          </button>
         </div>
       )}
 

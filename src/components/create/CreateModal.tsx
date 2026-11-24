@@ -293,8 +293,8 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     setIsPublishing(true);
 
     try {
-      // 1. Upload Real Media to Cloudflare R2
-      setUploadStatus(`Uploading ${mediaType} to Cloudflare R2...`);
+      // 1. Upload Real Media to Cloudflare R2 with live progress tracking
+      setUploadStatus(`Preparing ${mediaType} upload...`);
       const fileExt = currentMediaFile.name.split('.').pop() || (mediaType === 'video' ? 'mp4' : 'jpg');
       const mediaFilename = `spot_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${fileExt}`;
       const folder = mediaType === 'video' ? 'videos' : 'thumbnails';
@@ -302,13 +302,20 @@ export const CreateModal: React.FC<CreateModalProps> = ({
       const uploadedMediaUrl = await apiClient.uploadFileToR2(
         currentMediaFile,
         mediaFilename,
-        folder
+        folder,
+        (percent) => {
+          setUploadStatus(`Uploading ${mediaType}: ${percent}%`);
+        }
       );
+
+      if (!uploadedMediaUrl || uploadedMediaUrl.startsWith('blob:')) {
+        throw new Error('Media upload to cloud storage failed. Please check your connection and try again.');
+      }
 
       // 2. Upload Thumbnail if video, or use mediaUrl if image
       let uploadedThumbnailUrl = uploadedMediaUrl;
       if (mediaType === 'video' && thumbnailBlob) {
-        setUploadStatus('Saving report thumbnail to R2...');
+        setUploadStatus('Saving report thumbnail...');
         const thumbFilename = `thumb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
         try {
           uploadedThumbnailUrl = await apiClient.uploadFileToR2(

@@ -657,58 +657,59 @@ export const apiClient = {
     folder: 'videos' | 'thumbnails' | 'avatars' = 'videos',
     onProgress?: (percent: number) => void
   ): Promise<string> {
+    if (!file || (file instanceof Blob && file.size === 0)) {
+      throw new Error('Cannot upload an empty file (0 bytes). Please select a valid media file.');
+    }
+
     const contentType = file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg');
 
     try {
       const { uploadUrl, publicUrl } = await this.getPresignedUploadUrl(filename, contentType, folder);
 
-      if (onProgress) {
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', uploadUrl, true);
-          xhr.setRequestHeader('Content-Type', contentType);
+      // ALWAYS use XMLHttpRequest for uploading binary files to R2:
+      // It sets Content-Length, accurately streams disk Files in Android/iOS/Desktop WebViews, and tracks real progress
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', contentType);
 
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const percent = Math.round((e.loaded / e.total) * 100);
-              onProgress(percent);
-            }
-          };
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+            onProgress(percent);
+          }
+        };
 
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve();
-            } else {
-              reject(new Error(`Upload to Cloudflare R2 failed with status ${xhr.status}`));
-            }
-          };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onProgress?.(100);
+            resolve();
+          } else {
+            reject(new Error(`Upload to Cloudflare R2 failed with status ${xhr.status}: ${xhr.statusText}`));
+          }
+        };
 
-          xhr.onerror = () => reject(new Error('Network error during upload to Cloudflare R2 (CORS/network)'));
-          xhr.send(file);
-        });
-      } else {
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': contentType },
-          body: file
-        });
-        if (!uploadRes.ok) {
-          throw new Error(`Upload to Cloudflare R2 failed with status ${uploadRes.status}`);
-        }
-      }
+        xhr.onerror = () => reject(new Error('Network error during upload to Cloudflare R2 (CORS or connection failure)'));
+        xhr.ontimeout = () => reject(new Error('Upload to Cloudflare R2 timed out. Check your internet connection.'));
+        xhr.timeout = 180000; // 3 minutes timeout for video files
+        xhr.send(file);
+      });
 
       return publicUrl;
     } catch (err: any) {
-      console.warn('[Presigned R2 Upload failed, attempting direct upload]:', err.message);
-      try {
-        return await this.uploadFileDirectToR2(file, filename, folder);
-      } catch (directErr: any) {
-        console.warn('[Direct R2 upload also failed, using local object URL fallback]:', directErr.message);
-        if (file instanceof File || file instanceof Blob) {
-          return URL.createObjectURL(file);
+      console.warn('[Presigned R2 Upload failed, checking direct fallback]:', err.message);
+
+      // Only attempt direct base64 fallback for small files (under 4MB) because Vercel payload limit is 4.5MB
+      if (file.size <= 4 * 1024 * 1024) {
+        try {
+          return await this.uploadFileDirectToR2(file, filename, folder);
+        } catch (directErr: any) {
+          console.error('[Direct R2 upload also failed]:', directErr.message);
+          throw new Error(`Upload failed: ${err.message}`);
         }
-        throw directErr;
       }
+
+      throw new Error(`Upload failed: ${err.message}. Please check your connection and try again.`);
     }
   },
 
@@ -717,11 +718,19 @@ export const apiClient = {
     filename: string,
     folder: 'videos' | 'thumbnails' | 'avatars' = 'videos'
   ): Promise<string> {
+    if (!file || file.size === 0) {
+      throw new Error('Cannot upload empty file (0 bytes)');
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           const fileBase64 = reader.result as string;
+          if (!fileBase64 || fileBase64.length < 50) {
+            throw new Error('Failed to read media file content');
+          }
+
           const res = await fetch(`${API_BASE}/upload/direct`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
