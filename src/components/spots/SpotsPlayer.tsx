@@ -354,39 +354,49 @@ const ReelCard: React.FC<ReelCardProps> = ({
           />
         </div>
       ) : isNear ? (
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          poster={post.thumbnailUrl}
-          autoPlay={isActive}
-          playsInline
-          preload={isActive || isNext ? 'auto' : 'metadata'}
-          muted={isMuted}
-          onPlay={() => {
-            setIsPlaying(true);
-            setIsBuffering(false);
-            setIsEnded(false);
-          }}
-          onPause={() => setIsPlaying(false)}
-          onPlaying={() => {
-            setIsPlaying(true);
-            setIsBuffering(false);
-            setIsEnded(false);
-          }}
-          onWaiting={() => setIsBuffering(true)}
-          onCanPlay={() => setIsBuffering(false)}
-          onEnded={() => {
-            setIsEnded(true);
-            setIsPlaying(false);
-            setIsBuffering(false);
-          }}
-          onTimeUpdate={handleTimeUpdate}
-          onError={() => {
-            setHasPlaybackError(true);
-            setIsBuffering(false);
-          }}
-          className="spots-video"
-        />
+        <div className="spots-media-wrapper">
+          {post.thumbnailUrl && (
+            <div
+              className="spots-media-ambient-blur"
+              style={{
+                backgroundImage: `url(${post.thumbnailUrl})`
+              }}
+            />
+          )}
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            poster={post.thumbnailUrl}
+            autoPlay={isActive}
+            playsInline
+            preload={isActive || isNext ? 'auto' : 'metadata'}
+            muted={isMuted}
+            onPlay={() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+              setIsEnded(false);
+            }}
+            onPause={() => setIsPlaying(false)}
+            onPlaying={() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+              setIsEnded(false);
+            }}
+            onWaiting={() => setIsBuffering(true)}
+            onCanPlay={() => setIsBuffering(false)}
+            onEnded={() => {
+              setIsEnded(true);
+              setIsPlaying(false);
+              setIsBuffering(false);
+            }}
+            onTimeUpdate={handleTimeUpdate}
+            onError={() => {
+              setHasPlaybackError(true);
+              setIsBuffering(false);
+            }}
+            className="spots-video"
+          />
+        </div>
       ) : (
         <div
           style={{
