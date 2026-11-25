@@ -227,6 +227,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setError('Please enter a valid 10-digit mobile phone number.');
       return;
     }
+    const cleanEmailInput = email.trim().toLowerCase();
+    if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(cleanEmailInput)) {
+      setError('Please enter a valid email address (for example, name@example.com).');
+      return;
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;

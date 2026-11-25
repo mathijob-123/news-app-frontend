@@ -117,6 +117,11 @@ export const authService = {
       });
       const data = await parseResponseJson(res);
       if (!res.ok || !data.success) {
+        if (res.status === 400 || res.status === 409) {
+          const clientErr: any = new Error(data.error || 'Failed to create account');
+          clientErr.isClientRejection = true;
+          throw clientErr;
+        }
         throw new Error(data.error || 'Failed to create account');
       }
       if (data.user && data.token) {
@@ -124,12 +129,18 @@ export const authService = {
       }
       return data;
     } catch (err: any) {
+      if (err?.isClientRejection) {
+        throw err;
+      }
       const errMsg = err?.message || '';
       console.warn('[authService.register] Initial attempt notice:', errMsg);
 
       // Attempt direct Supabase REST registration if backend pool had a connection/circuit-breaker issue
       try {
         const cleanEmail = payload.email.trim().toLowerCase();
+        if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(cleanEmail)) {
+          throw new Error('Please enter a valid email address (for example, name@example.com).');
+        }
         const cleanPhone = payload.phone?.trim().replace(/[^0-9+]/g, '') || '';
         let cleanHandle = (payload.handle || payload.displayName.toLowerCase().replace(/[^a-z0-9_]/g, '_'))
           .replace(/^@+/, '')
@@ -212,7 +223,7 @@ export const authService = {
           message: 'Account created successfully!'
         };
       } catch (restErr: any) {
-        if (restErr.message?.includes('already exists')) {
+        if (restErr.message?.includes('already exists') || restErr.message?.includes('valid email')) {
           throw restErr;
         }
         console.warn('[authService.register] Direct Supabase REST registration fallback notice:', restErr);
