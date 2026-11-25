@@ -332,6 +332,11 @@ export const authService = {
       });
       const data = await parseResponseJson(res);
       if (!res.ok || !data.success) {
+        if (res.status === 400 || res.status === 401) {
+          const authErr: any = new Error(data.error || 'Invalid credentials');
+          authErr.isAuthRejected = true;
+          throw authErr;
+        }
         throw new Error(data.error || 'Failed to sign in');
       }
       if (data.user && data.token) {
@@ -339,6 +344,9 @@ export const authService = {
       }
       return data;
     } catch (err: any) {
+      if (err?.isAuthRejected) {
+        throw err;
+      }
       const errMsg = err?.message || '';
       console.warn('[authService.login] API attempt notice:', errMsg);
 
@@ -561,6 +569,39 @@ export const authService = {
     const data = await parseResponseJson(res);
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to complete profile onboarding');
+    }
+    return data;
+  },
+
+  // 9. Request Password Reset Email (Hostinger SMTP OTP & Link)
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() })
+    });
+    const data = await parseResponseJson(res);
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to send password reset email');
+    }
+    return data;
+  },
+
+  // 10. Confirm Password Reset with 6-digit OTP or Reset Token
+  async resetPassword(payload: {
+    email?: string;
+    otp?: string;
+    token?: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await parseResponseJson(res);
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to reset password');
     }
     return data;
   }

@@ -108,9 +108,14 @@ export const AppContent: React.FC = () => {
 
   const getInitialNav = () => {
     let deepPostId: string | undefined = undefined;
+    let hasResetToken = false;
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       deepPostId = sp.get('post') || sp.get('spot') || sp.get('video') || undefined;
+      hasResetToken = Boolean(sp.get('resetToken'));
+    }
+    if (hasResetToken) {
+      return { view: 'profile' as const, tab: 'profile' as TabType, module: 'main' as AppModule, deepPostId: undefined };
     }
     if (deepPostId) {
       return { view: 'spots' as const, tab: 'spots' as TabType, module: 'main' as AppModule, deepPostId };

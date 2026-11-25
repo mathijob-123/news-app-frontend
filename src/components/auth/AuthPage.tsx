@@ -15,9 +15,12 @@ import {
   ArrowRight,
   ArrowLeft,
   Eye,
-  EyeOff
+  EyeOff,
+  CheckCircle2,
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/authService';
 import type { User } from '../../types';
 
 interface AuthPageProps {
@@ -28,9 +31,10 @@ interface AuthPageProps {
   initialMode?: 'google' | 'register' | 'login';
 }
 
-const GOOGLE_CLIENT_ID =
+const GOOGLE_CLIENT_ID = (
   (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
-  '457891409432-iq0h518ncoq89u9mf4h694mluq7v5sem.apps.googleusercontent.com';
+  '457891409432-iq0h518ncoq89u9mf4h694mluq7v5sem.apps.googleusercontent.com'
+).trim();
 
 const ADMIN_EMAIL =
   ((import.meta.env.VITE_ADMIN_EMAIL as string) || 'jrinfotechponneri@gmail.com')
@@ -55,13 +59,46 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [gisLoaded, setGisLoaded] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'none' | 'request' | 'verify'>('none');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Google Identity Services (GIS)
+  // Detect password reset link (?resetToken=...&email=...) in URL
   useEffect(() => {
-    const initGoogleGSI = () => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const urlToken = sp.get('resetToken');
+    const urlEmail = sp.get('email');
+    if (urlToken) {
+      setAuthMode('login');
+      setForgotStep('verify');
+      setResetToken(urlToken);
+      if (urlEmail) setEmail(urlEmail);
+      setSuccessMessage('Enter your new password below to complete your reset.');
+      try {
+        sp.delete('resetToken');
+        sp.delete('email');
+        const nextQuery = sp.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+        window.history.replaceState({}, '', nextUrl);
+      } catch {}
+    }
+  }, []);
+
+  // Initialize Google Identity Services (GIS) when Google tab is active
+  useEffect(() => {
+    if (authMode !== 'google') return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const initGoogleGSI = (): boolean => {
+      if (cancelled || !googleBtnRef.current) return false;
       if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
         try {
           (window as any).google.accounts.id.initialize({
@@ -71,27 +108,41 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             cancel_on_tap_outside: true
           });
 
-          if (googleBtnRef.current) {
-            googleBtnRef.current.innerHTML = '';
-            (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-              type: 'standard',
-              theme: 'filled_blue',
-              size: 'large',
-              text: 'continue_with',
-              shape: 'pill',
-              logo_alignment: 'left',
-              width: 320
-            });
-            setGisLoaded(true);
-          }
+          googleBtnRef.current.innerHTML = '';
+          (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
+            type: 'standard',
+            theme: 'filled_blue',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            logo_alignment: 'left',
+            width: 320
+          });
+          setGisLoaded(true);
+          return true;
         } catch (err) {
           console.warn('[Google GIS Init Warning]:', err);
         }
       }
+      return false;
     };
 
-    const timer = setTimeout(initGoogleGSI, 400);
-    return () => clearTimeout(timer);
+    if (!initGoogleGSI()) {
+      const interval = setInterval(() => {
+        attempts += 1;
+        if (initGoogleGSI() || attempts >= 40) {
+          clearInterval(interval);
+        }
+      }, 250);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [authMode]);
 
   const processAuthResult = (res: any) => {
@@ -151,14 +202,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       try {
         (window as any).google.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            console.log('OneTap prompt was not displayed or skipped');
+            const reason = notification.getNotDisplayedReason?.() || notification.getSkippedReason?.() || 'suppressed';
+            console.warn('Google OneTap prompt not displayed or skipped:', reason);
+            setError('Google Sign-In popup was blocked or dismissed by the browser. Please allow popups/third-party sign-in or use Register / Sign In above.');
           }
         });
-      } catch (e) {
+      } catch (e: any) {
         console.warn('GIS prompt error:', e);
+        setError(e?.message || 'Unable to open Google Sign-In prompt.');
       }
     } else {
-      setError('Google Sign-In is initializing. Please tap again in a moment.');
+      setError('Google Sign-In is still loading or blocked by your browser/network. Please retry or use Register / Sign In above.');
     }
   };
 
@@ -202,6 +256,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
     setError(null);
+    setSuccessMessage(null);
     setIsLoading(true);
     try {
       const res = await login({
@@ -211,6 +266,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       processAuthResult(res);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter your registered email address.');
+      return;
+    }
+    setError(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+    try {
+      const res = await authService.requestPasswordReset(email.trim());
+      setResetToken('');
+      setForgotStep('verify');
+      setSuccessMessage(res.message || 'Reset code sent! Check your email inbox or spam folder.');
+    } catch (err: any) {
+      setError(err.message || 'Could not send password reset email.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetToken && (!email.trim() || !resetOtp.trim())) {
+      setError('Please enter your email and the 6-digit code sent to your inbox.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    setError(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+    try {
+      const res = await authService.resetPassword({
+        email: email.trim() || undefined,
+        otp: resetToken ? undefined : resetOtp.trim(),
+        token: resetToken || undefined,
+        newPassword
+      });
+      setForgotStep('none');
+      setResetOtp('');
+      setResetToken('');
+      setNewPassword('');
+      setPassword('');
+      setSuccessMessage(res.message || 'Password updated! You can now sign in with your new password.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password. Please check your code.');
     } finally {
       setIsLoading(false);
     }
@@ -359,7 +468,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             type="button"
             onClick={() => {
               setAuthMode('register');
+              setForgotStep('none');
               setError(null);
+              setSuccessMessage(null);
             }}
             style={{
               flex: 1,
@@ -382,6 +493,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             onClick={() => {
               setAuthMode('login');
               setError(null);
+              setSuccessMessage(null);
             }}
             style={{
               flex: 1,
@@ -403,7 +515,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             type="button"
             onClick={() => {
               setAuthMode('google');
+              setForgotStep('none');
               setError(null);
+              setSuccessMessage(null);
             }}
             style={{
               flex: 1,
@@ -443,6 +557,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           >
             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Success Alert */}
+        {successMessage && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '10px 14px',
+              borderRadius: '12px',
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              color: '#047857',
+              fontSize: '12px',
+              marginBottom: '16px',
+              textAlign: 'left',
+              lineHeight: 1.4
+            }}
+          >
+            <CheckCircle2 size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>{successMessage}</span>
           </div>
         )}
 
@@ -611,8 +748,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </form>
         )}
 
-        {/* TAB 2: SIGN IN FORM */}
-        {authMode === 'login' && (
+        {/* TAB 2: SIGN IN FORM & FORGOT PASSWORD */}
+        {authMode === 'login' && forgotStep === 'none' && (
           <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ textAlign: 'left' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
@@ -684,13 +821,34 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setSuccessMessage(null);
+                    setForgotStep('request');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#ea580c',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
               style={{
-                marginTop: '6px',
+                marginTop: '2px',
                 padding: '12px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
@@ -721,6 +879,274 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </form>
         )}
 
+        {authMode === 'login' && forgotStep === 'request' && (
+          <form onSubmit={handleRequestPasswordReset} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                Registered Email Address
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type="email"
+                  required
+                  placeholder="Enter your account email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    outline: 'none',
+                    background: '#f8fafc',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                marginTop: '4px',
+                padding: '12px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(255, 69, 0, 0.3)'
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw size={15} className="spin" />
+                  <span>Sending Reset Code...</span>
+                </>
+              ) : (
+                <>
+                  <span>Send Reset Code</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setForgotStep('none');
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#64748b',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <ArrowLeft size={14} />
+              <span>Back to Sign In</span>
+            </button>
+          </form>
+        )}
+
+        {authMode === 'login' && forgotStep === 'verify' && (
+          <form onSubmit={handleConfirmPasswordReset} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {!resetToken && (
+              <>
+                <div style={{ textAlign: 'left' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                    Email Address
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 38px',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        outline: 'none',
+                        background: '#f8fafc',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'left' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                    6-Digit Reset Code
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <KeyRound size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      required
+                      placeholder="Enter 6-digit code from email"
+                      value={resetOtp}
+                      onChange={(e) => setResetOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 38px',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '14px',
+                        letterSpacing: '2px',
+                        outline: 'none',
+                        background: '#f8fafc',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                New Password (min 6 chars)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 38px 10px 38px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    outline: 'none',
+                    background: '#f8fafc',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: showPassword ? '#ff4500' : '#94a3b8',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                marginTop: '4px',
+                padding: '12px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(15, 23, 42, 0.2)'
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw size={15} className="spin" />
+                  <span>Updating Password...</span>
+                </>
+              ) : (
+                <>
+                  <span>Reset Password</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetToken('');
+                  setForgotStep('request');
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ea580c',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Resend code
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetToken('');
+                  setForgotStep('none');
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* TAB 3: GOOGLE ONE-TAP SSO */}
         {authMode === 'google' && (
           <div>
@@ -737,14 +1163,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               <div
                 ref={googleBtnRef}
                 style={{
-                  display: gisLoaded ? 'flex' : 'none',
+                  display: gisLoaded && !isLoading ? 'flex' : 'none',
                   justifyContent: 'center',
                   minHeight: '44px',
                   width: '100%'
                 }}
               />
 
-              {!gisLoaded && (
+              {(!gisLoaded || isLoading) && (
                 <button
                   type="button"
                   onClick={handleGoogleButtonClick}

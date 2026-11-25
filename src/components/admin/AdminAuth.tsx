@@ -21,9 +21,10 @@ const ADMIN_EMAIL =
     .toLowerCase()
     .trim();
 
-const GOOGLE_CLIENT_ID =
+const GOOGLE_CLIENT_ID = (
   (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
-  '457891409432-iq0h518ncoq89u9mf4h694mluq7v5sem.apps.googleusercontent.com';
+  '457891409432-iq0h518ncoq89u9mf4h694mluq7v5sem.apps.googleusercontent.com'
+).trim();
 
 export const AdminAuth: React.FC<AdminAuthProps> = ({
   onLoginSuccess,
@@ -39,9 +40,15 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
   const [gisLoaded, setGisLoaded] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Google GIS for Admin
+  // Initialize Google GIS for Admin when Google tab is active
   useEffect(() => {
-    const initGoogleGSI = () => {
+    if (authMethod !== 'google') return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const initGoogleGSI = (): boolean => {
+      if (cancelled || !googleBtnRef.current) return false;
       if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
         try {
           (window as any).google.accounts.id.initialize({
@@ -50,27 +57,41 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
             auto_select: false
           });
 
-          if (googleBtnRef.current) {
-            googleBtnRef.current.innerHTML = '';
-            (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-              type: 'standard',
-              theme: 'filled_black',
-              size: 'large',
-              text: 'continue_with',
-              shape: 'pill',
-              width: 300
-            });
-            setGisLoaded(true);
-          }
+          googleBtnRef.current.innerHTML = '';
+          (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 300
+          });
+          setGisLoaded(true);
+          return true;
         } catch (err) {
           console.warn('[Admin Google Init Warning]:', err);
         }
       }
+      return false;
     };
 
-    const timer = setTimeout(initGoogleGSI, 400);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!initGoogleGSI()) {
+      const interval = setInterval(() => {
+        attempts += 1;
+        if (initGoogleGSI() || attempts >= 40) {
+          clearInterval(interval);
+        }
+      }, 250);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authMethod]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

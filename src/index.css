@@ -1358,6 +1358,7 @@ input, textarea, select {
   justify-content: space-between;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .sheet-handle-bar {
@@ -1366,6 +1367,7 @@ input, textarea, select {
   background: #cbd5e1;
   border-radius: 2px;
   margin: 8px auto 2px;
+  flex-shrink: 0;
 }
 
 /* Monetization Hub UI */
