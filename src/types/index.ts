@@ -319,6 +319,9 @@ export interface NotificationSettings {
   payoutAlerts: boolean;
   soundEnabled: boolean;
   fcmServerKeyConfigured: boolean;
+  notificationRecipientEmail?: string;
+  adminNewUserEmailAlerts?: boolean;
+  userEmailNotificationsEnabled?: boolean;
 }
 
 export interface AdvertisementSettings {

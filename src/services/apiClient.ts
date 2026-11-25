@@ -871,13 +871,68 @@ export const apiClient = {
   },
 
   async updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('spotlight_auth_token_v1') : null;
     const res = await fetch(`${API_BASE}/settings`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(settings)
     });
     const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to update settings');
+    }
     return data.data;
+  },
+
+  async sendTestEmail(recipientEmail?: string): Promise<{
+    success: boolean;
+    recipient?: string;
+    messageId?: string;
+    message?: string;
+  }> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('spotlight_auth_token_v1') : null;
+    const res = await fetch(`${API_BASE}/admin/email/test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ recipientEmail })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to send test email');
+    }
+    return data;
+  },
+
+  async getEmailAudit(): Promise<{
+    success: boolean;
+    totalUsers: number;
+    invalidCount: number;
+    invalidUsers: Array<{
+      id: string;
+      handle: string;
+      displayName: string;
+      email: string;
+      role: string;
+      reason: string;
+    }>;
+  }> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('spotlight_auth_token_v1') : null;
+    const res = await fetch(`${API_BASE}/admin/email/audit`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to audit user email addresses');
+    }
+    return data;
   },
 
   // --- ADMIN USERS ---

@@ -210,7 +210,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveAppSettings = async (newSettings: AppSettings) => {
     setAppSettings(newSettings);
     saveStoredAppSettings(newSettings);
-    try { await apiClient.updateSettings(newSettings); } catch {}
+    const saved = await apiClient.updateSettings(newSettings);
+    if (saved) {
+      setAppSettings(saved);
+      saveStoredAppSettings(saved);
+    }
   };
 
   const handleSaveAdminUser = async (userUpdates: Partial<AdminUser>) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Image as ImageIcon,
@@ -14,8 +14,12 @@ import {
   Plus,
   Trash2,
   Shield,
-  RefreshCw
+  RefreshCw,
+  Mail,
+  Send,
+  AlertTriangle
 } from 'lucide-react';
+import { apiClient } from '../../services/apiClient';
 import type {
   AppSettings,
   AdminUser,
@@ -54,6 +58,20 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
   const [currentSettings, setCurrentSettings] = useState<AppSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Email Notification Recipient & Test State
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [emailStatusMsg, setEmailStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isAuditingEmails, setIsAuditingEmails] = useState(false);
+  const [emailAuditResult, setEmailAuditResult] = useState<{
+    totalUsers: number;
+    invalidUsers: Array<{ id: string; handle: string; displayName: string; email: string; reason: string }>;
+  } | null>(null);
+
+  useEffect(() => {
+    setCurrentSettings(settings);
+  }, [settings]);
 
   // New Category State
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -71,12 +89,64 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
   const handleSaveAll = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
+    setSaveError(null);
     try {
       await onSaveSettings(currentSettings);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Failed to save settings');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    const recipient = (currentSettings.notifications.notificationRecipientEmail || '').trim();
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(recipient)) {
+      setEmailStatusMsg({
+        type: 'error',
+        text: 'Please enter a valid recipient email address (e.g. name@example.com) before testing.'
+      });
+      return;
+    }
+
+    setIsSendingTestEmail(true);
+    setEmailStatusMsg(null);
+    try {
+      // Save updated recipient first so backend persists it
+      await onSaveSettings(currentSettings);
+      const res = await apiClient.sendTestEmail(recipient);
+      setEmailStatusMsg({
+        type: 'success',
+        text: res.message || `Test email sent successfully to ${recipient}`
+      });
+    } catch (err: any) {
+      setEmailStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to send test email.'
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
+  const handleAuditUserEmails = async () => {
+    setIsAuditingEmails(true);
+    setEmailStatusMsg(null);
+    try {
+      const res = await apiClient.getEmailAudit();
+      setEmailAuditResult({
+        totalUsers: res.totalUsers,
+        invalidUsers: res.invalidUsers || []
+      });
+    } catch (err: any) {
+      setEmailStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to audit stored user emails.'
+      });
+    } finally {
+      setIsAuditingEmails(false);
     }
   };
 
@@ -809,9 +879,15 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                 { key: 'breakingNewsAlerts', label: 'Breaking News Alerts', desc: 'Auto-broadcast instant notifications when admin flags breaking news' },
                 { key: 'reportApprovalAlerts', label: 'Citizen Report Approval Alerts', desc: 'Notify reporters when their dispatches are verified & paid' },
                 { key: 'payoutAlerts', label: 'Payout Disbursement Alerts', desc: 'Notify creators when bank transfer/UPI payout clears' },
-                { key: 'soundEnabled', label: 'Alert Audio Chime', desc: 'Play notification sound on citizen dispatches' }
+                { key: 'soundEnabled', label: 'Alert Audio Chime', desc: 'Play notification sound on citizen dispatches' },
+                { key: 'userEmailNotificationsEnabled', label: 'User Welcome, Login & Password Reset Emails', desc: 'Send Hostinger SMTP notifications to validated user email addresses' },
+                { key: 'adminNewUserEmailAlerts', label: 'Admin New-User Registration Alerts', desc: 'Notify the configured admin recipient email when a new user registers' }
               ].map((item) => {
-                const isChecked = Boolean((currentSettings.notifications as any)[item.key]);
+                const rawVal = (currentSettings.notifications as any)[item.key];
+                const isChecked =
+                  item.key === 'userEmailNotificationsEnabled' || item.key === 'adminNewUserEmailAlerts'
+                    ? rawVal !== false
+                    : Boolean(rawVal);
                 return (
                   <div
                     key={item.key}
@@ -862,6 +938,187 @@ export const AppSettingsManager: React.FC<AppSettingsManagerProps> = ({
                   </div>
                 );
               })}
+            </div>
+
+            {/* Admin Email Notification Recipient Configuration & Test Email */}
+            <div
+              style={{
+                padding: '18px',
+                borderRadius: '12px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Mail size={16} color="#ea580c" />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                      Email Notification Recipient (Hostinger SMTP)
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      Sender: <code>noreply@spotlight360.in</code> (smtp.hostinger.com). Configure the authorized admin recipient email and send a test email.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {saveError && (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#dc2626',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}
+                >
+                  {saveError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                <input
+                  type="email"
+                  value={currentSettings.notifications.notificationRecipientEmail ?? ''}
+                  onChange={(e) => {
+                    setEmailStatusMsg(null);
+                    setCurrentSettings({
+                      ...currentSettings,
+                      notifications: {
+                        ...currentSettings.notifications,
+                        notificationRecipientEmail: e.target.value
+                      }
+                    });
+                  }}
+                  placeholder="Enter admin recipient email (e.g. jrinfotechponneri@gmail.com)"
+                  style={{
+                    flex: '1 1 260px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    outline: 'none'
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Save size={14} />
+                  <span>{isSaving ? 'Saving...' : 'Save Recipient'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTestEmail}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ff4500 0%, #ea580c 100%)',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isSendingTestEmail ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Send size={14} />
+                  <span>{isSendingTestEmail ? 'Sending Test...' : 'Send Test Email'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAuditUserEmails}
+                  disabled={isAuditingEmails}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isAuditingEmails ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <AlertTriangle size={14} color="#ea580c" />
+                  <span>{isAuditingEmails ? 'Scanning...' : 'Check User Emails'}</span>
+                </button>
+              </div>
+
+              {emailStatusMsg && (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: emailStatusMsg.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                    border: `1px solid ${emailStatusMsg.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                    color: emailStatusMsg.type === 'success' ? '#047857' : '#dc2626',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}
+                >
+                  {emailStatusMsg.text}
+                </div>
+              )}
+
+              {emailAuditResult && (
+                <div
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '12px',
+                    color: '#334155'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '6px' }}>
+                    Scanned {emailAuditResult.totalUsers} users &bull; {emailAuditResult.invalidUsers.length} invalid/non-routable email(s) found
+                  </div>
+                  {emailAuditResult.invalidUsers.length === 0 ? (
+                    <div style={{ color: '#047857' }}>All stored user email addresses have valid format.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {emailAuditResult.invalidUsers.map((u) => (
+                        <div key={u.id} style={{ color: '#b91c1c' }}>
+                          <strong>@{u.handle}</strong> ({u.displayName}): <code>{u.email || '(empty)'}</code> — {u.reason}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

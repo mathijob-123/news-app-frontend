@@ -118,6 +118,22 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
         adminEmail.trim().toLowerCase() === 'jrinfotechponneri@gmail.com';
 
       if (validPasscodes.includes(inputPass) && isEmailAuthorized) {
+        try {
+          const res = await loginAdmin({
+            identifier: adminEmail.trim(),
+            password: inputPass
+          });
+          if (res && res.user) {
+            onLoginSuccess({
+              id: res.user.id,
+              name: res.user.displayName || 'Bureau SuperAdmin',
+              role: 'SuperAdmin'
+            });
+            return;
+          }
+        } catch {
+          // Offline/local fallback
+        }
         onLoginSuccess({
           id: 'adm_master_jr',
           name: 'Bureau SuperAdmin',
