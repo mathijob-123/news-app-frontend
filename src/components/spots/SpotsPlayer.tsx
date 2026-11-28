@@ -156,6 +156,10 @@ const ReelCard: React.FC<ReelCardProps> = ({
   isEndedRef.current = isEnded;
   const isMutedRef = useRef(isMuted);
   isMutedRef.current = isMuted;
+  const onAutoMutedRef = useRef(onAutoMuted);
+  onAutoMutedRef.current = onAutoMuted;
+  const onActiveReadyRef = useRef(onActiveReady);
+  onActiveReadyRef.current = onActiveReady;
 
   const scheduleBufferingIndicator = useCallback(() => {
     if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
@@ -226,7 +230,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
           if (video.readyState >= 2) {
             setHasFirstFrame(true);
           }
-          onActiveReady?.();
+          onActiveReadyRef.current?.();
         })
         .catch((err) => {
           // Ignore transient AbortError when source swaps or rapid scroll occurs
@@ -236,7 +240,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
           console.warn('[SpotsPlayer ReelCard Autoplay Notice]:', err);
           if (videoRef.current && !videoRef.current.muted && isActiveRef.current && !isPausedRef.current) {
             videoRef.current.muted = true;
-            onAutoMuted?.();
+            onAutoMutedRef.current?.();
             videoRef.current
               .play()
               .then(() => {
@@ -245,7 +249,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                   setHasFirstFrame(true);
                 }
-                onActiveReady?.();
+                onActiveReadyRef.current?.();
               })
               .catch(() => {
                 setIsPlaying(false);
@@ -257,7 +261,7 @@ const ReelCard: React.FC<ReelCardProps> = ({
           }
         });
     }
-  }, [onAutoMuted, onActiveReady, clearBufferingIndicator]);
+  }, [clearBufferingIndicator]);
 
   // Handle Play/Pause when entering or leaving active view or when paused by modal
   useEffect(() => {
@@ -1471,6 +1475,10 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     setIsMuted(true);
   }, []);
 
+  const handleActiveReady = useCallback(() => {
+    setActiveVideoReady(true);
+  }, []);
+
   // Empty state: When no video reels are available for the location
   if (videoReels.length === 0) {
     const locName =
@@ -1742,7 +1750,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             onAutoMuted={handleAutoMuted}
-            onActiveReady={idx === activeIndex ? () => setActiveVideoReady(true) : undefined}
+            onActiveReady={idx === activeIndex ? handleActiveReady : undefined}
             onSkipNext={
               idx + 1 < videoReels.length
                 ? () => {
