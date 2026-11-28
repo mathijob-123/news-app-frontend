@@ -1002,7 +1002,8 @@ input, textarea, select {
   object-fit: cover;
   object-position: center top;
   display: block;
-  background: #000000;
+  background: transparent;
+  transform: translateZ(0);
 }
 
 .spots-replay-overlay {

@@ -93,7 +93,7 @@ import {
   trackStoredAdClick,
   getStoredNotifications
 } from './services/storageService';
-import { calculateDistanceKm, isLocationMatch } from './services/geoService';
+import { calculateDistanceKm, isLocationMatch, getHubIdentifier } from './services/geoService';
 import { apiClient } from './services/apiClient';
 import {
   generateSmartVideoFeed,
@@ -532,10 +532,28 @@ export const AppContent: React.FC = () => {
     refreshNotificationsCount();
     async function loadServerPosts() {
       try {
-        const serverPosts = await apiClient.getPosts();
-        if (isMounted && serverPosts && serverPosts.length > 0) {
-          setPosts(serverPosts);
-          savePosts(serverPosts);
+        const hubId = activeLocation.locationId || getHubIdentifier(activeLocation);
+        let fullLoaded = false;
+
+        if (hubId) {
+          apiClient
+            .getPosts({ locationId: hubId })
+            .then((localHubPosts) => {
+              if (!fullLoaded && isMounted && Array.isArray(localHubPosts) && localHubPosts.length > 0) {
+                setPosts((prev) => {
+                  const ids = new Set(localHubPosts.map((p) => p.id));
+                  return [...localHubPosts, ...prev.filter((p) => !ids.has(p.id))];
+                });
+              }
+            })
+            .catch(() => {});
+        }
+
+        const allServerPosts = await apiClient.getPosts();
+        fullLoaded = true;
+        if (isMounted && Array.isArray(allServerPosts) && allServerPosts.length > 0) {
+          setPosts(allServerPosts);
+          savePosts(allServerPosts);
         }
       } catch (err) {
         console.warn('[App] Could not fetch server posts, using local cache:', err);
@@ -982,8 +1000,12 @@ export const AppContent: React.FC = () => {
 
     if (newPost.type === 'video') {
       setSelectedSpotPostId(newPost.id);
+      setActiveModule('main');
+      setActiveView('spots');
       setActiveTab('spots');
     } else {
+      setActiveModule('main');
+      setActiveView('feed');
       setActiveTab('home');
     }
 

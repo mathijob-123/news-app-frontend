@@ -711,7 +711,12 @@ export const apiClient = {
       throw new Error('Cannot upload an empty file (0 bytes). Please select a valid media file.');
     }
 
-    const contentType = file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg');
+    const rawContentType = file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg');
+    // Normalize QuickTime (.mov) uploads to video/mp4 MIME so Android WebView plays H.264/AAC videos seamlessly
+    const contentType =
+      folder === 'videos' && (rawContentType === 'video/quicktime' || filename.toLowerCase().endsWith('.mov'))
+        ? 'video/mp4'
+        : rawContentType;
 
     try {
       const { uploadUrl, publicUrl } = await this.getPresignedUploadUrl(filename, contentType, folder);
@@ -781,12 +786,18 @@ export const apiClient = {
             throw new Error('Failed to read media file content');
           }
 
+          const rawContentType = file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg');
+          const contentType =
+            folder === 'videos' && (rawContentType === 'video/quicktime' || filename.toLowerCase().endsWith('.mov'))
+              ? 'video/mp4'
+              : rawContentType;
+
           const res = await fetch(`${API_BASE}/upload/direct`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               filename,
-              contentType: file.type || (folder === 'videos' ? 'video/mp4' : 'image/jpeg'),
+              contentType,
               fileBase64,
               folder
             })

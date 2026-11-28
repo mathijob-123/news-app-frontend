@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spotlight360-v2';
+const CACHE_NAME = 'spotlight360-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -28,8 +28,20 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Video and audio files stream via network; do not cache full blobs in SW
-  if (event.request.url.match(/\.(mp4|webm|m4v|m3u8|mp3)$/)) {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Never intercept cross-origin requests (Cloudflare R2 media, Supabase REST, Vercel API)
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Video/audio and byte-range requests must bypass SW so Chromium/WebView native streaming works
+  if (
+    event.request.headers.has('range') ||
+    /\.(mp4|mov|webm|m4v|m3u8|ts|mp3|aac|ogg)(\?.*)?$/i.test(event.request.url)
+  ) {
     return;
   }
 

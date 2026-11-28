@@ -50,9 +50,12 @@ interface ReelCardProps {
   isActive: boolean;
   isPaused?: boolean;
   isNear: boolean;
-  isNext?: boolean;
+  shouldPreloadNext?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
+  onAutoMuted?: () => void;
+  onActiveReady?: () => void;
+  onSkipNext?: () => void;
   currentUser: User;
   activeLocation?: LocationCoordinates;
   onOpenLocationPicker?: () => void;
@@ -92,9 +95,12 @@ const ReelCard: React.FC<ReelCardProps> = ({
   isActive,
   isPaused = false,
   isNear,
-  isNext,
+  shouldPreloadNext = false,
   isMuted,
   onToggleMute,
+  onAutoMuted,
+  onActiveReady,
+  onSkipNext,
   currentUser,
   activeLocation,
   onOpenLocationPicker,
@@ -112,21 +118,13 @@ const ReelCard: React.FC<ReelCardProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [hasFirstFrame, setHasFirstFrame] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const [playbackErrorDetail, setPlaybackErrorDetail] = useState<'format' | 'network' | null>(null);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [isQualifiedView, setIsQualifiedView] = useState(false);
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const progressBarRef = useRef<HTMLDivElement | null>(null);
-  const lastTapRef = useRef<number>(0);
-  const prevActiveRef = useRef(false);
-  const watchedReportedRef = useRef(false);
-
-  useEffect(() => {
-    watchedReportedRef.current = false;
-  }, [post.id]);
 
   const videoSrc = useMemo(() => {
     return resolveVideoSrc(post.mediaUrl, index);
@@ -141,6 +139,126 @@ const ReelCard: React.FC<ReelCardProps> = ({
     );
   }, [post.creatorAvatar, post.creatorName]);
 
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const prevActiveRef = useRef(false);
+  const prevSrcRef = useRef<string>(videoSrc);
+  const watchedReportedRef = useRef(false);
+  const bufferingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stallRetriedRef = useRef(false);
+  const isBufferingRef = useRef(false);
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
+  const isEndedRef = useRef(isEnded);
+  isEndedRef.current = isEnded;
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
+
+  const scheduleBufferingIndicator = useCallback(() => {
+    if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
+    bufferingTimerRef.current = setTimeout(() => {
+      if (isActiveRef.current && !isPausedRef.current && !isEndedRef.current) {
+        const v = videoRef.current;
+        if (v && (v.readyState < 2 || v.paused)) {
+          isBufferingRef.current = true;
+          setIsBuffering(true);
+        }
+      }
+    }, 300);
+  }, []);
+
+  const clearBufferingIndicator = useCallback(() => {
+    if (bufferingTimerRef.current) {
+      clearTimeout(bufferingTimerRef.current);
+      bufferingTimerRef.current = null;
+    }
+    if (isBufferingRef.current) {
+      isBufferingRef.current = false;
+    }
+    setIsBuffering(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    watchedReportedRef.current = false;
+  }, [post.id]);
+
+  // Reset error state and reload element cleanly if the underlying videoSrc changes
+  useEffect(() => {
+    if (prevSrcRef.current !== videoSrc) {
+      prevSrcRef.current = videoSrc;
+      stallRetriedRef.current = false;
+      setHasPlaybackError(false);
+      setPlaybackErrorDetail(null);
+      setHasFirstFrame(false);
+      setIsEnded(false);
+      if (videoRef.current) {
+        try {
+          videoRef.current.load();
+        } catch {
+          // Safely ignore load interruption
+        }
+      }
+    }
+  }, [videoSrc]);
+
+  const attemptPlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !isActiveRef.current || isPausedRef.current) return;
+
+    video.volume = 1;
+    video.muted = isMutedRef.current;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+          clearBufferingIndicator();
+          setHasPlaybackError(false);
+          if (video.readyState >= 2) {
+            setHasFirstFrame(true);
+          }
+          onActiveReady?.();
+        })
+        .catch((err) => {
+          // Ignore transient AbortError when source swaps or rapid scroll occurs
+          if (err?.name === 'AbortError') {
+            return;
+          }
+          console.warn('[SpotsPlayer ReelCard Autoplay Notice]:', err);
+          if (videoRef.current && !videoRef.current.muted && isActiveRef.current && !isPausedRef.current) {
+            videoRef.current.muted = true;
+            onAutoMuted?.();
+            videoRef.current
+              .play()
+              .then(() => {
+                setIsPlaying(true);
+                clearBufferingIndicator();
+                if (videoRef.current && videoRef.current.readyState >= 2) {
+                  setHasFirstFrame(true);
+                }
+                onActiveReady?.();
+              })
+              .catch(() => {
+                setIsPlaying(false);
+                clearBufferingIndicator();
+              });
+          } else {
+            setIsPlaying(false);
+            clearBufferingIndicator();
+          }
+        });
+    }
+  }, [onAutoMuted, onActiveReady, clearBufferingIndicator]);
+
   // Handle Play/Pause when entering or leaving active view or when paused by modal
   useEffect(() => {
     const video = videoRef.current;
@@ -149,10 +267,20 @@ const ReelCard: React.FC<ReelCardProps> = ({
     if (isActive && !isPaused) {
       video.muted = isMuted;
       setIsEnded(false);
+      stallRetriedRef.current = false;
+
+      if (video.readyState >= 2) {
+        setHasFirstFrame(true);
+        clearBufferingIndicator();
+      } else {
+        scheduleBufferingIndicator();
+      }
 
       if (!prevActiveRef.current) {
         try {
-          video.currentTime = 0;
+          if (video.readyState >= 1) {
+            video.currentTime = 0;
+          }
         } catch {
           // Safely ignore if metadata is still initializing
         }
@@ -163,40 +291,53 @@ const ReelCard: React.FC<ReelCardProps> = ({
       }
       prevActiveRef.current = true;
 
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setIsBuffering(false);
-          })
-          .catch((err) => {
-            console.warn('[SpotsPlayer ReelCard Autoplay Notice]:', err);
-            if (video) {
-              video.muted = true;
-              video
-                .play()
-                .then(() => setIsPlaying(true))
-                .catch(() => setIsPlaying(false));
-            }
-          });
-      }
+      attemptPlay();
     } else {
       video.pause();
       setIsPlaying(false);
-      setIsBuffering(false);
+      clearBufferingIndicator();
       setCaptionExpanded(false);
       setIsEnded(false);
       if (!isActive) {
         prevActiveRef.current = false;
         try {
-          video.currentTime = 0;
+          if (video.readyState >= 1) {
+            video.currentTime = 0;
+          }
         } catch {
           // Safely ignore
         }
       }
     }
-  }, [isActive, isPaused, videoSrc]);
+  }, [isActive, isPaused, videoSrc, attemptPlay, scheduleBufferingIndicator, clearBufferingIndicator]);
+
+  // Watchdog: if an active video stalls > 6s on mobile without advancing, retry connection once automatically
+  useEffect(() => {
+    if (!isActive || isPaused || isPlaying || isEnded || hasPlaybackError) return;
+
+    const timer = setTimeout(() => {
+      const video = videoRef.current;
+      if (!video || !isActiveRef.current || isPausedRef.current) return;
+      if (video.readyState < 2 && !stallRetriedRef.current) {
+        stallRetriedRef.current = true;
+        try {
+          video.load();
+          attemptPlay();
+        } catch {
+          // ignore
+        }
+      } else if (video.readyState < 2 && stallRetriedRef.current) {
+        clearBufferingIndicator();
+        if (video.error) {
+          const isFormatErr = video.error.code === 3 || video.error.code === 4 || /\.mov(\?|$)/i.test(videoSrc);
+          setPlaybackErrorDetail(isFormatErr ? 'format' : 'network');
+          setHasPlaybackError(true);
+        }
+      }
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [isActive, isPaused, isPlaying, isEnded, hasPlaybackError, attemptPlay, clearBufferingIndicator]);
 
   // Listen for global pause-all-videos broadcast (e.g. when CreateModal opens)
   useEffect(() => {
@@ -222,7 +363,14 @@ const ReelCard: React.FC<ReelCardProps> = ({
 
   // Time update tracking for watch progress & monetization qualification
   const handleTimeUpdate = () => {
-    if (!videoRef.current || isQualifiedView) return;
+    if (!videoRef.current) return;
+    if (isBufferingRef.current) {
+      clearBufferingIndicator();
+    }
+    if (!hasFirstFrame && videoRef.current.readyState >= 2) {
+      setHasFirstFrame(true);
+    }
+    if (isQualifiedView) return;
     const current = videoRef.current.currentTime;
     const duration = post.durationSeconds || 15;
     const thresholdSeconds = Math.min(3, Math.max(1, duration * 0.5));
@@ -366,36 +514,77 @@ const ReelCard: React.FC<ReelCardProps> = ({
               }}
             />
           )}
+          {post.thumbnailUrl && !hasFirstFrame && (
+            <img
+              src={post.thumbnailUrl}
+              alt={post.headline}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center top',
+                zIndex: 1,
+                pointerEvents: 'none'
+              }}
+            />
+          )}
           <video
             ref={videoRef}
             src={videoSrc}
             poster={post.thumbnailUrl}
-            autoPlay={isActive}
             playsInline
-            preload={isActive || isNext ? 'auto' : 'metadata'}
+            preload={isActive ? 'auto' : shouldPreloadNext ? 'auto' : 'none'}
             muted={isMuted}
+            onLoadedData={() => {
+              setHasFirstFrame(true);
+              clearBufferingIndicator();
+              if (isActiveRef.current && !isPausedRef.current && !isEndedRef.current && videoRef.current?.paused) {
+                attemptPlay();
+              }
+            }}
             onPlay={() => {
               setIsPlaying(true);
-              setIsBuffering(false);
+              clearBufferingIndicator();
               setIsEnded(false);
+              setHasPlaybackError(false);
             }}
             onPause={() => setIsPlaying(false)}
             onPlaying={() => {
               setIsPlaying(true);
-              setIsBuffering(false);
+              setHasFirstFrame(true);
+              clearBufferingIndicator();
               setIsEnded(false);
+              setHasPlaybackError(false);
+              onActiveReady?.();
             }}
-            onWaiting={() => setIsBuffering(true)}
-            onCanPlay={() => setIsBuffering(false)}
+            onWaiting={() => scheduleBufferingIndicator()}
+            onStalled={() => {
+              if (isActiveRef.current && !isPausedRef.current) {
+                scheduleBufferingIndicator();
+              }
+            }}
+            onCanPlay={() => {
+              setHasFirstFrame(true);
+              clearBufferingIndicator();
+              onActiveReady?.();
+              if (isActiveRef.current && !isPausedRef.current && !isEndedRef.current && videoRef.current?.paused) {
+                attemptPlay();
+              }
+            }}
             onEnded={() => {
               setIsEnded(true);
               setIsPlaying(false);
-              setIsBuffering(false);
+              clearBufferingIndicator();
             }}
             onTimeUpdate={handleTimeUpdate}
-            onError={() => {
+            onError={(e) => {
+              const errCode = e.currentTarget.error?.code;
+              const isFormatErr = errCode === 3 || errCode === 4 || /\.mov(\?|$)/i.test(videoSrc);
+              setPlaybackErrorDetail(isFormatErr ? 'format' : 'network');
               setHasPlaybackError(true);
-              setIsBuffering(false);
+              clearBufferingIndicator();
             }}
             className="spots-video"
           />
@@ -502,37 +691,91 @@ const ReelCard: React.FC<ReelCardProps> = ({
           <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
             Video Unavailable
           </h3>
-          <p style={{ fontSize: '12px', color: '#a1a1aa', maxWidth: '260px', lineHeight: 1.5, marginBottom: '16px' }}>
-            This reel could not be played. It may still be processing or had a network interruption.
+          <p style={{ fontSize: '12px', color: '#a1a1aa', maxWidth: '280px', lineHeight: 1.5, marginBottom: '16px' }}>
+            {playbackErrorDetail === 'format'
+              ? 'This clip uses an iPhone HEVC / .MOV format not supported by this browser or WebView. You can open it externally or skip to the next reel.'
+              : 'This reel could not be played. It may still be processing or had a network interruption.'}
           </p>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setHasPlaybackError(false);
-              const video = videoRef.current;
-              if (video) {
-                video.load();
-                video.play().catch(() => {});
-              }
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 18px',
-              borderRadius: '9999px',
-              background: '#ea580c',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <RotateCw size={14} />
-            <span>Retry Video</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                stallRetriedRef.current = false;
+                setHasPlaybackError(false);
+                setPlaybackErrorDetail(null);
+                scheduleBufferingIndicator();
+                const video = videoRef.current;
+                if (video) {
+                  video.load();
+                  attemptPlay();
+                }
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 18px',
+                borderRadius: '9999px',
+                background: '#ea580c',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <RotateCw size={14} />
+              <span>Retry Video</span>
+            </button>
+            {playbackErrorDetail === 'format' && (
+              <a
+                href={videoSrc}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 16px',
+                  borderRadius: '9999px',
+                  background: 'rgba(255, 255, 255, 0.14)',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  textDecoration: 'none'
+                }}
+              >
+                <span>Open Player</span>
+              </a>
+            )}
+            {onSkipNext && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSkipNext();
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 16px',
+                  borderRadius: '9999px',
+                  background: 'rgba(255, 255, 255, 0.14)',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>Next Reel</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -837,6 +1080,7 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     return 0;
   });
   const [isMuted, setIsMuted] = useState(false);
+  const [activeVideoReady, setActiveVideoReady] = useState(false);
   const [followedCreators, setFollowedCreators] = useState<Record<string, boolean>>({});
   const [activeModalPost, setActiveModalPost] = useState<VideoPost | null>(null);
   const [showComments, setShowComments] = useState(false);
@@ -847,18 +1091,31 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
   const hasScrolledInitialRef = useRef<string | null>(null);
   const isSwipingRef = useRef(false);
   const prevLocationKeyRef = useRef<string | undefined>(undefined);
+  const autoMutedByPolicyRef = useRef(false);
 
   // STRICTLY video / reel posts only
   const videoReels = useMemo(() => {
     return posts.filter((p) => {
       if (p.type === 'video') return true;
-      if (p.mediaUrl && (p.mediaUrl.endsWith('.mp4') || p.mediaUrl.endsWith('.webm') || p.mediaUrl.includes('/videos/'))) return true;
+      if (p.mediaUrl && (p.mediaUrl.endsWith('.mp4') || p.mediaUrl.endsWith('.mov') || p.mediaUrl.endsWith('.webm') || p.mediaUrl.includes('/videos/'))) return true;
       return false;
     });
   }, [posts]);
 
-  // Persist current active index so leaving and returning preserves position
+  // Clamp activeIndex if videoReels list shrinks or reloads from server
   useEffect(() => {
+    if (videoReels.length > 0 && activeIndex >= videoReels.length) {
+      setActiveIndex(0);
+      activeIndexRef.current = 0;
+      if (containerRef.current) {
+        containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }
+  }, [videoReels.length, activeIndex]);
+
+  // Persist current active index and reset next-reel preload gate until the new active reel plays
+  useEffect(() => {
+    setActiveVideoReady(false);
     try {
       sessionStorage.setItem('spotlight_last_reel_index_v1', String(activeIndex));
     } catch {}
@@ -920,16 +1177,34 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }
   }, [initialPostId, videoReels]);
 
-  // Unlock unmuted audio on user gesture
+  // Unlock unmuted audio on any user gesture (e.g. button click, upload finish, tap)
+  // whenever browser/WebView autoplay policy forced mute — without ever overriding a manual user mute
   useEffect(() => {
-    const unlockAudio = () => {};
-    window.addEventListener('pointerdown', unlockAudio, { once: true });
-    window.addEventListener('touchstart', unlockAudio, { once: true });
-    window.addEventListener('click', unlockAudio, { once: true });
+    const unlockAudio = () => {
+      if (autoMutedByPolicyRef.current) {
+        autoMutedByPolicyRef.current = false;
+        setIsMuted(false);
+        const activeVideo = containerRef.current?.querySelector(
+          `[data-index="${activeIndexRef.current}"] video`
+        ) as HTMLVideoElement | null;
+        if (activeVideo) {
+          activeVideo.volume = 1;
+          activeVideo.muted = false;
+          if (activeVideo.paused) {
+            activeVideo.play().catch(() => {});
+          }
+        }
+      }
+    };
+    window.addEventListener('pointerdown', unlockAudio, { capture: true, passive: true });
+    window.addEventListener('touchstart', unlockAudio, { capture: true, passive: true });
+    window.addEventListener('click', unlockAudio, { capture: true });
+    window.addEventListener('lp:unlock-audio', unlockAudio);
     return () => {
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('pointerdown', unlockAudio, { capture: true });
+      window.removeEventListener('touchstart', unlockAudio, { capture: true });
+      window.removeEventListener('click', unlockAudio, { capture: true });
+      window.removeEventListener('lp:unlock-audio', unlockAudio);
     };
   }, []);
 
@@ -1186,9 +1461,15 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
     }));
   };
 
-  const handleToggleMute = () => {
+  const handleToggleMute = useCallback(() => {
+    autoMutedByPolicyRef.current = false;
     setIsMuted((prev) => !prev);
-  };
+  }, []);
+
+  const handleAutoMuted = useCallback(() => {
+    autoMutedByPolicyRef.current = true;
+    setIsMuted(true);
+  }, []);
 
   // Empty state: When no video reels are available for the location
   if (videoReels.length === 0) {
@@ -1456,10 +1737,25 @@ export const SpotsPlayer: React.FC<SpotsPlayerProps> = ({
             index={idx}
             isActive={idx === activeIndex && !isPaused && !showComments}
             isPaused={isPaused || showComments}
-            isNear={Math.abs(idx - activeIndex) <= 2}
-            isNext={Math.abs(idx - activeIndex) === 1}
+            isNear={Math.abs(idx - activeIndex) <= 1}
+            shouldPreloadNext={idx === activeIndex + 1 && activeVideoReady}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
+            onAutoMuted={handleAutoMuted}
+            onActiveReady={idx === activeIndex ? () => setActiveVideoReady(true) : undefined}
+            onSkipNext={
+              idx + 1 < videoReels.length
+                ? () => {
+                    const nextIdx = idx + 1;
+                    setActiveIndex(nextIdx);
+                    activeIndexRef.current = nextIdx;
+                    containerRef.current?.scrollTo({
+                      top: nextIdx * containerRef.current.clientHeight,
+                      behavior: 'smooth'
+                    });
+                  }
+                : undefined
+            }
             currentUser={currentUser}
             activeLocation={activeLocation}
             onOpenLocationPicker={onOpenLocationPicker}

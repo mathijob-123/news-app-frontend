@@ -113,6 +113,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                   // If browser restricts unmuted autoplay, mute and immediately play
                   if (videoRef.current && !videoRef.current.muted) {
                     videoRef.current.muted = true;
+                    setIsMuted(true);
                     videoRef.current
                       .play()
                       .then(() => {
@@ -321,6 +322,19 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                 muted={isMuted}
                 loop
                 playsInline
+                onCanPlay={(e) => {
+                  const v = e.currentTarget;
+                  const el = mediaContainerRef.current;
+                  if (v.paused && el) {
+                    const rect = el.getBoundingClientRect();
+                    const vh = window.innerHeight || document.documentElement.clientHeight;
+                    const center = rect.top + rect.height / 2;
+                    if (center >= vh * 0.12 && center <= vh * 0.88) {
+                      v.muted = globalFeedMuted;
+                      v.play().then(() => setIsPlaying(true)).catch(() => {});
+                    }
+                  }
+                }}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 className="feed-media-video"

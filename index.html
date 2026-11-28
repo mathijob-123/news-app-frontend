@@ -41,10 +41,21 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        const isCapacitorNative = Boolean(
+          window.Capacitor &&
+            typeof window.Capacitor.isNativePlatform === 'function' &&
+            window.Capacitor.isNativePlatform()
+        );
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => {
-            console.log('SW registration note:', err);
-          });
+          if (isCapacitorNative) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(reg => reg.unregister());
+            }).catch(() => {});
+          } else {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+              console.log('SW registration note:', err);
+            });
+          }
         });
       }
     </script>

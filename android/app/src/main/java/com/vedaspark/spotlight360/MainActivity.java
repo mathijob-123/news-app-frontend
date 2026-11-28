@@ -58,13 +58,31 @@ public class MainActivity extends BridgeActivity {
             }
 
             // Webview settings, fitsSystemWindows, media and storage optimization
+            configureWebViewMediaSettings(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        configureWebViewMediaSettings(false);
+    }
+
+    private void configureWebViewMediaSettings(boolean applyInsets) {
+        try {
             if (this.bridge != null && this.bridge.getWebView() != null) {
                 View webView = this.bridge.getWebView();
-                webView.setFitsSystemWindows(true);
+                if (applyInsets) {
+                    webView.setFitsSystemWindows(true);
+                }
                 WebSettings settings = this.bridge.getWebView().getSettings();
                 settings.setMediaPlaybackRequiresUserGesture(false);
                 settings.setDomStorageEnabled(true);
                 settings.setDatabaseEnabled(true);
+                settings.setAllowFileAccess(true);
+                settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
             }
         } catch (Exception e) {
             e.printStackTrace();

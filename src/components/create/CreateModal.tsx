@@ -118,6 +118,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   const [mediaType, setMediaType] = useState<'video' | 'image'>('video');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
+  const [formatNotice, setFormatNotice] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(15);
 
   // Form Fields
@@ -199,6 +200,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
 
     return () => {
       clearInterval(interval);
+      window.dispatchEvent(new CustomEvent('lp:unlock-audio'));
     };
   }, []);
 
@@ -208,9 +210,15 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     if (!file) return;
 
     setError(null);
+    setFormatNotice(null);
 
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
+    const lowerName = file.name.toLowerCase();
+    const isVideo =
+      file.type.startsWith('video/') ||
+      /\.(mp4|mov|m4v|webm|3gp)$/i.test(lowerName);
+    const isImage =
+      file.type.startsWith('image/') ||
+      /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(lowerName);
 
     if (!isVideo && !isImage) {
       setError('Please upload a valid video (MP4, MOV, WEBM) or image file (JPG, PNG, WEBP).');
@@ -239,6 +247,24 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     setTouched((prev) => ({ ...prev, media: true }));
 
     if (isVideo) {
+      // Inspect first 64KB to detect iPhone HEVC (hvc1/hvcC) or QuickTime (.mov) for helpful compatibility guidance
+      try {
+        const headerBuf = new Uint8Array(await file.slice(0, 65536).arrayBuffer());
+        let ascii = '';
+        for (let i = 0; i < headerBuf.length; i++) {
+          ascii += String.fromCharCode(headerBuf[i]);
+        }
+        const isHevc = ascii.includes('hvcC') || ascii.includes('hvc1') || ascii.includes('hev1');
+        const isMov = lowerName.endsWith('.mov') || file.type === 'video/quicktime';
+        if (isHevc || isMov) {
+          setFormatNotice(
+            'iPhone HEVC/.MOV format detected. For universal playback on all Android phones, use iPhone Camera → Formats → Most Compatible (H.264).'
+          );
+        }
+      } catch {
+        // Ignore slice probe failure
+      }
+
       // Auto-extract real video thumbnail
       try {
         const thumb = await extractVideoThumbnail(file);
@@ -256,6 +282,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     setMediaFile(null);
     setPreviewUrl(null);
     setThumbnailBlob(null);
+    setFormatNotice(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setTouched((prev) => ({ ...prev, media: true }));
   };
@@ -312,8 +339,11 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         throw new Error('Media upload to cloud storage failed. Please check your connection and try again.');
       }
 
-      // 2. Upload Thumbnail if video, or use mediaUrl if image
-      let uploadedThumbnailUrl = uploadedMediaUrl;
+      // 2. Upload Thumbnail if video (never fall back to video URL inside <img>)
+      let uploadedThumbnailUrl =
+        mediaType === 'video'
+          ? 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600'
+          : uploadedMediaUrl;
       if (mediaType === 'video' && thumbnailBlob) {
         setUploadStatus('Saving report thumbnail...');
         const thumbFilename = `thumb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
@@ -325,7 +355,6 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           );
         } catch (thumbErr) {
           console.warn('Thumbnail upload warning:', thumbErr);
-          uploadedThumbnailUrl = uploadedMediaUrl;
         }
       }
 
@@ -647,7 +676,10 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           <button
             type="button"
             className="btn-primary"
-            onClick={onClose}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('lp:unlock-audio'));
+              onClose();
+            }}
             style={{
               padding: '14px',
               borderRadius: '12px',
@@ -870,8 +902,17 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                         src={previewUrl}
                         controls
                         playsInline
+                        muted={false}
+                        onPlay={(e) => {
+                          const vid = e.currentTarget;
+                          vid.muted = false;
+                          vid.volume = 1;
+                        }}
                         onLoadedMetadata={(e) => {
-                          const dur = Math.round((e.target as HTMLVideoElement).duration);
+                          const vid = e.target as HTMLVideoElement;
+                          vid.muted = false;
+                          vid.volume = 1;
+                          const dur = Math.round(vid.duration);
                           if (dur) setVideoDuration(dur);
                         }}
                         style={{
@@ -965,6 +1006,20 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                         </button>
                       </div>
                     </div>
+                    {formatNotice && (
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          background: 'rgba(245, 158, 11, 0.14)',
+                          borderTop: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#fde68a',
+                          fontSize: '11px',
+                          lineHeight: 1.4
+                        }}
+                      >
+                        {formatNotice}
+                      </div>
+                    )}
                   </div>
                 )}
 
